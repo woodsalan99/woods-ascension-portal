@@ -223,7 +223,7 @@ model SyncRun {
 
 | Module | What "done" means (acceptance criteria) | Status |
 |---|---|---|
-| **A — Scaffold & deploy skeleton** | Next.js app created; Prisma schema (§5) migrated to Railway Postgres; empty page deployed and loading at Railway URL | ☐ NOT STARTED |
+| **A — Scaffold & deploy skeleton** | Next.js app created; Prisma schema (§5) migrated to Railway Postgres; empty page deployed and loading at Railway URL | ✅ DONE — live at https://web-production-9aa91.up.railway.app (custom domain pending Module G) |
 | **B — Auth & tenancy** | Clerk magic-link works; admin + client roles enforced; `getScopedContext()` is the only data-access path; **LEAK TEST PASSED**: logged in as Zoom user and Meridian user, verified zero data crossover in every section | ☐ NOT STARTED |
 | **C — Smartlead sync** | `/api/cron/sync` guarded by CRON_SECRET; pulls analytics + lead-category counts for all active campaigns; upserts DailyStat with client-TZ bucketing; SyncRun rows written; Railway cron scheduled (hourly); manually verified one sync against Smartlead UI numbers | ☐ NOT STARTED |
 | **D — Client dashboard UI** | All 7 sections ported from approved demo artifact with design system §9; renders from DB; empty states shown when data absent; responsive on a real phone | ☐ NOT STARTED |
