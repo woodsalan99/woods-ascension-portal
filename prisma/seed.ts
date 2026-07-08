@@ -173,9 +173,9 @@ async function seedMeridian() {
       heroName: "Meridian Demo Co.",
       stageLabels: {
         STAGE_1: "Positive Reply",
-        STAGE_2: "Appointment Booked",
-        STAGE_3: "Appointment Held",
-        STAGE_4: "Deal Closed",
+        STAGE_2: "Call Booked",
+        STAGE_3: "Call Held",
+        STAGE_4: "Closed",
       },
     },
     update: {},
@@ -215,51 +215,64 @@ async function seedMeridian() {
     ],
   });
 
+  // Milestones, pipeline, daily stats, and note below are lifted verbatim
+  // (numbers, names, dates) from the approved demo artifact's Week-6
+  // dataset — design/demo-artifact.jsx, W6_MILESTONES / PIPELINE_W6 /
+  // W6_DAILY / CALLS_W6 — per §8's seed instruction for Meridian Demo Co.
   await prisma.milestone.deleteMany({ where: { clientId: client.id } });
   await prisma.milestone.createMany({
     data: [
       {
         clientId: client.id,
-        label: "Kickoff & setup",
-        subLabel: "Day 0",
+        label: "Campaign launch",
+        subLabel: "Day 21",
         state: "DONE",
         sortOrder: 1,
       },
       {
         clientId: client.id,
-        label: "Infrastructure live & warming",
-        subLabel: "Day 1",
+        label: "First positive reply",
+        subLabel: "Day 21",
         state: "DONE",
         sortOrder: 2,
       },
       {
         clientId: client.id,
-        label: "Campaign launch",
-        subLabel: "Day 22",
+        label: "First call booked",
+        subLabel: "Day 23",
         state: "DONE",
         sortOrder: 3,
       },
       {
         clientId: client.id,
-        label: "10 qualified appointments",
-        state: "CURRENT",
-        targetValue: 15,
-        currentValue: 13,
-        subLabel: "13 of 15",
+        label: "5 calls booked",
+        subLabel: "Day 31",
+        state: "DONE",
         sortOrder: 4,
       },
       {
         clientId: client.id,
-        label: "25 qualified appointments",
-        state: "NEXT",
-        targetValue: 25,
+        label: "First deal closed",
+        subLabel: "Day 37",
+        state: "DONE",
         sortOrder: 5,
       },
       {
         clientId: client.id,
-        label: "Day 111 review — proof of concept & ROI evaluation",
-        state: "NEXT",
+        label: "15 calls booked",
+        subLabel: "13 of 15",
+        state: "CURRENT",
+        targetValue: 15,
+        currentValue: 13,
         sortOrder: 6,
+      },
+      {
+        clientId: client.id,
+        label: "25 calls booked",
+        subLabel: "Next target",
+        state: "NEXT",
+        targetValue: 25,
+        sortOrder: 7,
       },
     ],
   });
@@ -270,72 +283,132 @@ async function seedMeridian() {
       {
         clientId: client.id,
         stage: "STAGE_1",
-        contactName: "Karen Ibarra",
-        company: "Ibarra Plumbing & Rooter",
-        dealValue: 1_200_000,
+        contactName: "K. Morrison",
+        company: "Morrison Hauling",
+        notes: "Qualifying",
+        qualified: true,
+      },
+      {
+        clientId: client.id,
+        stage: "STAGE_1",
+        contactName: "P. Nguyen",
+        company: "Nguyen Auto Group",
+        notes: "Qualifying",
         qualified: true,
       },
       {
         clientId: client.id,
         stage: "STAGE_2",
-        contactName: "Doug Fenwick",
-        company: "Fenwick Electrical Group",
-        dealValue: 2_400_000,
+        contactName: "Marcus Reyes",
+        company: "Reyes Logistics",
+        dealValue: 140_000,
+        notes: "Fleet expansion",
         qualified: true,
-        callDateTime: new Date("2026-07-15T17:00:00.000Z"),
+        callDateTime: new Date("2026-07-09T19:00:00.000Z"), // Thu Jul 9, 3:00 PM EST
         callStatus: "CONFIRMED",
       },
       {
         clientId: client.id,
-        stage: "STAGE_3",
-        contactName: "Marcus Webb",
-        company: "Webb HVAC Solutions",
-        dealValue: 1_800_000,
+        stage: "STAGE_2",
+        contactName: "Dana Whitfield",
+        company: "Whitfield Dental",
+        dealValue: 85_000,
+        notes: "Equipment financing",
         qualified: true,
-        callDateTime: new Date("2026-07-08T20:00:00.000Z"),
+        callDateTime: new Date("2026-07-10T15:30:00.000Z"), // Fri Jul 10, 11:30 AM EST
+        callStatus: "CONFIRMED",
+      },
+      {
+        clientId: client.id,
+        stage: "STAGE_2",
+        contactName: "Sam Bhatt",
+        company: "Bhatt Courier Group",
+        dealValue: 110_000,
+        notes: "Vehicle line",
+        qualified: true,
+        callDateTime: new Date("2026-07-13T18:00:00.000Z"), // Mon Jul 13, 2:00 PM EST
+        callStatus: "PENDING",
+      },
+      {
+        clientId: client.id,
+        stage: "STAGE_3",
+        contactName: "Tom Okafor",
+        company: "Okafor Construction",
+        dealValue: 220_000,
+        qualified: true,
+        callStatus: "HELD",
+      },
+      {
+        clientId: client.id,
+        stage: "STAGE_3",
+        contactName: "Lisa Tran",
+        company: "Tran Freight Co.",
+        dealValue: 95_000,
+        qualified: true,
         callStatus: "HELD",
       },
       {
         clientId: client.id,
         stage: "STAGE_4",
-        contactName: "Renata Cole",
-        company: "Cole Roofing & Exteriors",
-        dealValue: 3_100_000,
+        contactName: "J. Alvarez",
+        company: "Alvarez Towing",
+        dealValue: 60_000,
+        notes: "Funded",
+        qualified: true,
+      },
+      {
+        clientId: client.id,
+        stage: "STAGE_4",
+        contactName: "R. Castillo",
+        company: "Castillo Paving",
+        dealValue: 110_000,
+        notes: "Funded",
         qualified: true,
       },
     ],
   });
 
   await prisma.dailyStat.deleteMany({ where: { clientId: client.id } });
-  const dayStats = [];
-  const baseDate = new Date("2026-06-22T00:00:00.000Z");
-  for (let i = 0; i < 18; i++) {
-    const date = new Date(baseDate);
-    date.setUTCDate(date.getUTCDate() + i);
-    const sends = 180 + ((i * 7) % 40);
-    const totalReplies = 6 + (i % 5);
-    const positiveReplies = 1 + (i % 3);
-    const bounces = i % 4;
-    const apptsBooked = i === 5 || i === 11 || i === 16 ? 1 : 0;
-    dayStats.push({
+  // d, sends, totalReplies (positive replies from artifact), bounces, apptsBooked
+  const w6Daily: [string, number, number, number, number][] = [
+    ["2026-06-15", 180, 1, 4, 0],
+    ["2026-06-16", 220, 1, 5, 0],
+    ["2026-06-17", 260, 2, 5, 1],
+    ["2026-06-18", 300, 1, 6, 0],
+    ["2026-06-19", 340, 3, 7, 0],
+    ["2026-06-22", 420, 3, 8, 1],
+    ["2026-06-23", 460, 4, 9, 0],
+    ["2026-06-24", 500, 3, 9, 1],
+    ["2026-06-25", 560, 5, 10, 1],
+    ["2026-06-26", 600, 4, 11, 0],
+    ["2026-06-29", 660, 6, 11, 1],
+    ["2026-06-30", 700, 5, 12, 2],
+    ["2026-07-01", 740, 6, 13, 1],
+    ["2026-07-02", 800, 7, 13, 1],
+    ["2026-07-03", 820, 6, 14, 0],
+    ["2026-07-06", 860, 8, 15, 2],
+    ["2026-07-07", 900, 7, 15, 1],
+    ["2026-07-08", 640, 5, 10, 1],
+  ];
+  await prisma.dailyStat.createMany({
+    data: w6Daily.map(([date, sends, positiveReplies, bounces, apptsBooked]) => ({
       clientId: client.id,
-      date,
+      date: new Date(`${date}T00:00:00.000Z`),
       sends,
-      totalReplies,
+      totalReplies: positiveReplies,
       positiveReplies,
       bounces,
       apptsBooked,
-    });
-  }
-  await prisma.dailyStat.createMany({ data: dayStats });
+    })),
+  });
 
   await prisma.weeklyNote.deleteMany({ where: { clientId: client.id } });
   await prisma.weeklyNote.create({
     data: {
       clientId: client.id,
-      weekOf: new Date("2026-06-22T00:00:00.000Z"),
-      headline: "Week 6: momentum building toward 15 qualified appointments",
-      body: "Solid week — messaging is converting well in the trades verticals and we've got three calls on the books for next week. Keep an eye on the pipeline board below.",
+      weekOf: new Date("2026-07-06T00:00:00.000Z"),
+      headline: "Momentum is compounding.",
+      body: "Two more calls booked this week and reply quality keeps improving as the data sharpens targeting. We're two calls away from the 15-call milestone — I expect to cross it before Friday. Watch for Reyes Logistics on Thursday; strongest fit we've seen so far.",
       published: true,
     },
   });
