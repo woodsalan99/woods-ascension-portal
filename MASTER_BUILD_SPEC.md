@@ -55,6 +55,7 @@ This is the single source of truth for the Woods Ascension Client Portal build. 
 | D12 | Domain: `portal.woodsascension.com` via CNAME on Hostinger DNS → Railway. | Alan has full Hostinger access | 07-09 |
 | D13 | DB seed includes TWO clients: Zoom Business Brokers (real) + "Meridian Demo Co." (staging/sales-demo, fake data). Built day one; doubles as the tenancy leak test. | One more client expected within 30 days; demo login for prospect calls | 07-09 |
 | D14 | Launch state: Zoom seeds with EMPTY pipeline stages and onboarding at Week-0 state (setup paid ✓, everything else pending). Campaign launches during onboarding — backfill not needed at launch; sync begins when campaigns are linked. | Contract signed 07/08; Day 0 = setup invoice payment | 07-09 |
+| D15 | User provisioning: admin invite action calls Clerk's Invitations API with `{role, clientId}` in `publicMetadata`; a Clerk webhook (`/api/webhooks/clerk`, `user.created`) upserts the `User` row on accept. No nullable `clerkId`, no separate pending-invite table — schema stays exactly as §5. | Keeps `User.clerkId`/`email` required as specified while still supporting invite-before-signup; avoids a schema change for something the Change Protocol would otherwise flag | 07-09 |
 
 ---
 
@@ -224,7 +225,7 @@ model SyncRun {
 | Module | What "done" means (acceptance criteria) | Status |
 |---|---|---|
 | **A — Scaffold & deploy skeleton** | Next.js app created; Prisma schema (§5) migrated to Railway Postgres; empty page deployed and loading at Railway URL | ✅ DONE — live at https://web-production-9aa91.up.railway.app (custom domain pending Module G) |
-| **B — Auth & tenancy** | Clerk magic-link works; admin + client roles enforced; `getScopedContext()` is the only data-access path; **LEAK TEST PASSED**: logged in as Zoom user and Meridian user, verified zero data crossover in every section | ☐ NOT STARTED |
+| **B — Auth & tenancy** | Clerk magic-link works; admin + client roles enforced; `getScopedContext()` is the only data-access path; **LEAK TEST PASSED**: logged in as Zoom user and Meridian user, verified zero data crossover in every section | ✅ DONE — 3 real Clerk sessions confirmed (ADMIN sees both clients; Zoom/Meridian test users each see only their own client). Full-section leak re-verification to repeat after Module D ships real UI. |
 | **C — Smartlead sync** | `/api/cron/sync` guarded by CRON_SECRET; pulls analytics + lead-category counts for all active campaigns; upserts DailyStat with client-TZ bucketing; SyncRun rows written; Railway cron scheduled (hourly); manually verified one sync against Smartlead UI numbers | ☐ NOT STARTED |
 | **D — Client dashboard UI** | All 7 sections ported from approved demo artifact with design system §9; renders from DB; empty states shown when data absent; responsive on a real phone | ☐ NOT STARTED |
 | **E — Admin panel** | CRUD for clients, campaigns, pipeline (incl. qualified toggle + stage moves), milestones, onboarding steps, weekly notes (incl. publish toggle); invite-user action (Clerk invitation); no styling requirements | ☐ NOT STARTED |
