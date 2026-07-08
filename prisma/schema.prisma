@@ -1,0 +1,153 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+//
+// Authoritative source: MASTER_BUILD_SPEC.md §5. Do not modify without
+// following the Change Protocol in §12 (flag to Alan, log an ADR in §2).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  CLIENT
+}
+
+enum StageKey {
+  STAGE_1
+  STAGE_2
+  STAGE_3
+  STAGE_4
+}
+
+enum StepState {
+  DONE
+  CURRENT
+  ACTIVE
+  NEXT
+}
+
+enum MilestoneState {
+  DONE
+  CURRENT
+  NEXT
+}
+
+model Client {
+  id             String           @id @default(cuid())
+  name           String
+  slug           String           @unique
+  timezone       String // IANA, e.g. "America/Los_Angeles"
+  status         String           @default("ACTIVE") // ACTIVE | PAUSED | ARCHIVED
+  stageLabels    Json // { STAGE_1: "Positive Reply", STAGE_2: "Appointment Booked", ... }
+  calendarLink   String?
+  intakeFormLink String?
+  launchDate     DateTime?
+  heroName       String? // display name in portal header
+  createdAt      DateTime         @default(now())
+  users          User[]
+  campaigns      Campaign[]
+  dailyStats     DailyStat[]
+  pipeline       PipelineEntry[]
+  milestones     Milestone[]
+  onboarding     OnboardingStep[]
+  notes          WeeklyNote[]
+}
+
+model User {
+  id       String  @id @default(cuid())
+  clerkId  String  @unique
+  email    String  @unique
+  role     Role
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id])
+}
+
+model Campaign {
+  id                  String  @id @default(cuid())
+  clientId            String
+  client              Client  @relation(fields: [clientId], references: [id])
+  smartleadCampaignId String  @unique
+  name                String
+  active              Boolean @default(true)
+}
+
+model DailyStat {
+  id              String   @id @default(cuid())
+  clientId        String
+  client          Client   @relation(fields: [clientId], references: [id])
+  date            DateTime // date-only, client-TZ bucket, stored as UTC midnight
+  sends           Int      @default(0)
+  totalReplies    Int      @default(0)
+  positiveReplies Int      @default(0)
+  bounces         Int      @default(0)
+  apptsBooked     Int      @default(0) // manual, derived from PipelineEntry counts by admin action or nightly rollup
+
+  @@unique([clientId, date])
+}
+
+model PipelineEntry {
+  id                 String    @id @default(cuid())
+  clientId           String
+  client             Client    @relation(fields: [clientId], references: [id])
+  stage              StageKey
+  contactName        String
+  company            String
+  dealValue          Int? // whole dollars; null allowed
+  notes              String?
+  callDateTime       DateTime?
+  callStatus         String? // CONFIRMED | PENDING | HELD | NO_SHOW
+  qualified          Boolean   @default(true)
+  disqualifiedReason String?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+}
+
+model Milestone {
+  id           String         @id @default(cuid())
+  clientId     String
+  client       Client         @relation(fields: [clientId], references: [id])
+  label        String
+  subLabel     String? // e.g. "Day 21" or "3 of 5"
+  state        MilestoneState
+  targetValue  Int?
+  currentValue Int?
+  sortOrder    Int
+}
+
+model OnboardingStep {
+  id        String    @id @default(cuid())
+  clientId  String
+  client    Client    @relation(fields: [clientId], references: [id])
+  label     String
+  dayLabel  String // "Day 0", "Days 1–3"
+  state     StepState
+  ctaLabel  String?
+  ctaUrl    String?
+  sortOrder Int
+}
+
+model WeeklyNote {
+  id        String   @id @default(cuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id])
+  weekOf    DateTime
+  headline  String
+  body      String
+  videoUrl  String?
+  published Boolean  @default(false)
+  createdAt DateTime @default(now())
+}
+
+model SyncRun {
+  id         String    @id @default(cuid())
+  startedAt  DateTime  @default(now())
+  finishedAt DateTime?
+  status     String // SUCCESS | FAILED
+  detail     String? // error text or counts summary
+}
