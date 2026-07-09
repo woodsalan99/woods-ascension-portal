@@ -1,5 +1,5 @@
 # WOODS ASCENSION CLIENT PORTAL — MASTER BUILD SPEC
-**Version 1.0 · Created 2026-07-09 · Owner: Alan Woods**
+**Version 1.1 · Created 2026-07-09 · Last updated 2026-07-10 · Owner: Alan Woods**
 
 ---
 
@@ -59,6 +59,9 @@ This is the single source of truth for the Woods Ascension Client Portal build. 
 | D16 | Positive-reply classification (§7): a lead's reply counts as positive when its Smartlead `lead_category` name has `sentiment_type: "positive"` in the account's live `/leads/fetch-categories` list — not a hardcoded name/ID list. | The account has 20+ custom categories (`Alan - Booked`, `AFC - Qualified`, etc.) beyond the spec's example names; `sentiment_type` already encodes the positive/neutral/negative classification Alan sets per category in Smartlead, so deriving from it is more robust than hardcoding "Interested"/"Meeting Request" and self-updates if Alan adds categories later | 07-09 |
 | D17 | Added `Client.domainsLive`, `Client.inboxesWarming`, `Client.warmupSends` (nullable Int) — admin-editable, null hides the KPI. | §8's pre-launch KPI row (Domains live / Inboxes warming / Warmup sends / Days to launch) had no backing fields in the original §5 schema — genuine gap between data model and content spec, confirmed with Alan before implementing | 07-09 |
 | D18 | Railway Postgres backups SKIPPED for v1 — automated backups/PITR require Railway's paid Pro plan (currently on Hobby). No backup workaround built either. | Alan's explicit call: data-loss risk is low pre-launch (Zoom is Week 0, minimal real data); avoids an unplanned recurring cost during a one-day build. Revisit before real client data volume grows. | 07-09 |
+| D19 | **v1.1 REDESIGN INITIATED.** v1 (Modules A–G) is complete and locked; Module H (launch ritual / inviting Jim) is deliberately paused until the redesign below lands. Client-facing portal moves from a single-scroll page to a sidebar-nav, multi-page shell: Overview · Metrics · Appointments · Roadmap · Infrastructure. This supersedes §9's "the approved demo artifact is the sole visual spec" framing — the artifact remains the *component-level* design system (colors/type/cards), but page structure/nav now follows Alan's new mockups instead of the single-page layout. | Alan wants a more "wow," SaaS-product-grade feel before Jim ever sees it; the single-scroll layout undersells the depth of data now that pipeline/milestones/appointments are real | 07-10 |
+| D20 | ~~Billing math stays OUT of v1~~ → **IN SCOPE as of v1.1**: Infrastructure page shows a per-item cost breakdown (domains, inboxes, warmup tool, lead data, verification, tracking — quantity, status, monthly cost, notes) and a monthly total. Admin-editable, same pattern as other manual fields. | Alan's explicit call — supersedes D11's billing restriction now that v1 is proven out | 07-10 |
+| D21 | ~~Client-side editing~~ → **IN SCOPE as of v1.1**: CLIENT-role users can mark appointment outcomes (qualified/not qualified/no-show) and complete/approve specific roadmap action items, scoped to their own `clientId` via `getScopedContext()` — same tenancy guarantee as all other reads, now extended to a narrow set of writes. | Alan's explicit call — supersedes the §3 OUT-of-scope "client-side editing" line; keeps the model narrow (specific fields only, not open-ended editing) to preserve the tenancy guarantee | 07-10 |
 
 ---
 
@@ -74,7 +77,9 @@ This is the single source of truth for the Woods Ascension Client Portal build. 
 - Deployed at portal.woodsascension.com
 
 **OUT (v2 backlog — do not build, do not discuss in-session):**
-Webhooks · Pushover/failure alerting · client notifications/emails · billing & invoicing math · PDF exports · client-side editing · multi-user clients · white-labeling · deliverability views · analytics on portal usage · Slack integration · anything else new.
+Webhooks · Pushover/failure alerting · client notifications/emails · ~~billing & invoicing math~~ (moved IN SCOPE per D20) · PDF exports · ~~client-side editing~~ (moved IN SCOPE per D21, narrowly — see D21) · multi-user clients · white-labeling · deliverability views · analytics on portal usage · Slack integration · anything else new.
+
+**v1.1 SCOPE (§3a) — see D19/D20/D21, tracked in §6a below.**
 
 ---
 
