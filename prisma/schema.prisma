@@ -49,6 +49,9 @@ model Client {
   intakeFormLink String?
   launchDate     DateTime?
   heroName       String? // display name in portal header
+  domainsLive    Int? // pre-launch KPI row (§8) — admin-editable, null hides the KPI
+  inboxesWarming Int?
+  warmupSends    Int?
   createdAt      DateTime         @default(now())
   users          User[]
   campaigns      Campaign[]

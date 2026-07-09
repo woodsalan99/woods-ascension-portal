@@ -57,6 +57,7 @@ This is the single source of truth for the Woods Ascension Client Portal build. 
 | D14 | Launch state: Zoom seeds with EMPTY pipeline stages and onboarding at Week-0 state (setup paid ✓, everything else pending). Campaign launches during onboarding — backfill not needed at launch; sync begins when campaigns are linked. | Contract signed 07/08; Day 0 = setup invoice payment | 07-09 |
 | D15 | User provisioning: admin invite action calls Clerk's Invitations API with `{role, clientId}` in `publicMetadata`; a Clerk webhook (`/api/webhooks/clerk`, `user.created`) upserts the `User` row on accept. No nullable `clerkId`, no separate pending-invite table — schema stays exactly as §5. | Keeps `User.clerkId`/`email` required as specified while still supporting invite-before-signup; avoids a schema change for something the Change Protocol would otherwise flag | 07-09 |
 | D16 | Positive-reply classification (§7): a lead's reply counts as positive when its Smartlead `lead_category` name has `sentiment_type: "positive"` in the account's live `/leads/fetch-categories` list — not a hardcoded name/ID list. | The account has 20+ custom categories (`Alan - Booked`, `AFC - Qualified`, etc.) beyond the spec's example names; `sentiment_type` already encodes the positive/neutral/negative classification Alan sets per category in Smartlead, so deriving from it is more robust than hardcoding "Interested"/"Meeting Request" and self-updates if Alan adds categories later | 07-09 |
+| D17 | Added `Client.domainsLive`, `Client.inboxesWarming`, `Client.warmupSends` (nullable Int) — admin-editable, null hides the KPI. | §8's pre-launch KPI row (Domains live / Inboxes warming / Warmup sends / Days to launch) had no backing fields in the original §5 schema — genuine gap between data model and content spec, confirmed with Alan before implementing | 07-09 |
 
 ---
 
@@ -116,6 +117,9 @@ model Client {
   intakeFormLink String?
   launchDate    DateTime?
   heroName      String?  // display name in portal header
+  domainsLive   Int?     // pre-launch KPI row (§8) — admin-editable, null hides the KPI (D17)
+  inboxesWarming Int?
+  warmupSends   Int?
   createdAt     DateTime @default(now())
   users         User[]
   campaigns     Campaign[]

@@ -11,12 +11,16 @@ async function seedZoom() {
       timezone: "America/Los_Angeles",
       status: "ACTIVE",
       heroName: "Zoom Business Brokers",
+      launchDate: new Date("2026-07-30T00:00:00.000Z"), // ~Day 22 per §8
       stageLabels: {
         STAGE_1: "Positive Reply",
         STAGE_2: "Appointment Booked",
         STAGE_3: "Appointment Held",
         STAGE_4: "Listing Signed",
       },
+      domainsLive: 0,
+      inboxesWarming: 0,
+      warmupSends: 0,
     },
     update: {},
   });
@@ -171,6 +175,7 @@ async function seedMeridian() {
       timezone: "America/New_York",
       status: "ACTIVE",
       heroName: "Meridian Demo Co.",
+      launchDate: new Date("2026-06-01T00:00:00.000Z"), // Day 21 launch, in the past — post-launch KPIs
       stageLabels: {
         STAGE_1: "Positive Reply",
         STAGE_2: "Call Booked",
