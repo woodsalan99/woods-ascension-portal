@@ -3,13 +3,16 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useClerk } from "@clerk/nextjs";
 import {
   ChevronRight,
+  ChevronDown,
   Home,
   BarChart3,
   Calendar,
   Map,
   Boxes,
+  LogOut,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -23,6 +26,8 @@ const NAV_ITEMS = [
 export function Sidebar({ clientName }: { clientName: string }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const { signOut } = useClerk();
 
   return (
     <aside className={`wa-sidebar ${collapsed ? "wa-sidebar-collapsed" : ""}`}>
@@ -72,9 +77,24 @@ export function Sidebar({ clientName }: { clientName: string }) {
             Message Alan
           </a>
         </div>
-        <div className="wa-sidebar-client">
-          <div className="wa-sidebar-client-avatar">{clientName.charAt(0)}</div>
-          <div className="wa-sidebar-client-name">{clientName}</div>
+        <div className="wa-sidebar-client-wrap">
+          <button
+            className="wa-sidebar-client"
+            onClick={() => setMenuOpen((o) => !o)}
+            aria-expanded={menuOpen}
+          >
+            <div className="wa-sidebar-client-avatar">{clientName.charAt(0)}</div>
+            <div className="wa-sidebar-client-name">{clientName}</div>
+            <ChevronDown size={14} style={{ marginLeft: "auto" }} />
+          </button>
+          {menuOpen && (
+            <button
+              className="wa-sidebar-signout"
+              onClick={() => signOut({ redirectUrl: "/sign-in" })}
+            >
+              <LogOut size={14} /> Sign out
+            </button>
+          )}
         </div>
       </div>
     </aside>
