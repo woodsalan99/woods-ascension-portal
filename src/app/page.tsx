@@ -99,14 +99,16 @@ export default async function Home() {
   }));
   const pipelineStages: PipelineStageVM[] = pipelineByStage.map((s, i) => {
     const stageValue = s.entries.reduce((sum, e) => sum + (e.dealValue ?? 0), 0);
-    const note =
-      i === 0
-        ? "In conversation or nurturing"
-        : stageValue > 0
-          ? `${formatDealValue(stageValue)} est. pipeline`
-          : i === pipelineByStage.length - 1
-            ? "Funded"
-            : "In follow-up";
+    const isFirstStage = i === 0;
+    const isBookedStage = i === 1;
+    const isLastStage = i === pipelineByStage.length - 1;
+    const note = isFirstStage
+      ? "In conversation or nurturing"
+      : isBookedStage && stageValue > 0
+        ? `${formatDealValue(stageValue)} est. pipeline`
+        : isLastStage
+          ? "Funded"
+          : "In follow-up";
     return {
       key: s.key,
       label: s.label,
