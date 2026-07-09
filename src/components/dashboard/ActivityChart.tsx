@@ -80,6 +80,29 @@ export function ActivityChart({ data, bounceRate }: { data: ChartDay[]; bounceRa
   const [show, setShow] = useState({ sends: true, replies: true, bounces: false });
   const toggle = (k: keyof typeof show) => setShow((s) => ({ ...s, [k]: !s[k] }));
 
+  if (data.length === 0) {
+    return (
+      <div className="wa-card">
+        <div className="wa-section-head">
+          <div>
+            <div className="wa-eyebrow">Daily activity</div>
+            <h2 className="wa-h2">Sends, replies &amp; booked appointments</h2>
+          </div>
+        </div>
+        <div className="wa-empty">
+          <div className="wa-empty-mark">◇</div>
+          <p>
+            <b>Activity appears here once sending begins.</b>
+          </p>
+          <p>
+            Daily sends, positive replies, and bounce trends will populate this chart hourly
+            once campaigns are live and syncing.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="wa-card">
       <div className="wa-section-head">

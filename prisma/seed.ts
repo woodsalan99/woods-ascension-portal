@@ -3,26 +3,26 @@ import { PrismaClient } from "@prisma/client";
 const prisma = new PrismaClient();
 
 async function seedZoom() {
+  const zoomData = {
+    name: "Zoom Business Brokers",
+    timezone: "America/Los_Angeles",
+    status: "ACTIVE",
+    heroName: "Zoom Business Brokers",
+    launchDate: new Date("2026-07-30T00:00:00.000Z"), // ~Day 22 per §8
+    stageLabels: {
+      STAGE_1: "Positive Reply",
+      STAGE_2: "Appointment Booked",
+      STAGE_3: "Appointment Held",
+      STAGE_4: "Listing Signed",
+    },
+    domainsLive: 0,
+    inboxesWarming: 0,
+    warmupSends: 0,
+  };
   const client = await prisma.client.upsert({
     where: { slug: "zoom-business-brokers" },
-    create: {
-      name: "Zoom Business Brokers",
-      slug: "zoom-business-brokers",
-      timezone: "America/Los_Angeles",
-      status: "ACTIVE",
-      heroName: "Zoom Business Brokers",
-      launchDate: new Date("2026-07-30T00:00:00.000Z"), // ~Day 22 per §8
-      stageLabels: {
-        STAGE_1: "Positive Reply",
-        STAGE_2: "Appointment Booked",
-        STAGE_3: "Appointment Held",
-        STAGE_4: "Listing Signed",
-      },
-      domainsLive: 0,
-      inboxesWarming: 0,
-      warmupSends: 0,
-    },
-    update: {},
+    create: { slug: "zoom-business-brokers", ...zoomData },
+    update: zoomData,
   });
 
   await prisma.onboardingStep.deleteMany({ where: { clientId: client.id } });
@@ -167,23 +167,23 @@ async function seedMeridian() {
   // artifact (/design/demo-artifact.jsx, referenced in §9) — swap in the
   // real Week-6 numbers once that file is available. Structure (18 days
   // of stats, 4-stage pipeline, milestone 13/15 current) matches §8.
+  const meridianData = {
+    name: "Meridian Demo Co.",
+    timezone: "America/New_York",
+    status: "ACTIVE",
+    heroName: "Meridian Demo Co.",
+    launchDate: new Date("2026-06-01T00:00:00.000Z"), // Day 21 launch, in the past — post-launch KPIs
+    stageLabels: {
+      STAGE_1: "Positive Reply",
+      STAGE_2: "Call Booked",
+      STAGE_3: "Call Held",
+      STAGE_4: "Closed",
+    },
+  };
   const client = await prisma.client.upsert({
     where: { slug: "meridian-demo-co" },
-    create: {
-      name: "Meridian Demo Co.",
-      slug: "meridian-demo-co",
-      timezone: "America/New_York",
-      status: "ACTIVE",
-      heroName: "Meridian Demo Co.",
-      launchDate: new Date("2026-06-01T00:00:00.000Z"), // Day 21 launch, in the past — post-launch KPIs
-      stageLabels: {
-        STAGE_1: "Positive Reply",
-        STAGE_2: "Call Booked",
-        STAGE_3: "Call Held",
-        STAGE_4: "Closed",
-      },
-    },
-    update: {},
+    create: { slug: "meridian-demo-co", ...meridianData },
+    update: meridianData,
   });
 
   await prisma.onboardingStep.deleteMany({ where: { clientId: client.id } });
