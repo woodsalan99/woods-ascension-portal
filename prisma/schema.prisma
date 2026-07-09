@@ -38,12 +38,26 @@ enum MilestoneState {
   NEXT
 }
 
+enum MetricStatus {
+  ON_TRACK
+  NEEDS_ATTENTION
+}
+
+enum MetricKey {
+  EMAILS_SENT
+  POSITIVE_REPLIES
+  QUALIFIED_APPTS
+  POSITIVE_REPLY_RATE
+  EMAILS_PER_BOOKED
+  EMAILS_PER_QUALIFIED
+}
+
 model Client {
-  id             String           @id @default(cuid())
+  id             String               @id @default(cuid())
   name           String
-  slug           String           @unique
+  slug           String               @unique
   timezone       String // IANA, e.g. "America/Los_Angeles"
-  status         String           @default("ACTIVE") // ACTIVE | PAUSED | ARCHIVED
+  status         String               @default("ACTIVE") // ACTIVE | PAUSED | ARCHIVED
   stageLabels    Json // { STAGE_1: "Positive Reply", STAGE_2: "Appointment Booked", ... }
   calendarLink   String?
   intakeFormLink String?
@@ -52,7 +66,7 @@ model Client {
   domainsLive    Int? // pre-launch KPI row (§8) — admin-editable, null hides the KPI
   inboxesWarming Int?
   warmupSends    Int?
-  createdAt      DateTime         @default(now())
+  createdAt      DateTime             @default(now())
   users          User[]
   campaigns      Campaign[]
   dailyStats     DailyStat[]
@@ -60,6 +74,20 @@ model Client {
   milestones     Milestone[]
   onboarding     OnboardingStep[]
   notes          WeeklyNote[]
+  audiences      Audience[]
+  infrastructure InfrastructureItem[]
+  metricConfigs  MetricConfig[]
+}
+
+model Audience {
+  id         String              @id @default(cuid())
+  clientId   String
+  client     Client              @relation(fields: [clientId], references: [id])
+  name       String // e.g. "Limos", "Towing"
+  sortOrder  Int
+  campaigns  Campaign[]
+  pipeline   PipelineEntry[]
+  dailyStats AudienceDailyStat[]
 }
 
 model User {
@@ -72,12 +100,14 @@ model User {
 }
 
 model Campaign {
-  id                  String  @id @default(cuid())
+  id                  String    @id @default(cuid())
   clientId            String
-  client              Client  @relation(fields: [clientId], references: [id])
-  smartleadCampaignId String  @unique
+  client              Client    @relation(fields: [clientId], references: [id])
+  smartleadCampaignId String    @unique
   name                String
-  active              Boolean @default(true)
+  active              Boolean   @default(true)
+  audienceId          String?
+  audience            Audience? @relation(fields: [audienceId], references: [id])
 }
 
 model DailyStat {
@@ -94,10 +124,30 @@ model DailyStat {
   @@unique([clientId, date])
 }
 
+// Parallel to DailyStat, broken down by Audience instead of aggregated
+// across the whole client — see D19-era Audience concept (v1.1).
+// Campaigns without an audienceId don't contribute here (still counted
+// in client-level DailyStat as before).
+model AudienceDailyStat {
+  id              String   @id @default(cuid())
+  audienceId      String
+  audience        Audience @relation(fields: [audienceId], references: [id])
+  date            DateTime
+  sends           Int      @default(0)
+  totalReplies    Int      @default(0)
+  positiveReplies Int      @default(0)
+  bounces         Int      @default(0)
+  apptsBooked     Int      @default(0)
+
+  @@unique([audienceId, date])
+}
+
 model PipelineEntry {
   id                 String    @id @default(cuid())
   clientId           String
   client             Client    @relation(fields: [clientId], references: [id])
+  audienceId         String?
+  audience           Audience? @relation(fields: [audienceId], references: [id])
   stage              StageKey
   contactName        String
   company            String
@@ -124,15 +174,43 @@ model Milestone {
 }
 
 model OnboardingStep {
-  id        String    @id @default(cuid())
-  clientId  String
-  client    Client    @relation(fields: [clientId], references: [id])
-  label     String
-  dayLabel  String // "Day 0", "Days 1–3"
-  state     StepState
-  ctaLabel  String?
-  ctaUrl    String?
-  sortOrder Int
+  id               String    @id @default(cuid())
+  clientId         String
+  client           Client    @relation(fields: [clientId], references: [id])
+  label            String
+  dayLabel         String // "Day 0", "Days 1–3"
+  state            StepState
+  ctaLabel         String?
+  ctaUrl           String?
+  sortOrder        Int
+  clientActionable Boolean   @default(false) // if true and state=CURRENT, CLIENT can mark it DONE (v1.1, D21)
+}
+
+model InfrastructureItem {
+  id          String  @id @default(cuid())
+  clientId    String
+  client      Client  @relation(fields: [clientId], references: [id])
+  label       String
+  quantity    Int
+  status      String // ACTIVE | LOADED | COMPLETE | PENDING
+  monthlyCost Int // whole dollars
+  notes       String?
+  sortOrder   Int
+}
+
+// Actual metric VALUES are always computed live from DailyStat/PipelineEntry.
+// This only stores the admin-authored "coaching" layer on top — see D20/v1.1.
+model MetricConfig {
+  id          String       @id @default(cuid())
+  clientId    String
+  client      Client       @relation(fields: [clientId], references: [id])
+  metricKey   MetricKey
+  targetLabel String // freeform display text, e.g. "5,000 / week" or "< 600"
+  status      MetricStatus
+  tips        Json // string[]
+  sortOrder   Int
+
+  @@unique([clientId, metricKey])
 }
 
 model WeeklyNote {

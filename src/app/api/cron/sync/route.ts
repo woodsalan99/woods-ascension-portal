@@ -13,6 +13,21 @@ function emptyBucket(): DayBucket {
   return { sends: 0, totalReplies: 0, positiveReplies: 0, bounces: 0 };
 }
 
+function applyRecord(bucket: DayBucket, positiveCategoryNames: Set<string>, record: {
+  replyTime: string | null;
+  leadCategory: string | null;
+  isBounced: boolean;
+}) {
+  bucket.sends += 1;
+  if (record.replyTime) {
+    bucket.totalReplies += 1;
+    if (record.leadCategory && positiveCategoryNames.has(record.leadCategory)) {
+      bucket.positiveReplies += 1;
+    }
+  }
+  if (record.isBounced) bucket.bounces += 1;
+}
+
 export async function GET(req: Request) {
   const authHeader = req.headers.get("authorization");
   if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
@@ -34,11 +49,14 @@ export async function GET(req: Request) {
 
     let campaignsSynced = 0;
     let daysUpserted = 0;
+    let audienceDaysUpserted = 0;
 
     for (const client of clients) {
       if (client.campaigns.length === 0) continue;
 
       const buckets = new Map<string, DayBucket>();
+      // audienceId -> dateKey -> bucket
+      const audienceBuckets = new Map<string, Map<string, DayBucket>>();
 
       for (const campaign of client.campaigns) {
         const records = await fetchCampaignStatistics(
@@ -52,38 +70,45 @@ export async function GET(req: Request) {
             new Date(record.sentTime),
             client.timezone,
           );
+
           const bucket = buckets.get(dateKey) ?? emptyBucket();
-
-          bucket.sends += 1;
-          if (record.replyTime) {
-            bucket.totalReplies += 1;
-            if (record.leadCategory && positiveCategoryNames.has(record.leadCategory)) {
-              bucket.positiveReplies += 1;
-            }
-          }
-          if (record.isBounced) bucket.bounces += 1;
-
+          applyRecord(bucket, positiveCategoryNames, record);
           buckets.set(dateKey, bucket);
+
+          if (campaign.audienceId) {
+            const dateMap = audienceBuckets.get(campaign.audienceId) ?? new Map();
+            const audienceBucket = dateMap.get(dateKey) ?? emptyBucket();
+            applyRecord(audienceBucket, positiveCategoryNames, record);
+            dateMap.set(dateKey, audienceBucket);
+            audienceBuckets.set(campaign.audienceId, dateMap);
+          }
         }
 
         await new Promise((resolve) => setTimeout(resolve, 250));
       }
 
       // apptsBooked rollup: entries that reached STAGE_2 (Appointment
-      // Booked equivalent), bucketed by the day they reached that stage.
+      // Booked equivalent), bucketed by the day they reached that stage —
+      // both client-level and, when tagged, audience-level.
       const bookedEntries = await prisma.pipelineEntry.findMany({
         where: { clientId: client.id, stage: "STAGE_2" },
-        select: { updatedAt: true },
+        select: { updatedAt: true, audienceId: true },
       });
       const apptsByDay = new Map<string, number>();
+      const apptsByAudienceDay = new Map<string, Map<string, number>>();
       for (const entry of bookedEntries) {
         const dateKey = dateKeyInTimezone(entry.updatedAt, client.timezone);
         apptsByDay.set(dateKey, (apptsByDay.get(dateKey) ?? 0) + 1);
+
+        if (entry.audienceId) {
+          const dateMap = apptsByAudienceDay.get(entry.audienceId) ?? new Map();
+          dateMap.set(dateKey, (dateMap.get(dateKey) ?? 0) + 1);
+          apptsByAudienceDay.set(entry.audienceId, dateMap);
+        }
       }
-      for (const [dateKey, count] of apptsByDay) {
+      for (const [dateKey] of apptsByDay) {
         const bucket = buckets.get(dateKey) ?? emptyBucket();
         buckets.set(dateKey, bucket);
-        apptsByDay.set(dateKey, count);
       }
 
       for (const [dateKey, bucket] of buckets) {
@@ -108,6 +133,32 @@ export async function GET(req: Request) {
         });
         daysUpserted++;
       }
+
+      for (const [audienceId, dateMap] of audienceBuckets) {
+        const apptsByDayForAudience = apptsByAudienceDay.get(audienceId) ?? new Map();
+        for (const [dateKey, bucket] of dateMap) {
+          await prisma.audienceDailyStat.upsert({
+            where: { audienceId_date: { audienceId, date: dateKeyToUtcMidnight(dateKey) } },
+            create: {
+              audienceId,
+              date: dateKeyToUtcMidnight(dateKey),
+              sends: bucket.sends,
+              totalReplies: bucket.totalReplies,
+              positiveReplies: bucket.positiveReplies,
+              bounces: bucket.bounces,
+              apptsBooked: apptsByDayForAudience.get(dateKey) ?? 0,
+            },
+            update: {
+              sends: bucket.sends,
+              totalReplies: bucket.totalReplies,
+              positiveReplies: bucket.positiveReplies,
+              bounces: bucket.bounces,
+              apptsBooked: apptsByDayForAudience.get(dateKey) ?? 0,
+            },
+          });
+          audienceDaysUpserted++;
+        }
+      }
     }
 
     await prisma.syncRun.update({
@@ -115,11 +166,11 @@ export async function GET(req: Request) {
       data: {
         finishedAt: new Date(),
         status: "SUCCESS",
-        detail: `${campaignsSynced} campaign(s), ${daysUpserted} day(s) upserted`,
+        detail: `${campaignsSynced} campaign(s), ${daysUpserted} day(s) upserted, ${audienceDaysUpserted} audience-day(s) upserted`,
       },
     });
 
-    return Response.json({ ok: true, campaignsSynced, daysUpserted });
+    return Response.json({ ok: true, campaignsSynced, daysUpserted, audienceDaysUpserted });
   } catch (err) {
     await prisma.syncRun.update({
       where: { id: syncRun.id },

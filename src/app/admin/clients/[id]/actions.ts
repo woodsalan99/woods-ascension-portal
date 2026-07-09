@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { inviteUser } from "@/lib/clerk-invite";
-import type { MilestoneState, Role, StepState } from "@prisma/client";
+import type { MetricKey, MetricStatus, MilestoneState, Role, StepState } from "@prisma/client";
 
 function str(fd: FormData, key: string): string {
   return String(fd.get(key) ?? "").trim();
@@ -72,7 +72,17 @@ export async function createCampaign(clientId: string, formData: FormData) {
       clientId,
       name: str(formData, "name"),
       smartleadCampaignId: str(formData, "smartleadCampaignId"),
+      audienceId: optStr(formData, "audienceId"),
     },
+  });
+  revalidatePath(`/admin/clients/${clientId}`);
+}
+
+export async function setCampaignAudience(clientId: string, campaignId: string, formData: FormData) {
+  await requireAdmin();
+  await prisma.campaign.update({
+    where: { id: campaignId },
+    data: { audienceId: optStr(formData, "audienceId") },
   });
   revalidatePath(`/admin/clients/${clientId}`);
 }
@@ -98,6 +108,7 @@ export async function createPipelineEntry(clientId: string, formData: FormData) 
   await prisma.pipelineEntry.create({
     data: {
       clientId,
+      audienceId: optStr(formData, "audienceId"),
       stage: str(formData, "stage") as "STAGE_1" | "STAGE_2" | "STAGE_3" | "STAGE_4",
       contactName: str(formData, "contactName"),
       company: str(formData, "company"),
@@ -119,6 +130,7 @@ export async function updatePipelineEntry(clientId: string, entryId: string, for
   await prisma.pipelineEntry.update({
     where: { id: entryId },
     data: {
+      audienceId: optStr(formData, "audienceId"),
       stage: str(formData, "stage") as "STAGE_1" | "STAGE_2" | "STAGE_3" | "STAGE_4",
       contactName: str(formData, "contactName"),
       company: str(formData, "company"),
@@ -191,6 +203,7 @@ export async function createOnboardingStep(clientId: string, formData: FormData)
       state: str(formData, "state") as StepState,
       ctaLabel: optStr(formData, "ctaLabel"),
       ctaUrl: optStr(formData, "ctaUrl"),
+      clientActionable: formData.get("clientActionable") === "on",
       sortOrder: count + 1,
     },
   });
@@ -207,6 +220,7 @@ export async function updateOnboardingStep(clientId: string, stepId: string, for
       state: str(formData, "state") as StepState,
       ctaLabel: optStr(formData, "ctaLabel"),
       ctaUrl: optStr(formData, "ctaUrl"),
+      clientActionable: formData.get("clientActionable") === "on",
       sortOrder: optInt(formData, "sortOrder") ?? 0,
     },
   });
@@ -255,5 +269,89 @@ export async function inviteUserAction(clientId: string, formData: FormData) {
   const email = str(formData, "email");
   const role = str(formData, "role") as Role;
   await inviteUser({ email, role, clientId: role === "CLIENT" ? clientId : undefined });
+  revalidatePath(`/admin/clients/${clientId}`);
+}
+
+// --- v1.1: Audiences, Infrastructure, Metric configs ---
+
+export async function createAudience(clientId: string, formData: FormData) {
+  await requireAdmin();
+  const count = await prisma.audience.count({ where: { clientId } });
+  await prisma.audience.create({
+    data: { clientId, name: str(formData, "name"), sortOrder: count + 1 },
+  });
+  revalidatePath(`/admin/clients/${clientId}`);
+}
+
+export async function renameAudience(clientId: string, audienceId: string, formData: FormData) {
+  await requireAdmin();
+  await prisma.audience.update({
+    where: { id: audienceId },
+    data: { name: str(formData, "name") },
+  });
+  revalidatePath(`/admin/clients/${clientId}`);
+}
+
+export async function deleteAudience(clientId: string, audienceId: string) {
+  await requireAdmin();
+  await prisma.audienceDailyStat.deleteMany({ where: { audienceId } });
+  await prisma.campaign.updateMany({ where: { audienceId }, data: { audienceId: null } });
+  await prisma.pipelineEntry.updateMany({ where: { audienceId }, data: { audienceId: null } });
+  await prisma.audience.delete({ where: { id: audienceId } });
+  revalidatePath(`/admin/clients/${clientId}`);
+}
+
+export async function createInfrastructureItem(clientId: string, formData: FormData) {
+  await requireAdmin();
+  const count = await prisma.infrastructureItem.count({ where: { clientId } });
+  await prisma.infrastructureItem.create({
+    data: {
+      clientId,
+      label: str(formData, "label"),
+      quantity: optInt(formData, "quantity") ?? 0,
+      status: str(formData, "status"),
+      monthlyCost: optInt(formData, "monthlyCost") ?? 0,
+      notes: optStr(formData, "notes"),
+      sortOrder: count + 1,
+    },
+  });
+  revalidatePath(`/admin/clients/${clientId}`);
+}
+
+export async function updateInfrastructureItem(clientId: string, itemId: string, formData: FormData) {
+  await requireAdmin();
+  await prisma.infrastructureItem.update({
+    where: { id: itemId },
+    data: {
+      label: str(formData, "label"),
+      quantity: optInt(formData, "quantity") ?? 0,
+      status: str(formData, "status"),
+      monthlyCost: optInt(formData, "monthlyCost") ?? 0,
+      notes: optStr(formData, "notes"),
+      sortOrder: optInt(formData, "sortOrder") ?? 0,
+    },
+  });
+  revalidatePath(`/admin/clients/${clientId}`);
+}
+
+export async function deleteInfrastructureItem(clientId: string, itemId: string) {
+  await requireAdmin();
+  await prisma.infrastructureItem.delete({ where: { id: itemId } });
+  revalidatePath(`/admin/clients/${clientId}`);
+}
+
+export async function upsertMetricConfig(clientId: string, metricKey: MetricKey, formData: FormData) {
+  await requireAdmin();
+  const tips = [str(formData, "tip1"), str(formData, "tip2")].filter((t) => t.length > 0);
+  const data = {
+    targetLabel: str(formData, "targetLabel"),
+    status: str(formData, "status") as MetricStatus,
+    tips,
+  };
+  await prisma.metricConfig.upsert({
+    where: { clientId_metricKey: { clientId, metricKey } },
+    create: { clientId, metricKey, sortOrder: 0, ...data },
+    update: data,
+  });
   revalidatePath(`/admin/clients/${clientId}`);
 }

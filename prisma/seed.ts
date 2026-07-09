@@ -159,6 +159,24 @@ async function seedZoom() {
   await prisma.pipelineEntry.deleteMany({ where: { clientId: client.id } });
   await prisma.dailyStat.deleteMany({ where: { clientId: client.id } });
 
+  // Single default audience so the admin panel has something to assign
+  // campaigns/pipeline entries to once real ones exist (v1.1, D19).
+  await prisma.audienceDailyStat.deleteMany({
+    where: { audience: { clientId: client.id } },
+  });
+  await prisma.campaign.updateMany({
+    where: { clientId: client.id },
+    data: { audienceId: null },
+  });
+  await prisma.pipelineEntry.updateMany({
+    where: { clientId: client.id },
+    data: { audienceId: null },
+  });
+  await prisma.audience.deleteMany({ where: { clientId: client.id } });
+  await prisma.audience.create({
+    data: { clientId: client.id, name: "Business Brokers", sortOrder: 1 },
+  });
+
   return client;
 }
 
@@ -283,10 +301,26 @@ async function seedMeridian() {
   });
 
   await prisma.pipelineEntry.deleteMany({ where: { clientId: client.id } });
+
+  // Single audience for the demo, matching Alan's mockup ("Limo Campaign")
+  // — v1.1 Audience concept (D19), see plan for schema rationale.
+  await prisma.audienceDailyStat.deleteMany({
+    where: { audience: { clientId: client.id } },
+  });
+  await prisma.campaign.updateMany({
+    where: { clientId: client.id },
+    data: { audienceId: null },
+  });
+  await prisma.audience.deleteMany({ where: { clientId: client.id } });
+  const audience = await prisma.audience.create({
+    data: { clientId: client.id, name: "Limo Campaign", sortOrder: 1 },
+  });
+
   await prisma.pipelineEntry.createMany({
     data: [
       {
         clientId: client.id,
+        audienceId: audience.id,
         stage: "STAGE_1",
         contactName: "K. Morrison",
         company: "Morrison Hauling",
@@ -295,6 +329,7 @@ async function seedMeridian() {
       },
       {
         clientId: client.id,
+        audienceId: audience.id,
         stage: "STAGE_1",
         contactName: "P. Nguyen",
         company: "Nguyen Auto Group",
@@ -303,6 +338,7 @@ async function seedMeridian() {
       },
       {
         clientId: client.id,
+        audienceId: audience.id,
         stage: "STAGE_2",
         contactName: "Marcus Reyes",
         company: "Reyes Logistics",
@@ -314,6 +350,7 @@ async function seedMeridian() {
       },
       {
         clientId: client.id,
+        audienceId: audience.id,
         stage: "STAGE_2",
         contactName: "Dana Whitfield",
         company: "Whitfield Dental",
@@ -325,6 +362,7 @@ async function seedMeridian() {
       },
       {
         clientId: client.id,
+        audienceId: audience.id,
         stage: "STAGE_2",
         contactName: "Sam Bhatt",
         company: "Bhatt Courier Group",
@@ -336,6 +374,7 @@ async function seedMeridian() {
       },
       {
         clientId: client.id,
+        audienceId: audience.id,
         stage: "STAGE_3",
         contactName: "Tom Okafor",
         company: "Okafor Construction",
@@ -345,6 +384,7 @@ async function seedMeridian() {
       },
       {
         clientId: client.id,
+        audienceId: audience.id,
         stage: "STAGE_3",
         contactName: "Lisa Tran",
         company: "Tran Freight Co.",
@@ -354,6 +394,7 @@ async function seedMeridian() {
       },
       {
         clientId: client.id,
+        audienceId: audience.id,
         stage: "STAGE_4",
         contactName: "J. Alvarez",
         company: "Alvarez Towing",
@@ -363,6 +404,7 @@ async function seedMeridian() {
       },
       {
         clientId: client.id,
+        audienceId: audience.id,
         stage: "STAGE_4",
         contactName: "R. Castillo",
         company: "Castillo Paving",
@@ -405,6 +447,43 @@ async function seedMeridian() {
       bounces,
       apptsBooked,
     })),
+  });
+
+  // Single audience for this demo, so AudienceDailyStat mirrors DailyStat.
+  await prisma.audienceDailyStat.createMany({
+    data: w6Daily.map(([date, sends, positiveReplies, bounces, apptsBooked]) => ({
+      audienceId: audience.id,
+      date: new Date(`${date}T00:00:00.000Z`),
+      sends,
+      totalReplies: positiveReplies,
+      positiveReplies,
+      bounces,
+      apptsBooked,
+    })),
+  });
+
+  await prisma.infrastructureItem.deleteMany({ where: { clientId: client.id } });
+  await prisma.infrastructureItem.createMany({
+    data: [
+      { clientId: client.id, label: "Domains", quantity: 8, status: "ACTIVE", monthlyCost: 96, notes: "Sending domains for campaign", sortOrder: 1 },
+      { clientId: client.id, label: "Inboxes", quantity: 24, status: "ACTIVE", monthlyCost: 288, notes: "Distributed across domains", sortOrder: 2 },
+      { clientId: client.id, label: "Warmup / sending tool", quantity: 1, status: "ACTIVE", monthlyCost: 99, notes: "Smartlead + warmup", sortOrder: 3 },
+      { clientId: client.id, label: "Lead data", quantity: 5000, status: "LOADED", monthlyCost: 125, notes: "Verified records for outreach", sortOrder: 4 },
+      { clientId: client.id, label: "Email verification", quantity: 5000, status: "COMPLETE", monthlyCost: 42, notes: "Validation completed", sortOrder: 5 },
+      { clientId: client.id, label: "Tracking / routing setup", quantity: 1, status: "COMPLETE", monthlyCost: 34, notes: "Calendar and attribution setup", sortOrder: 6 },
+    ],
+  });
+
+  await prisma.metricConfig.deleteMany({ where: { clientId: client.id } });
+  await prisma.metricConfig.createMany({
+    data: [
+      { clientId: client.id, metricKey: "EMAILS_SENT", targetLabel: "5,000 / week", status: "ON_TRACK", tips: ["More inboxes", "More verified leads"], sortOrder: 1 },
+      { clientId: client.id, metricKey: "POSITIVE_REPLIES", targetLabel: "0.8% - 1.5%", status: "ON_TRACK", tips: ["Better offer & messaging", "Highly clean & targeted list"], sortOrder: 2 },
+      { clientId: client.id, metricKey: "QUALIFIED_APPTS", targetLabel: "40%+", status: "ON_TRACK", tips: ["Stronger qualification", "Better calendar conversion"], sortOrder: 3 },
+      { clientId: client.id, metricKey: "POSITIVE_REPLY_RATE", targetLabel: "0.8% - 1.5%", status: "ON_TRACK", tips: ["Sharpen targeting", "Stronger first email"], sortOrder: 4 },
+      { clientId: client.id, metricKey: "EMAILS_PER_BOOKED", targetLabel: "< 600", status: "NEEDS_ATTENTION", tips: ["Improve offer clarity", "Stronger follow-ups"], sortOrder: 5 },
+      { clientId: client.id, metricKey: "EMAILS_PER_QUALIFIED", targetLabel: "< 800", status: "NEEDS_ATTENTION", tips: ["Better qualification", "Higher show rate"], sortOrder: 6 },
+    ],
   });
 
   await prisma.weeklyNote.deleteMany({ where: { clientId: client.id } });
