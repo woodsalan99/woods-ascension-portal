@@ -1,0 +1,259 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { prisma } from "@/lib/prisma";
+import { requireAdmin } from "@/lib/auth";
+import { inviteUser } from "@/lib/clerk-invite";
+import type { MilestoneState, Role, StepState } from "@prisma/client";
+
+function str(fd: FormData, key: string): string {
+  return String(fd.get(key) ?? "").trim();
+}
+function optStr(fd: FormData, key: string): string | null {
+  const v = str(fd, key);
+  return v.length > 0 ? v : null;
+}
+function optInt(fd: FormData, key: string): number | null {
+  const v = str(fd, key);
+  return v.length > 0 ? parseInt(v, 10) : null;
+}
+
+export async function updateClient(clientId: string, formData: FormData) {
+  await requireAdmin();
+  await prisma.client.update({
+    where: { id: clientId },
+    data: {
+      name: str(formData, "name"),
+      heroName: optStr(formData, "heroName"),
+      timezone: str(formData, "timezone"),
+      status: str(formData, "status"),
+      calendarLink: optStr(formData, "calendarLink"),
+      intakeFormLink: optStr(formData, "intakeFormLink"),
+      launchDate: optStr(formData, "launchDate")
+        ? new Date(str(formData, "launchDate"))
+        : null,
+      domainsLive: optInt(formData, "domainsLive"),
+      inboxesWarming: optInt(formData, "inboxesWarming"),
+      warmupSends: optInt(formData, "warmupSends"),
+      stageLabels: {
+        STAGE_1: str(formData, "stage1Label"),
+        STAGE_2: str(formData, "stage2Label"),
+        STAGE_3: str(formData, "stage3Label"),
+        STAGE_4: str(formData, "stage4Label"),
+      },
+    },
+  });
+  revalidatePath(`/admin/clients/${clientId}`);
+}
+
+export async function createClient(formData: FormData) {
+  await requireAdmin();
+  const client = await prisma.client.create({
+    data: {
+      name: str(formData, "name"),
+      slug: str(formData, "slug"),
+      timezone: str(formData, "timezone") || "America/New_York",
+      stageLabels: {
+        STAGE_1: "Positive Reply",
+        STAGE_2: "Appointment Booked",
+        STAGE_3: "Appointment Held",
+        STAGE_4: "Deal Closed",
+      },
+    },
+  });
+  revalidatePath("/admin");
+  return client.id;
+}
+
+export async function createCampaign(clientId: string, formData: FormData) {
+  await requireAdmin();
+  await prisma.campaign.create({
+    data: {
+      clientId,
+      name: str(formData, "name"),
+      smartleadCampaignId: str(formData, "smartleadCampaignId"),
+    },
+  });
+  revalidatePath(`/admin/clients/${clientId}`);
+}
+
+export async function toggleCampaignActive(clientId: string, campaignId: string) {
+  await requireAdmin();
+  const campaign = await prisma.campaign.findUniqueOrThrow({ where: { id: campaignId } });
+  await prisma.campaign.update({
+    where: { id: campaignId },
+    data: { active: !campaign.active },
+  });
+  revalidatePath(`/admin/clients/${clientId}`);
+}
+
+export async function deleteCampaign(clientId: string, campaignId: string) {
+  await requireAdmin();
+  await prisma.campaign.delete({ where: { id: campaignId } });
+  revalidatePath(`/admin/clients/${clientId}`);
+}
+
+export async function createPipelineEntry(clientId: string, formData: FormData) {
+  await requireAdmin();
+  await prisma.pipelineEntry.create({
+    data: {
+      clientId,
+      stage: str(formData, "stage") as "STAGE_1" | "STAGE_2" | "STAGE_3" | "STAGE_4",
+      contactName: str(formData, "contactName"),
+      company: str(formData, "company"),
+      dealValue: optInt(formData, "dealValue"),
+      notes: optStr(formData, "notes"),
+      callDateTime: optStr(formData, "callDateTime")
+        ? new Date(str(formData, "callDateTime"))
+        : null,
+      callStatus: optStr(formData, "callStatus"),
+      qualified: formData.get("qualified") === "on",
+      disqualifiedReason: optStr(formData, "disqualifiedReason"),
+    },
+  });
+  revalidatePath(`/admin/clients/${clientId}`);
+}
+
+export async function updatePipelineEntry(clientId: string, entryId: string, formData: FormData) {
+  await requireAdmin();
+  await prisma.pipelineEntry.update({
+    where: { id: entryId },
+    data: {
+      stage: str(formData, "stage") as "STAGE_1" | "STAGE_2" | "STAGE_3" | "STAGE_4",
+      contactName: str(formData, "contactName"),
+      company: str(formData, "company"),
+      dealValue: optInt(formData, "dealValue"),
+      notes: optStr(formData, "notes"),
+      callDateTime: optStr(formData, "callDateTime")
+        ? new Date(str(formData, "callDateTime"))
+        : null,
+      callStatus: optStr(formData, "callStatus"),
+      qualified: formData.get("qualified") === "on",
+      disqualifiedReason: optStr(formData, "disqualifiedReason"),
+    },
+  });
+  revalidatePath(`/admin/clients/${clientId}`);
+}
+
+export async function deletePipelineEntry(clientId: string, entryId: string) {
+  await requireAdmin();
+  await prisma.pipelineEntry.delete({ where: { id: entryId } });
+  revalidatePath(`/admin/clients/${clientId}`);
+}
+
+export async function createMilestone(clientId: string, formData: FormData) {
+  await requireAdmin();
+  const count = await prisma.milestone.count({ where: { clientId } });
+  await prisma.milestone.create({
+    data: {
+      clientId,
+      label: str(formData, "label"),
+      subLabel: optStr(formData, "subLabel"),
+      state: str(formData, "state") as MilestoneState,
+      targetValue: optInt(formData, "targetValue"),
+      currentValue: optInt(formData, "currentValue"),
+      sortOrder: count + 1,
+    },
+  });
+  revalidatePath(`/admin/clients/${clientId}`);
+}
+
+export async function updateMilestone(clientId: string, milestoneId: string, formData: FormData) {
+  await requireAdmin();
+  await prisma.milestone.update({
+    where: { id: milestoneId },
+    data: {
+      label: str(formData, "label"),
+      subLabel: optStr(formData, "subLabel"),
+      state: str(formData, "state") as MilestoneState,
+      targetValue: optInt(formData, "targetValue"),
+      currentValue: optInt(formData, "currentValue"),
+      sortOrder: optInt(formData, "sortOrder") ?? 0,
+    },
+  });
+  revalidatePath(`/admin/clients/${clientId}`);
+}
+
+export async function deleteMilestone(clientId: string, milestoneId: string) {
+  await requireAdmin();
+  await prisma.milestone.delete({ where: { id: milestoneId } });
+  revalidatePath(`/admin/clients/${clientId}`);
+}
+
+export async function createOnboardingStep(clientId: string, formData: FormData) {
+  await requireAdmin();
+  const count = await prisma.onboardingStep.count({ where: { clientId } });
+  await prisma.onboardingStep.create({
+    data: {
+      clientId,
+      label: str(formData, "label"),
+      dayLabel: str(formData, "dayLabel"),
+      state: str(formData, "state") as StepState,
+      ctaLabel: optStr(formData, "ctaLabel"),
+      ctaUrl: optStr(formData, "ctaUrl"),
+      sortOrder: count + 1,
+    },
+  });
+  revalidatePath(`/admin/clients/${clientId}`);
+}
+
+export async function updateOnboardingStep(clientId: string, stepId: string, formData: FormData) {
+  await requireAdmin();
+  await prisma.onboardingStep.update({
+    where: { id: stepId },
+    data: {
+      label: str(formData, "label"),
+      dayLabel: str(formData, "dayLabel"),
+      state: str(formData, "state") as StepState,
+      ctaLabel: optStr(formData, "ctaLabel"),
+      ctaUrl: optStr(formData, "ctaUrl"),
+      sortOrder: optInt(formData, "sortOrder") ?? 0,
+    },
+  });
+  revalidatePath(`/admin/clients/${clientId}`);
+}
+
+export async function deleteOnboardingStep(clientId: string, stepId: string) {
+  await requireAdmin();
+  await prisma.onboardingStep.delete({ where: { id: stepId } });
+  revalidatePath(`/admin/clients/${clientId}`);
+}
+
+export async function createWeeklyNote(clientId: string, formData: FormData) {
+  await requireAdmin();
+  await prisma.weeklyNote.create({
+    data: {
+      clientId,
+      weekOf: new Date(str(formData, "weekOf")),
+      headline: str(formData, "headline"),
+      body: str(formData, "body"),
+      videoUrl: optStr(formData, "videoUrl"),
+      published: formData.get("published") === "on",
+    },
+  });
+  revalidatePath(`/admin/clients/${clientId}`);
+}
+
+export async function toggleNotePublished(clientId: string, noteId: string) {
+  await requireAdmin();
+  const note = await prisma.weeklyNote.findUniqueOrThrow({ where: { id: noteId } });
+  await prisma.weeklyNote.update({
+    where: { id: noteId },
+    data: { published: !note.published },
+  });
+  revalidatePath(`/admin/clients/${clientId}`);
+}
+
+export async function deleteWeeklyNote(clientId: string, noteId: string) {
+  await requireAdmin();
+  await prisma.weeklyNote.delete({ where: { id: noteId } });
+  revalidatePath(`/admin/clients/${clientId}`);
+}
+
+export async function inviteUserAction(clientId: string, formData: FormData) {
+  await requireAdmin();
+  const email = str(formData, "email");
+  const role = str(formData, "role") as Role;
+  await inviteUser({ email, role, clientId: role === "CLIENT" ? clientId : undefined });
+  revalidatePath(`/admin/clients/${clientId}`);
+}
