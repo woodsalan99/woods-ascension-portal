@@ -52,7 +52,7 @@ This is the single source of truth for the Woods Ascension Client Portal build. 
 | D9 | Video notes: store any URL (Loom, YouTube unlisted, etc.); render Loom/YouTube as embeds, other URLs as a styled link card. | Alan has Loom but wants flexibility | 07-09 |
 | D10 | Campaign mapping: one Client → many Smartlead campaigns (Zoom will have 3–4). DailyStat aggregates across all linked campaigns. | Matches real campaign structure | 07-09 |
 | D11 | Qualified-appointment tracking: `PipelineEntry.qualified` boolean + `disqualifiedReason` — mirrors contract Section 5 billable criteria. Portal shows qualified counts; billing math stays OUT of v1. | Contract alignment without building invoicing | 07-09 |
-| D12 | Domain: `portal.woodsascension.com` via CNAME on Hostinger DNS → Railway. | Alan has full Hostinger access | 07-09 |
+| D12 | Domain: `portal.woodsascension.com` via CNAME on GoDaddy DNS → Railway. | Alan has full GoDaddy access | 07-09 |
 | D13 | DB seed includes TWO clients: Zoom Business Brokers (real) + "Meridian Demo Co." (staging/sales-demo, fake data). Built day one; doubles as the tenancy leak test. | One more client expected within 30 days; demo login for prospect calls | 07-09 |
 | D14 | Launch state: Zoom seeds with EMPTY pipeline stages and onboarding at Week-0 state (setup paid ✓, everything else pending). Campaign launches during onboarding — backfill not needed at launch; sync begins when campaigns are linked. | Contract signed 07/08; Day 0 = setup invoice payment | 07-09 |
 | D15 | User provisioning: admin invite action calls Clerk's Invitations API with `{role, clientId}` in `publicMetadata`; a Clerk webhook (`/api/webhooks/clerk`, `user.created`) upserts the `User` row on accept. No nullable `clerkId`, no separate pending-invite table — schema stays exactly as §5. | Keeps `User.clerkId`/`email` required as specified while still supporting invite-before-signup; avoids a schema change for something the Change Protocol would otherwise flag | 07-09 |
@@ -235,7 +235,7 @@ model SyncRun {
 | **D — Client dashboard UI** | All 7 sections ported from approved demo artifact with design system §9; renders from DB; empty states shown when data absent; responsive on a real phone | ⚠️ BUILT, NOT VISUALLY VERIFIED — all 7 sections implemented (KPI row, activity chart, journey rail, onboarding, pipeline, appointments, Alan's note), design system ported from demo-artifact.jsx, empty states wired for pre-launch. Build passes clean, deployed live. Visual check against the artifact and mobile responsiveness check still pending — browser automation was unavailable this session and Alan's test sessions had logged out. |
 | **E — Admin panel** | CRUD for clients, campaigns, pipeline (incl. qualified toggle + stage moves), milestones, onboarding steps, weekly notes (incl. publish toggle); invite-user action (Clerk invitation); no styling requirements | ⚠️ BUILT, NOT CLICK-TESTED — all CRUD (client fields, campaigns, pipeline incl. qualified/stage, milestones, onboarding steps, weekly notes incl. publish toggle, invite-user) implemented as Server Actions guarded by `requireAdmin()`. Build/type-check clean, deployed live, smoke-tested for auth redirect (307) and no runtime errors. Not yet clicked through end-to-end in a browser — browser automation unavailable this session. |
 | **F — Seed data** | Zoom Business Brokers seeded per §8; Meridian Demo Co. seeded with plausible fake week-6 data (reuse demo artifact numbers) | ✅ DONE — both clients seeded and confirmed via direct DB query (Module B). Meridian's numbers now match design/demo-artifact.jsx exactly, not just "plausible." |
-| **G — Domain & production** | portal.woodsascension.com live via Hostinger CNAME; SSL green; Railway Postgres backups ON; env vars documented in repo `.env.example` | ☐ NOT STARTED |
+| **G — Domain & production** | portal.woodsascension.com live via GoDaddy CNAME; SSL green; Railway Postgres backups ON; env vars documented in repo `.env.example` | ☐ NOT STARTED |
 | **H — Launch ritual** | Jim's user invited; Alan recorded welcome video; first weekly note published; 10-min live walkthrough call scheduled; recurring 15-min weekly portal-update block on Alan's calendar | ☐ NOT STARTED |
 
 **Build order: A → B → C → D → E → F → G → H.** B's leak test gates everything after it. If time runs short on day one, the acceptable cut line is after D (dashboard visible with synced data; admin edits via Prisma Studio as stopgap).
@@ -304,7 +304,7 @@ model SyncRun {
 | `SMARTLEAD_API_KEY` | Generate in Smartlead settings — **verify tonight** |
 | `CLERK_SECRET_KEY` / `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` | Create Clerk app "WA Portal", enable email magic link, disable public signup |
 | `CRON_SECRET` | Random 32-char string; Railway cron sends as header |
-| Hostinger DNS | CNAME `portal` → Railway domain — **verify login tonight** |
+| GoDaddy DNS | CNAME `portal` → Railway domain — **verify login tonight** |
 | GitHub repo | `woods-ascension-portal` (private). New chat sessions receive a repo zip upload; if repo is made public, sessions may clone directly. |
 | Clerk invitations | Jim's email needed before Module H |
 
@@ -314,7 +314,7 @@ model SyncRun {
 
 1. Railway: new project → Postgres plugin → Next.js service from GitHub repo → set env vars.
 2. Railway cron: schedule hourly `GET https://<app>/api/cron/sync` with `Authorization: Bearer $CRON_SECRET` (or use a scheduled service hitting the route).
-3. Hostinger: CNAME `portal` → Railway-provided domain; add custom domain in Railway; wait for SSL.
+3. GoDaddy: CNAME `portal` → Railway-provided domain; add custom domain in Railway; wait for SSL.
 4. Enable Railway Postgres backups. Run one restore sanity check before Module H.
 
 ---
@@ -335,7 +335,7 @@ When reality contradicts the plan (an API doesn't behave as documented, a librar
 
 ## §13 — DAY-1 RUNBOOK (target: one day, hard max two)
 
-**Tonight (30 min, before sleep):** Smartlead API key generated and saved · Hostinger login verified · Clerk account created · GitHub repo created · Railway project + Postgres created. *Access blockers are the #1 killer of one-day builds.*
+**Tonight (30 min, before sleep):** Smartlead API key generated and saved · GoDaddy login verified · Clerk account created · GitHub repo created · Railway project + Postgres created. *Access blockers are the #1 killer of one-day builds.*
 
 | Block | Hours | Modules |
 |---|---|---|
