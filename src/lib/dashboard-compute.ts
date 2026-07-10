@@ -262,8 +262,18 @@ export function computeAppointments(
   const entries = audienceId
     ? client.pipeline.filter((p) => p.audienceId === audienceId)
     : client.pipeline;
+  // Overview shows only genuinely upcoming appointments: today or later and
+  // not already held/no-showed.
+  const todayStart = new Date();
+  todayStart.setUTCHours(0, 0, 0, 0);
   const withCall = entries
-    .filter((p) => p.callDateTime)
+    .filter(
+      (p) =>
+        p.callDateTime &&
+        p.callStatus !== "HELD" &&
+        p.callStatus !== "NO_SHOW" &&
+        p.callDateTime >= todayStart,
+    )
     .sort((a, b) => a.callDateTime!.getTime() - b.callDateTime!.getTime());
   const limited = limit ? withCall.slice(0, limit) : withCall;
   return limited.map((p) => ({

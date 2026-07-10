@@ -87,12 +87,13 @@ export default async function AppointmentsPage({
     : client.pipeline
   ).filter((p) => p.callDateTime);
 
-  const now = new Date();
-  // Past = call date has passed OR it's already been held/no-showed.
+  // "Upcoming" = the call is today or in the future AND hasn't happened yet.
+  // Anything already held/no-showed, or dated before today, is Past —
+  // regardless of its confirmed/pending status.
+  const todayStart = new Date();
+  todayStart.setUTCHours(0, 0, 0, 0);
   const isPast = (e: Entry) =>
-    (e.callDateTime! < now && e.callStatus !== "CONFIRMED" && e.callStatus !== "PENDING") ||
-    e.callStatus === "HELD" ||
-    e.callStatus === "NO_SHOW";
+    e.callStatus === "HELD" || e.callStatus === "NO_SHOW" || e.callDateTime! < todayStart;
 
   const upcoming = all.filter((e) => !isPast(e)).sort((a, b) => a.callDateTime!.getTime() - b.callDateTime!.getTime());
   const past = all.filter(isPast).sort((a, b) => b.callDateTime!.getTime() - a.callDateTime!.getTime());
