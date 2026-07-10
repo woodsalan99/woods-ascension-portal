@@ -258,9 +258,10 @@ export default async function AdminClientDetail({
                 <td colSpan={7}>
                   <form
                     action={updatePipelineEntry.bind(null, id, p.id)}
-                    className="grid grid-cols-7 gap-1 py-1 items-center"
+                    className="grid grid-cols-8 gap-1 py-1 items-center"
                   >
                     <input name="contactName" defaultValue={p.contactName} className="border p-1" />
+                    <input name="email" defaultValue={p.email ?? ""} placeholder="email" className="border p-1" />
                     <input name="company" defaultValue={p.company} className="border p-1" />
                     <select name="stage" defaultValue={p.stage} className="border p-1">
                       {STAGE_KEYS.map((s) => (
@@ -307,8 +308,9 @@ export default async function AdminClientDetail({
             ))}
           </tbody>
         </table>
-        <form action={boundCreatePipelineEntry} className="grid grid-cols-5 gap-2">
+        <form action={boundCreatePipelineEntry} className="grid grid-cols-6 gap-2">
           <input name="contactName" placeholder="Contact name" className="border p-1" required />
+          <input name="email" placeholder="Email" className="border p-1" />
           <input name="company" placeholder="Company" className="border p-1" required />
           <select name="stage" className="border p-1">
             {STAGE_KEYS.map((s) => (
@@ -328,7 +330,7 @@ export default async function AdminClientDetail({
             title="Estimated lifetime revenue if this deal closes"
             className="border p-1"
           />
-          <button className="bg-black text-white px-3 py-1 rounded col-span-5">Add pipeline entry</button>
+          <button className="bg-black text-white px-3 py-1 rounded col-span-6">Add pipeline entry</button>
         </form>
       </section>
 

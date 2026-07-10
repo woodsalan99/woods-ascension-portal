@@ -146,6 +146,7 @@ model PipelineEntry {
   audience           Audience? @relation(fields: [audienceId], references: [id])
   stage              StageKey
   contactName        String
+  email              String? // dedup key for auto-added positive replies (v1.1)
   company            String
   dealValue          Int? // whole dollars; null allowed
   notes              String?

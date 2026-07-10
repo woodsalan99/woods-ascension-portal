@@ -55,7 +55,7 @@ export default async function OverviewPage() {
           <>
             <KPI label="Emails sent" value={stats.emailsSent} />
             <KPI label="Positive replies" value={stats.positiveReplies} />
-            <KPI label="Qualified appointments" value={stats.appointmentsBooked} accent />
+            <KPI label="Qualified appointments" value={stats.qualifiedCount} accent />
           </>
         )}
       </div>

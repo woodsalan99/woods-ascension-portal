@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { fetchCampaignStatistics, fetchLeadCategories } from "@/lib/smartlead";
 import { dateKeyInTimezone, dateKeyToUtcMidnight } from "@/lib/timezone";
+import { guessCompanyFromEmail } from "@/lib/format";
 
 type DayBucket = {
   sends: number;
@@ -50,6 +51,7 @@ export async function GET(req: Request) {
     let campaignsSynced = 0;
     let daysUpserted = 0;
     let audienceDaysUpserted = 0;
+    let positiveRepliesAdded = 0;
 
     for (const client of clients) {
       if (client.campaigns.length === 0) continue;
@@ -57,6 +59,8 @@ export async function GET(req: Request) {
       const buckets = new Map<string, DayBucket>();
       // audienceId -> dateKey -> bucket
       const audienceBuckets = new Map<string, Map<string, DayBucket>>();
+      // email (lowercased) -> candidate for auto-adding to the pipeline
+      const positiveLeadCandidates = new Map<string, { name: string | null; audienceId: string | null }>();
 
       for (const campaign of client.campaigns) {
         const records = await fetchCampaignStatistics(
@@ -82,9 +86,52 @@ export async function GET(req: Request) {
             dateMap.set(dateKey, audienceBucket);
             audienceBuckets.set(campaign.audienceId, dateMap);
           }
+
+          // Auto-add positive replies to the pipeline (v1.1) — deduped by
+          // email against existing entries after the campaign loop below.
+          if (
+            record.replyTime &&
+            record.leadCategory &&
+            positiveCategoryNames.has(record.leadCategory) &&
+            record.leadEmail
+          ) {
+            const emailKey = record.leadEmail.toLowerCase();
+            if (!positiveLeadCandidates.has(emailKey)) {
+              positiveLeadCandidates.set(emailKey, {
+                name: record.leadName,
+                audienceId: campaign.audienceId,
+              });
+            }
+          }
         }
 
         await new Promise((resolve) => setTimeout(resolve, 250));
+      }
+
+      if (positiveLeadCandidates.size > 0) {
+        const existing = await prisma.pipelineEntry.findMany({
+          where: { clientId: client.id, email: { in: [...positiveLeadCandidates.keys()] } },
+          select: { email: true },
+        });
+        const existingEmails = new Set(existing.map((e) => e.email!.toLowerCase()));
+        const toCreate = [...positiveLeadCandidates.entries()].filter(
+          ([email]) => !existingEmails.has(email),
+        );
+
+        if (toCreate.length > 0) {
+          await prisma.pipelineEntry.createMany({
+            data: toCreate.map(([email, lead]) => ({
+              clientId: client.id,
+              audienceId: lead.audienceId,
+              stage: "STAGE_1" as const,
+              contactName: lead.name && lead.name.trim().length > 0 ? lead.name : email,
+              email,
+              company: guessCompanyFromEmail(email),
+              notes: "Auto-added from a positive Smartlead reply",
+            })),
+          });
+          positiveRepliesAdded += toCreate.length;
+        }
       }
 
       // apptsBooked rollup: entries that reached STAGE_2 (Appointment
@@ -166,11 +213,11 @@ export async function GET(req: Request) {
       data: {
         finishedAt: new Date(),
         status: "SUCCESS",
-        detail: `${campaignsSynced} campaign(s), ${daysUpserted} day(s) upserted, ${audienceDaysUpserted} audience-day(s) upserted`,
+        detail: `${campaignsSynced} campaign(s), ${daysUpserted} day(s) upserted, ${audienceDaysUpserted} audience-day(s) upserted, ${positiveRepliesAdded} lead(s) auto-added to pipeline`,
       },
     });
 
-    return Response.json({ ok: true, campaignsSynced, daysUpserted, audienceDaysUpserted });
+    return Response.json({ ok: true, campaignsSynced, daysUpserted, audienceDaysUpserted, positiveRepliesAdded });
   } catch (err) {
     await prisma.syncRun.update({
       where: { id: syncRun.id },

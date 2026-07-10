@@ -50,6 +50,7 @@ export async function fetchLeadCategories(): Promise<LeadCategory[]> {
 
 export type CampaignStatRecord = {
   leadEmail: string;
+  leadName: string | null;
   leadCategory: string | null;
   sentTime: string | null;
   replyTime: string | null;
@@ -78,6 +79,7 @@ export async function fetchCampaignStatistics(
       total_stats: string;
       data: Array<{
         lead_email: string;
+        lead_name: string | null;
         lead_category: string | null;
         sent_time: string | null;
         reply_time: string | null;
@@ -88,6 +90,7 @@ export async function fetchCampaignStatistics(
     all.push(
       ...json.data.map((r) => ({
         leadEmail: r.lead_email,
+        leadName: r.lead_name,
         leadCategory: r.lead_category,
         sentTime: r.sent_time,
         replyTime: r.reply_time,

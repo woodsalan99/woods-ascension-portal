@@ -48,27 +48,38 @@ export function Pipeline({
         </div>
       ) : (
         <div className="wa-pipe-grid">
-          {stages.map((s, i) => (
-            <div key={s.key} className="wa-stage">
-              <div className="wa-stage-head">
-                <span className="wa-stage-name">{s.label}</span>
-                {i < stages.length - 1 && <span className="wa-stage-arrow">→</span>}
-              </div>
-              <div className="wa-stage-count">{s.count}</div>
-              <div className="wa-stage-note">{s.note}</div>
-              <div className="wa-stage-leads">
-                {s.leads.map((l, li) => (
-                  <div key={li} className="wa-lead">
-                    <div>
-                      <div className="wa-lead-name">{l.contactName}</div>
-                      <div className="wa-lead-co">{l.company}</div>
+          {stages.map((s, i) => {
+            // Stage 1 (raw positive replies) is de-emphasized — it's
+            // noisy/unvetted compared to booked/held/closed, especially
+            // now that it can be auto-populated from Smartlead replies.
+            const isRawRepliesStage = i === 0;
+            const visibleLeads = isRawRepliesStage ? s.leads.slice(0, 3) : s.leads;
+            const hiddenCount = s.leads.length - visibleLeads.length;
+            return (
+              <div key={s.key} className={`wa-stage ${isRawRepliesStage ? "wa-stage-muted" : ""}`}>
+                <div className="wa-stage-head">
+                  <span className="wa-stage-name">{s.label}</span>
+                  {i < stages.length - 1 && <span className="wa-stage-arrow">→</span>}
+                </div>
+                <div className="wa-stage-count">{s.count}</div>
+                <div className="wa-stage-note">{s.note}</div>
+                <div className="wa-stage-leads">
+                  {visibleLeads.map((l, li) => (
+                    <div key={li} className="wa-lead">
+                      <div>
+                        <div className="wa-lead-name">{l.contactName}</div>
+                        <div className="wa-lead-co">{l.company}</div>
+                      </div>
+                      <div className="wa-lead-val">{l.displayValue}</div>
                     </div>
-                    <div className="wa-lead-val">{l.displayValue}</div>
-                  </div>
-                ))}
+                  ))}
+                  {hiddenCount > 0 && (
+                    <div className="wa-stage-more">+{hiddenCount} more</div>
+                  )}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

@@ -51,16 +51,17 @@ export default async function MetricsPage({
   const rawValues: Record<MetricKey, number> = {
     EMAILS_SENT: stats.emailsSent,
     POSITIVE_REPLIES: stats.positiveReplies,
-    QUALIFIED_APPTS: stats.appointmentsBooked,
-    POSITIVE_REPLY_RATE: stats.emailsSent > 0 ? (stats.positiveReplies / stats.emailsSent) * 100 : 0,
+    QUALIFIED_APPTS: stats.qualifiedCount,
+    // % of TOTAL replies that were positive — not % of emails sent.
+    POSITIVE_REPLY_RATE: stats.totalReplies > 0 ? (stats.positiveReplies / stats.totalReplies) * 100 : 0,
     EMAILS_PER_BOOKED: stats.appointmentsBooked > 0 ? stats.emailsSent / stats.appointmentsBooked : 0,
     EMAILS_PER_QUALIFIED: stats.qualifiedCount > 0 ? stats.emailsSent / stats.qualifiedCount : 0,
   };
   const displayValues: Record<MetricKey, string> = {
     EMAILS_SENT: stats.emailsSent.toLocaleString("en-US"),
     POSITIVE_REPLIES: stats.positiveReplies.toLocaleString("en-US"),
-    QUALIFIED_APPTS: stats.appointmentsBooked.toLocaleString("en-US"),
-    POSITIVE_REPLY_RATE: stats.emailsSent > 0 ? `${rawValues.POSITIVE_REPLY_RATE.toFixed(2)}%` : "—",
+    QUALIFIED_APPTS: stats.qualifiedCount.toLocaleString("en-US"),
+    POSITIVE_REPLY_RATE: stats.totalReplies > 0 ? `${rawValues.POSITIVE_REPLY_RATE.toFixed(2)}%` : "—",
     EMAILS_PER_BOOKED: stats.appointmentsBooked > 0 ? Math.round(rawValues.EMAILS_PER_BOOKED).toLocaleString("en-US") : "—",
     EMAILS_PER_QUALIFIED: stats.qualifiedCount > 0 ? Math.round(rawValues.EMAILS_PER_QUALIFIED).toLocaleString("en-US") : "—",
   };

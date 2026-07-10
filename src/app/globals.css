@@ -296,6 +296,9 @@ span.wa-ob-active { font-size: 12px; font-weight: 600; color: var(--green); }
 .wa-pipe-total b { font-family: 'Fraunces', serif; font-size: 17px; color: var(--green); margin-left: 6px; }
 .wa-pipe-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
 .wa-stage { background: #FBFBF7; border: 1px solid #EFEEE6; border-radius: 12px; padding: 16px; }
+.wa-stage-muted { background: transparent; opacity: 0.72; }
+.wa-stage-muted .wa-stage-count { font-size: 22px; }
+.wa-stage-more { font-size: 11px; color: var(--muted); text-align: center; padding: 4px 0; }
 .wa-stage-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
 .wa-stage-name { font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; font-weight: 600; color: var(--ink-soft); }
 .wa-stage-arrow { color: #C8C7BC; font-size: 13px; }

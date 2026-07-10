@@ -73,6 +73,7 @@ export function computeActivityStats(
   const bounceRate = windowSends > 0 ? (windowBounces / windowSends) * 100 : null;
 
   const emailsSent = dailyStats.reduce((sum, s) => sum + s.sends, 0);
+  const totalReplies = dailyStats.reduce((sum, s) => sum + s.totalReplies, 0);
   const positiveReplies = dailyStats.reduce((sum, s) => sum + s.positiveReplies, 0);
   const appointmentsBooked = dailyStats.reduce((sum, s) => sum + s.apptsBooked, 0);
 
@@ -83,12 +84,15 @@ export function computeActivityStats(
   const pipelineValue = pipeline
     .filter((p) => p.stage !== "STAGE_1")
     .reduce((sum, p) => sum + (p.dealValue ?? 0), 0);
-  const qualifiedCount = pipeline.filter((p) => p.qualified).length;
+  // "Qualified appointments" = calls that actually occurred (HELD) and were
+  // marked qualified — not just any qualified lead, and not just booked.
+  const qualifiedCount = pipeline.filter((p) => p.callStatus === "HELD" && p.qualified).length;
 
   return {
     chartData,
     bounceRate,
     emailsSent,
+    totalReplies,
     positiveReplies,
     appointmentsBooked,
     pipelineValue,
