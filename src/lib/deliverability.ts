@@ -66,3 +66,59 @@ export function evaluateDomain(recent: DomainHealth | undefined, prior: DomainHe
 export function daysBetween(from: Date, to: Date): number {
   return Math.max(0, Math.round((to.getTime() - from.getTime()) / 86_400_000));
 }
+
+// ---- View #2: domain-vs-client-average divergence ----
+// Since a domain serves exactly one client (but is shared across that
+// client's campaigns), the meaningful comparison is a domain against its
+// client's overall rates. A domain far below the client's average reply
+// rate — or far above its bounce rate — is a strong "this domain is hit"
+// signal, because the client's *other* domains (same copy/offer) are fine.
+
+export type DivergenceStatus = "OK" | "UNDERPERFORMING" | "LIKELY_HIT";
+
+export type DivergenceVM = {
+  domain: string;
+  sent: number;
+  replyRate: number;
+  bounceRate: number;
+  status: DivergenceStatus;
+  reason: string;
+};
+
+export function evaluateDivergence(params: {
+  domain: string;
+  sent: number;
+  replyRate: number;
+  bounceRate: number;
+  clientReplyRate: number;
+  clientBounceRate: number;
+}): DivergenceVM {
+  const { domain, sent, replyRate, bounceRate, clientReplyRate, clientBounceRate } = params;
+  const base = { domain, sent, replyRate, bounceRate };
+
+  if (sent < MIN_SENDS_FOR_SIGNAL) {
+    return { ...base, status: "OK", reason: `Needs ${MIN_SENDS_FOR_SIGNAL}+ sends` };
+  }
+
+  // Reply comparison only meaningful when the client actually gets replies.
+  const replyRatio = clientReplyRate > 0.5 ? replyRate / clientReplyRate : null;
+  // Bounce comparison: how far above the client's typical bounce rate.
+  const bounceHigh2x = bounceRate >= Math.max(clientBounceRate * 2, clientBounceRate + 2);
+  const bounceHigh3x = bounceRate >= Math.max(clientBounceRate * 3, clientBounceRate + 3);
+
+  if ((replyRatio !== null && replyRatio <= 0.35) || bounceHigh3x) {
+    const why =
+      replyRatio !== null && replyRatio <= 0.35
+        ? `reply rate ${replyRate.toFixed(1)}% vs client avg ${clientReplyRate.toFixed(1)}%`
+        : `bounce rate ${bounceRate.toFixed(1)}% vs client avg ${clientBounceRate.toFixed(1)}%`;
+    return { ...base, status: "LIKELY_HIT", reason: `Likely hit — ${why}` };
+  }
+  if ((replyRatio !== null && replyRatio <= 0.6) || bounceHigh2x) {
+    const why =
+      replyRatio !== null && replyRatio <= 0.6
+        ? `reply rate below client average`
+        : `bounce rate above client average`;
+    return { ...base, status: "UNDERPERFORMING", reason: `Underperforming — ${why}` };
+  }
+  return { ...base, status: "OK", reason: "In line with client average" };
+}
