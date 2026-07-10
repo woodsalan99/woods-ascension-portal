@@ -477,12 +477,12 @@ async function seedMeridian() {
   await prisma.metricConfig.deleteMany({ where: { clientId: client.id } });
   await prisma.metricConfig.createMany({
     data: [
-      { clientId: client.id, metricKey: "EMAILS_SENT", targetLabel: "5,000+ / week", targetMin: 5000, tips: ["More inboxes", "More verified leads"], sortOrder: 1 },
-      { clientId: client.id, metricKey: "POSITIVE_REPLIES", targetLabel: "50+ / week", targetMin: 50, tips: ["Better offer & messaging", "Highly clean & targeted list"], sortOrder: 2 },
-      { clientId: client.id, metricKey: "QUALIFIED_APPTS", targetLabel: "10+", targetMin: 10, tips: ["Stronger qualification", "Better calendar conversion"], sortOrder: 3 },
-      { clientId: client.id, metricKey: "POSITIVE_REPLY_RATE", targetLabel: "0.8% - 1.5%", targetMin: 0.8, targetMax: 1.5, tips: ["Sharpen targeting", "Stronger first email"], sortOrder: 4 },
-      { clientId: client.id, metricKey: "EMAILS_PER_BOOKED", targetLabel: "< 600", targetMax: 600, tips: ["Improve offer clarity", "Stronger follow-ups"], sortOrder: 5 },
-      { clientId: client.id, metricKey: "EMAILS_PER_QUALIFIED", targetLabel: "< 800", targetMax: 800, tips: ["Better qualification", "Higher show rate"], sortOrder: 6 },
+      { clientId: client.id, metricKey: "EMAILS_SENT", cadence: "WEEKLY", targetMin: 5000, tips: ["More inboxes", "More verified leads"], sortOrder: 1 },
+      { clientId: client.id, metricKey: "POSITIVE_REPLIES", cadence: "WEEKLY", targetMin: 50, tips: ["Better offer & messaging", "Highly clean & targeted list"], sortOrder: 2 },
+      { clientId: client.id, metricKey: "QUALIFIED_APPTS", cadence: "WEEKLY", targetMin: 10, tips: ["Stronger qualification", "Better calendar conversion"], sortOrder: 3 },
+      { clientId: client.id, metricKey: "POSITIVE_REPLY_RATE", cadence: "PERPETUAL", targetMin: 0.8, targetMax: 1.5, tips: ["Sharpen targeting", "Stronger first email"], sortOrder: 4 },
+      { clientId: client.id, metricKey: "EMAILS_PER_BOOKED", cadence: "PERPETUAL", targetMax: 600, tips: ["Improve offer clarity", "Stronger follow-ups"], sortOrder: 5 },
+      { clientId: client.id, metricKey: "EMAILS_PER_QUALIFIED", cadence: "PERPETUAL", targetMax: 800, tips: ["Better qualification", "Higher show rate"], sortOrder: 6 },
     ],
   });
 

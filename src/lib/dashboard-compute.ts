@@ -61,17 +61,55 @@ export function computeActivityStats(
   const cutoff = periodCutoff(period);
   const dailyStats = cutoff ? allDailyStats.filter((s) => s.date >= cutoff) : allDailyStats;
 
+  // Effective number of days the window spans — used to scale weekly/daily
+  // targets. For a fixed period it's the period length; for ALL_TIME it's the
+  // span from the earliest data point to now (min 1).
+  let periodDays: number;
+  if (PERIOD_DAYS[period] !== null) {
+    periodDays = PERIOD_DAYS[period]!;
+  } else if (allDailyStats.length > 0) {
+    const earliest = allDailyStats[0].date.getTime();
+    periodDays = Math.max(1, Math.round((Date.now() - earliest) / 86_400_000));
+  } else {
+    periodDays = 1;
+  }
+
+  const allPipeline = audienceId
+    ? client.pipeline.filter((p) => p.audienceId === audienceId)
+    : client.pipeline;
+
+  // Per-day appointment info for the chart: which appointments are on each
+  // calendar day (by the appointment/discovery-call date), and whether one
+  // actually occurred (HELD). Keyed by client-TZ date so it aligns with the
+  // DailyStat day keys.
+  const apptByDay = new Map<string, { names: string[]; occurred: boolean }>();
+  for (const p of allPipeline) {
+    const apptDate = p.discoveryCallDate ?? p.callDateTime;
+    if (!apptDate) continue;
+    const key = dateKeyInTimezone(apptDate, client.timezone);
+    const entry = apptByDay.get(key) ?? { names: [], occurred: false };
+    entry.names.push(p.contactName || p.email || "Appointment");
+    if (p.callStatus === "HELD") entry.occurred = true;
+    apptByDay.set(key, entry);
+  }
+
   const chartWindow = dailyStats.slice(-30);
   const todayKey = dateKeyInTimezone(new Date(), client.timezone);
-  const chartData: ChartDay[] = chartWindow.map((s) => ({
-    d: formatDayLabel(s.date),
-    sends: s.sends,
-    replies: s.positiveReplies,
-    bounces: s.bounces,
-    appts: s.apptsBooked,
-    positiveReplyEmails: (s.positiveReplyEmails as string[] | null) ?? [],
-    isToday: s.date.toISOString().slice(0, 10) === todayKey,
-  }));
+  const chartData: ChartDay[] = chartWindow.map((s) => {
+    const key = s.date.toISOString().slice(0, 10);
+    const appt = apptByDay.get(key);
+    return {
+      d: formatDayLabel(s.date),
+      sends: s.sends,
+      replies: s.positiveReplies,
+      bounces: s.bounces,
+      appts: appt ? appt.names.length : 0,
+      apptNames: appt?.names ?? [],
+      apptOccurred: appt?.occurred ?? false,
+      positiveReplyEmails: (s.positiveReplyEmails as string[] | null) ?? [],
+      isToday: key === todayKey,
+    };
+  });
   const windowSends = chartWindow.reduce((sum, s) => sum + s.sends, 0);
   const windowBounces = chartWindow.reduce((sum, s) => sum + s.bounces, 0);
   const bounceRate = windowSends > 0 ? (windowBounces / windowSends) * 100 : null;
@@ -81,9 +119,6 @@ export function computeActivityStats(
   const positiveReplies = dailyStats.reduce((sum, s) => sum + s.positiveReplies, 0);
   const appointmentsBooked = dailyStats.reduce((sum, s) => sum + s.apptsBooked, 0);
 
-  const allPipeline = audienceId
-    ? client.pipeline.filter((p) => p.audienceId === audienceId)
-    : client.pipeline;
   const pipeline = cutoff ? allPipeline.filter((p) => p.createdAt >= cutoff) : allPipeline;
   const pipelineValue = pipeline
     .filter((p) => p.stage !== "STAGE_1")
@@ -101,19 +136,52 @@ export function computeActivityStats(
     appointmentsBooked,
     pipelineValue,
     qualifiedCount,
+    periodDays,
   };
 }
 
 export type MetricStatusVM = "ON_TRACK" | "NEEDS_ATTENTION";
+export type MetricCadenceVM = "DAILY" | "WEEKLY" | "PERPETUAL";
+
+// Scale a base-unit target bound to the selected window. WEEKLY targets are
+// per-week so multiply by weeks-in-window; DAILY by days; PERPETUAL (rates,
+// ratios) don't scale.
+export function scaleTargetBound(
+  bound: number | null,
+  cadence: MetricCadenceVM,
+  periodDays: number,
+): number | null {
+  if (bound === null) return null;
+  if (cadence === "WEEKLY") return bound * (periodDays / 7);
+  if (cadence === "DAILY") return bound * periodDays;
+  return bound;
+}
 
 export function computeMetricStatus(
   value: number,
-  targetMin: number | null,
-  targetMax: number | null,
+  scaledMin: number | null,
+  scaledMax: number | null,
 ): MetricStatusVM {
-  if (targetMin !== null && value < targetMin) return "NEEDS_ATTENTION";
-  if (targetMax !== null && value > targetMax) return "NEEDS_ATTENTION";
+  if (scaledMin !== null && value < scaledMin) return "NEEDS_ATTENTION";
+  if (scaledMax !== null && value > scaledMax) return "NEEDS_ATTENTION";
   return "ON_TRACK";
+}
+
+// Human-readable "healthy range" text for a KPI card, using the scaled
+// bounds. isPercent formats as % (for reply rate).
+export function describeTargetRange(
+  scaledMin: number | null,
+  scaledMax: number | null,
+  isPercent: boolean,
+): string | null {
+  const fmt = (n: number) =>
+    isPercent
+      ? `${n.toFixed(1)}%`
+      : Math.round(n).toLocaleString("en-US");
+  if (scaledMin !== null && scaledMax !== null) return `${fmt(scaledMin)}–${fmt(scaledMax)} is healthy`;
+  if (scaledMin !== null) return `${fmt(scaledMin)} or more is healthy`;
+  if (scaledMax !== null) return `${fmt(scaledMax)} or less is healthy`;
+  return null;
 }
 
 export function computeMilestones(client: DashboardClient): MilestoneVM[] {

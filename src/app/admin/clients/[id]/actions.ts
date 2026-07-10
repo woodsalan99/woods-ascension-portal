@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { inviteUser } from "@/lib/clerk-invite";
-import type { MetricKey, MilestoneState, Role, StepState } from "@prisma/client";
+import type { MetricCadence, MetricKey, MilestoneState, Role, StepState } from "@prisma/client";
 
 function str(fd: FormData, key: string): string {
   return String(fd.get(key) ?? "").trim();
@@ -16,6 +16,10 @@ function optStr(fd: FormData, key: string): string | null {
 function optInt(fd: FormData, key: string): number | null {
   const v = str(fd, key);
   return v.length > 0 ? parseInt(v, 10) : null;
+}
+function optDate(fd: FormData, key: string): Date | null {
+  const v = str(fd, key);
+  return v.length > 0 ? new Date(v) : null;
 }
 
 export async function updateClient(clientId: string, formData: FormData) {
@@ -115,9 +119,11 @@ export async function createPipelineEntry(clientId: string, formData: FormData) 
       company: str(formData, "company"),
       dealValue: optInt(formData, "dealValue"),
       notes: optStr(formData, "notes"),
-      callDateTime: optStr(formData, "callDateTime")
-        ? new Date(str(formData, "callDateTime"))
-        : null,
+      positiveReplyDate: optDate(formData, "positiveReplyDate"),
+      discoveryCallDate: optDate(formData, "discoveryCallDate"),
+      salesCallDate: optDate(formData, "salesCallDate"),
+      closeDate: optDate(formData, "closeDate"),
+      callDateTime: optDate(formData, "discoveryCallDate"), // keep legacy field mirrored to the appointment date
       callStatus: optStr(formData, "callStatus"),
       qualified: formData.get("qualified") === "on",
       disqualifiedReason: optStr(formData, "disqualifiedReason"),
@@ -138,9 +144,11 @@ export async function updatePipelineEntry(clientId: string, entryId: string, for
       company: str(formData, "company"),
       dealValue: optInt(formData, "dealValue"),
       notes: optStr(formData, "notes"),
-      callDateTime: optStr(formData, "callDateTime")
-        ? new Date(str(formData, "callDateTime"))
-        : null,
+      positiveReplyDate: optDate(formData, "positiveReplyDate"),
+      discoveryCallDate: optDate(formData, "discoveryCallDate"),
+      salesCallDate: optDate(formData, "salesCallDate"),
+      closeDate: optDate(formData, "closeDate"),
+      callDateTime: optDate(formData, "discoveryCallDate"), // keep legacy field mirrored to the appointment date
       callStatus: optStr(formData, "callStatus"),
       qualified: formData.get("qualified") === "on",
       disqualifiedReason: optStr(formData, "disqualifiedReason"),
@@ -351,7 +359,7 @@ export async function upsertMetricConfig(clientId: string, metricKey: MetricKey,
   await requireAdmin();
   const tips = [str(formData, "tip1"), str(formData, "tip2")].filter((t) => t.length > 0);
   const data = {
-    targetLabel: str(formData, "targetLabel"),
+    cadence: str(formData, "cadence") as MetricCadence,
     targetMin: optFloat(formData, "targetMin"),
     targetMax: optFloat(formData, "targetMax"),
     tips,

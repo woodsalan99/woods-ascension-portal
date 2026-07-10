@@ -1,4 +1,4 @@
-import { getScopedContext } from "@/lib/auth";
+import { getDashboardScope } from "@/lib/dashboard-scope";
 import { getDashboardClient } from "@/lib/dashboard-data";
 import {
   computeActivityStats,
@@ -13,9 +13,8 @@ import { Appointments } from "@/components/dashboard/Appointments";
 import { AlanNote } from "@/components/dashboard/AlanNote";
 
 export default async function OverviewPage() {
-  const ctx = await getScopedContext();
-  if (!ctx.clientId) throw new Error("CLIENT user has no clientId assigned");
-  const client = await getDashboardClient(ctx.clientId);
+  const scope = await getDashboardScope();
+  const client = await getDashboardClient(scope.clientId);
 
   const { isPreLaunch, daysToLaunch, daySinceStart } = computeLaunchState(client);
   const stats = computeActivityStats(client, null);

@@ -1,4 +1,4 @@
-import { getScopedContext } from "@/lib/auth";
+import { getDashboardScope } from "@/lib/dashboard-scope";
 import { getDashboardClient } from "@/lib/dashboard-data";
 
 const WHAT_THIS_COVERS = [
@@ -9,9 +9,8 @@ const WHAT_THIS_COVERS = [
 ];
 
 export default async function InfrastructurePage() {
-  const ctx = await getScopedContext();
-  if (!ctx.clientId) throw new Error("CLIENT user has no clientId assigned");
-  const client = await getDashboardClient(ctx.clientId);
+  const scope = await getDashboardScope();
+  const client = await getDashboardClient(scope.clientId);
 
   const total = client.infrastructure.reduce((sum, i) => sum + i.monthlyCost, 0);
 

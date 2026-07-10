@@ -25,7 +25,7 @@ const NAV_ITEMS = [
   { href: "/changelog", label: "Changelog", icon: ScrollText },
 ];
 
-export function Sidebar({ clientName }: { clientName: string }) {
+export function Sidebar({ clientName, showSignOut = true }: { clientName: string; showSignOut?: boolean }) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -82,14 +82,14 @@ export function Sidebar({ clientName }: { clientName: string }) {
         <div className="wa-sidebar-client-wrap">
           <button
             className="wa-sidebar-client"
-            onClick={() => setMenuOpen((o) => !o)}
+            onClick={() => showSignOut && setMenuOpen((o) => !o)}
             aria-expanded={menuOpen}
           >
             <div className="wa-sidebar-client-avatar">{clientName.charAt(0)}</div>
             <div className="wa-sidebar-client-name">{clientName}</div>
-            <ChevronDown size={14} style={{ marginLeft: "auto" }} />
+            {showSignOut && <ChevronDown size={14} style={{ marginLeft: "auto" }} />}
           </button>
-          {menuOpen && (
+          {showSignOut && menuOpen && (
             <button
               className="wa-sidebar-signout"
               onClick={() => signOut({ redirectUrl: "/sign-in" })}

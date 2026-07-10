@@ -1,4 +1,4 @@
-import { getScopedContext } from "@/lib/auth";
+import { getDashboardScope } from "@/lib/dashboard-scope";
 import { getDashboardClient } from "@/lib/dashboard-data";
 import { computeMilestones, computeOnboarding } from "@/lib/dashboard-compute";
 import { Journey } from "@/components/dashboard/Journey";
@@ -6,9 +6,8 @@ import { Onboarding } from "@/components/dashboard/Onboarding";
 import { completeOnboardingStep } from "../actions";
 
 export default async function RoadmapPage() {
-  const ctx = await getScopedContext();
-  if (!ctx.clientId) throw new Error("CLIENT user has no clientId assigned");
-  const client = await getDashboardClient(ctx.clientId);
+  const scope = await getDashboardScope();
+  const client = await getDashboardClient(scope.clientId);
 
   const milestones = computeMilestones(client);
   const onboarding = computeOnboarding(client);

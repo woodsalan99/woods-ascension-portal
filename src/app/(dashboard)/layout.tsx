@@ -1,6 +1,6 @@
-import { redirect } from "next/navigation";
-import { getScopedContext } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getDashboardScope } from "@/lib/dashboard-scope";
+import { exitPreview } from "@/lib/preview-actions";
 import { Sidebar } from "@/components/dashboard/Sidebar";
 
 export default async function DashboardLayout({
@@ -8,24 +8,27 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const ctx = await getScopedContext();
-
-  if (ctx.role === "ADMIN") {
-    redirect("/admin");
-  }
-  if (!ctx.clientId) {
-    throw new Error("CLIENT user has no clientId assigned");
-  }
+  const scope = await getDashboardScope();
 
   const client = await prisma.client.findUniqueOrThrow({
-    where: { id: ctx.clientId },
+    where: { id: scope.clientId },
     select: { heroName: true, name: true },
   });
 
   return (
     <div className="wa-shell-v2">
-      <Sidebar clientName={client.heroName ?? client.name} />
+      <Sidebar clientName={client.heroName ?? client.name} showSignOut={!scope.isPreview} />
       <main className="wa-main">
+        {scope.isPreview && (
+          <div className="wa-preview-banner">
+            <span>
+              Admin preview — viewing as <b>{client.heroName ?? client.name}</b>
+            </span>
+            <form action={exitPreview}>
+              <button className="wa-preview-exit">Exit preview →</button>
+            </form>
+          </div>
+        )}
         <div className="wa-main-inner">{children}</div>
       </main>
     </div>

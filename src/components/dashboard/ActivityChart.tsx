@@ -18,6 +18,8 @@ export type ChartDay = {
   replies: number;
   bounces: number;
   appts: number;
+  apptNames: string[];
+  apptOccurred: boolean;
   positiveReplyEmails: string[];
   isToday: boolean;
 };
@@ -59,6 +61,19 @@ function ChartTooltip({
           {row.appts} appointment{row.appts > 1 ? "s" : ""} booked
         </div>
       )}
+      {row.apptOccurred && (
+        <div className="wa-tip-row" style={{ color: "#8FD3B0" }}>
+          <span className="wa-dot" style={{ background: "var(--green)" }} />
+          Appointment occurred
+        </div>
+      )}
+      {row.apptNames.length > 0 && (
+        <div style={{ marginTop: 4, fontSize: 11, opacity: 0.9 }}>
+          {row.apptNames.map((n, i) => (
+            <div key={i}>· {n}</div>
+          ))}
+        </div>
+      )}
       {row.positiveReplyEmails.length > 0 && (
         <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px solid rgba(255,255,255,.15)", fontSize: 11, opacity: 0.9 }}>
           <div style={{ marginBottom: 2, opacity: 0.7 }}>Positive replies counted:</div>
@@ -80,17 +95,24 @@ function ApptDot(props: { cx?: number; cy?: number; payload?: ChartDay }) {
   const { cx, cy, payload } = props;
   if (!payload || !payload.appts || cx === undefined || cy === undefined) return null;
   return (
-    <rect
-      x={cx - 4.5}
-      y={cy - 4.5}
-      width="9"
-      height="9"
-      rx="1.5"
-      transform={`rotate(45 ${cx} ${cy})`}
-      fill="var(--gold)"
-      stroke="#fff"
-      strokeWidth="1.5"
-    />
+    <g>
+      {/* gold diamond = appointment booked that day */}
+      <rect
+        x={cx - 4.5}
+        y={cy - 4.5}
+        width="9"
+        height="9"
+        rx="1.5"
+        transform={`rotate(45 ${cx} ${cy})`}
+        fill="var(--gold)"
+        stroke="#fff"
+        strokeWidth="1.5"
+      />
+      {/* green dot below = an appointment actually occurred (held) */}
+      {payload.apptOccurred && (
+        <circle cx={cx} cy={cy + 12} r="3.5" fill="var(--green)" stroke="#fff" strokeWidth="1.5" />
+      )}
+    </g>
   );
 }
 
@@ -179,11 +201,13 @@ export function ActivityChart({ data, bounceRate }: { data: ChartDay[]; bounceRa
       </div>
 
       <div className="wa-chart-note">
-        <span className="wa-gold-diamond" /> Gold markers are days an appointment was booked
+        <span className="wa-gold-diamond" /> Gold = appointment booked ·{" "}
+        <span style={{ display: "inline-block", width: 8, height: 8, borderRadius: "50%", background: "var(--green)", verticalAlign: "middle" }} />{" "}
+        Green = appointment occurred · hover a day for names
         {bounceRate !== null && (
           <>
             {" "}
-            · Bounce rate held at <b style={{ color: "var(--ink)" }}>&nbsp;{bounceRate.toFixed(1)}%</b>
+            · Bounce rate <b style={{ color: "var(--ink)" }}>&nbsp;{bounceRate.toFixed(1)}%</b>
           </>
         )}
       </div>

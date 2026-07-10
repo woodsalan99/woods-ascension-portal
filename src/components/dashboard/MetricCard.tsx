@@ -2,12 +2,12 @@ export type MetricCardVM = {
   label: string;
   value: string;
   subValue?: string;
-  targetLabel: string;
+  rangeText: string | null;
   status: "ON_TRACK" | "NEEDS_ATTENTION";
   tips: string[];
 };
 
-export function MetricCard({ label, value, subValue, targetLabel, status, tips }: MetricCardVM) {
+export function MetricCard({ label, value, subValue, rangeText, status, tips }: MetricCardVM) {
   return (
     <div className="wa-kpi">
       <div className="wa-kpi-label">{label}</div>
@@ -17,12 +17,17 @@ export function MetricCard({ label, value, subValue, targetLabel, status, tips }
           {subValue}
         </div>
       )}
-      <span className={status === "ON_TRACK" ? "wa-badge-done" : "wa-badge-live"} style={{ marginTop: 8, display: "inline-block" }}>
+      <span
+        className={status === "ON_TRACK" ? "wa-badge-done" : "wa-badge-live"}
+        style={{ marginTop: 8, display: "inline-block" }}
+      >
         {status === "ON_TRACK" ? "On track" : "Needs attention"}
       </span>
-      <div className="wa-kpi-detail" style={{ marginTop: 10 }}>
-        Target: <b style={{ color: "var(--ink)" }}>{targetLabel}</b>
-      </div>
+      {rangeText && (
+        <div className="wa-kpi-detail" style={{ marginTop: 8 }}>
+          {rangeText}
+        </div>
+      )}
       {tips.length > 0 && (
         <div style={{ marginTop: 10, fontSize: 12, color: "var(--muted)" }}>
           <div style={{ fontWeight: 600, marginBottom: 4 }}>How Woods Ascension improves this</div>

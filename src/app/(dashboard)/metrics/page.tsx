@@ -1,6 +1,12 @@
-import { getScopedContext } from "@/lib/auth";
+import { getDashboardScope } from "@/lib/dashboard-scope";
 import { getDashboardClient } from "@/lib/dashboard-data";
-import { computeActivityStats, computeMetricStatus, type MetricsPeriod } from "@/lib/dashboard-compute";
+import {
+  computeActivityStats,
+  computeMetricStatus,
+  describeTargetRange,
+  scaleTargetBound,
+  type MetricsPeriod,
+} from "@/lib/dashboard-compute";
 import { ActivityChart } from "@/components/dashboard/ActivityChart";
 import { AudienceFilter } from "@/components/dashboard/AudienceFilter";
 import { PeriodFilter } from "@/components/dashboard/PeriodFilter";
@@ -39,9 +45,8 @@ export default async function MetricsPage({
   searchParams: Promise<{ audience?: string; period?: string }>;
 }) {
   const { audience: audienceId, period } = await searchParams;
-  const ctx = await getScopedContext();
-  if (!ctx.clientId) throw new Error("CLIENT user has no clientId assigned");
-  const client = await getDashboardClient(ctx.clientId);
+  const scope = await getDashboardScope();
+  const client = await getDashboardClient(scope.clientId);
 
   const selectedAudienceId = audienceId && client.audiences.some((a) => a.id === audienceId) ? audienceId : null;
   const selectedPeriod = (VALID_PERIODS.has(period ?? "") ? period : "ALL_TIME") as MetricsPeriod;
@@ -97,14 +102,18 @@ export default async function MetricsPage({
       <div className="wa-kpis" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
         {METRIC_ORDER.map((key) => {
           const config = configByKey.get(key);
-          const status = computeMetricStatus(rawValues[key], config?.targetMin ?? null, config?.targetMax ?? null);
+          const cadence = config?.cadence ?? "PERPETUAL";
+          const scaledMin = scaleTargetBound(config?.targetMin ?? null, cadence, stats.periodDays);
+          const scaledMax = scaleTargetBound(config?.targetMax ?? null, cadence, stats.periodDays);
+          const status = computeMetricStatus(rawValues[key], scaledMin, scaledMax);
+          const rangeText = describeTargetRange(scaledMin, scaledMax, key === "POSITIVE_REPLY_RATE");
           return (
             <MetricCard
               key={key}
               label={METRIC_LABELS[key]}
               value={displayValues[key]}
               subValue={subValues[key]}
-              targetLabel={config?.targetLabel ?? "—"}
+              rangeText={rangeText}
               status={status}
               tips={(config?.tips as string[] | undefined) ?? []}
             />

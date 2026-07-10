@@ -31,6 +31,7 @@ export function formatDealValue(cents: number | null): string {
 export function formatDayLabel(date: Date): string {
   return new Intl.DateTimeFormat("en-US", {
     timeZone: "UTC",
+    weekday: "short",
     month: "short",
     day: "numeric",
   }).format(date);

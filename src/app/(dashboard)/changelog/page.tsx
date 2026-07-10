@@ -1,12 +1,11 @@
-import { getScopedContext } from "@/lib/auth";
+import { getDashboardScope } from "@/lib/dashboard-scope";
 import { prisma } from "@/lib/prisma";
 
 export default async function ChangelogPage() {
-  const ctx = await getScopedContext();
-  if (!ctx.clientId) throw new Error("CLIENT user has no clientId assigned");
+  const scope = await getDashboardScope();
 
   const entries = await prisma.changelogEntry.findMany({
-    where: { clientId: ctx.clientId },
+    where: { clientId: scope.clientId },
     orderBy: { date: "desc" },
   });
 

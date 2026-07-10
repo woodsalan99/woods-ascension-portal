@@ -1,6 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import { fetchAllCampaigns } from "@/lib/smartlead";
 import { CampaignPicker } from "@/components/admin/CampaignPicker";
+import { setPreviewClient } from "@/lib/preview-actions";
 import {
   createAudience,
   createCampaign,
@@ -63,7 +64,7 @@ export default async function AdminClientDetail({
     where: { id },
     include: {
       campaigns: true,
-      pipeline: true,
+      pipeline: { orderBy: [{ stage: "asc" }, { createdAt: "asc" }] },
       milestones: { orderBy: { sortOrder: "asc" } },
       onboarding: { orderBy: { sortOrder: "asc" } },
       notes: { orderBy: { weekOf: "desc" } },
@@ -92,11 +93,18 @@ export default async function AdminClientDetail({
 
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-10 text-sm">
-      <div>
-        <a href="/admin" className="text-blue-600 underline">
-          ← All clients
-        </a>
-        <h1 className="text-xl font-bold mt-2">{client.name}</h1>
+      <div className="flex items-start justify-between">
+        <div>
+          <a href="/admin" className="text-blue-600 underline">
+            ← All clients
+          </a>
+          <h1 className="text-xl font-bold mt-2">{client.name}</h1>
+        </div>
+        <form action={setPreviewClient.bind(null, id)}>
+          <button className="bg-black text-white px-3 py-2 rounded">
+            View dashboard as this client →
+          </button>
+        </form>
       </div>
 
       {/* Client fields */}
@@ -244,70 +252,54 @@ export default async function AdminClientDetail({
       {/* Pipeline */}
       <section className="border p-4 rounded">
         <h2 className="font-bold mb-3">Pipeline</h2>
-        <table className="w-full mb-3">
-          <thead>
-            <tr className="text-left">
-              <th>Contact</th><th>Company</th><th>Stage</th>
-              <th title="Estimated lifetime revenue if this deal closes">Value ⓘ</th>
-              <th>Qualified</th><th>Call</th><th></th>
-            </tr>
-          </thead>
-          <tbody>
-            {client.pipeline.map((p) => (
-              <tr key={p.id} className="border-t align-top">
-                <td colSpan={7}>
-                  <form
-                    action={updatePipelineEntry.bind(null, id, p.id)}
-                    className="grid grid-cols-8 gap-1 py-1 items-center"
-                  >
-                    <input name="contactName" defaultValue={p.contactName} className="border p-1" />
-                    <input name="email" defaultValue={p.email ?? ""} placeholder="email" className="border p-1" />
-                    <input name="company" defaultValue={p.company} className="border p-1" />
-                    <select name="stage" defaultValue={p.stage} className="border p-1">
-                      {STAGE_KEYS.map((s) => (
-                        <option key={s} value={s}>{stageLabels[s] ?? s}</option>
-                      ))}
+        <div className="space-y-3 mb-4">
+          {client.pipeline.map((p) => (
+            <div key={p.id} className="border rounded p-2">
+              <form action={updatePipelineEntry.bind(null, id, p.id)} className="space-y-1">
+                <div className="grid grid-cols-4 gap-1">
+                  <label className="text-xs">Contact<input name="contactName" defaultValue={p.contactName} className="border p-1 w-full" /></label>
+                  <label className="text-xs">Email<input name="email" defaultValue={p.email ?? ""} className="border p-1 w-full" /></label>
+                  <label className="text-xs">Company<input name="company" defaultValue={p.company} className="border p-1 w-full" /></label>
+                  <label className="text-xs">Stage
+                    <select name="stage" defaultValue={p.stage} className="border p-1 w-full">
+                      {STAGE_KEYS.map((s) => <option key={s} value={s}>{stageLabels[s] ?? s}</option>)}
                     </select>
-                    <input
-                      type="number"
-                      name="dealValue"
-                      defaultValue={p.dealValue ?? ""}
-                      title="Estimated lifetime revenue if this deal closes"
-                      className="border p-1"
-                    />
-                    <label className="flex items-center gap-1">
-                      <input type="checkbox" name="qualified" defaultChecked={p.qualified} /> qual.
-                    </label>
-                    <input
-                      type="datetime-local"
-                      name="callDateTime"
-                      defaultValue={p.callDateTime ? p.callDateTime.toISOString().slice(0, 16) : ""}
-                      className="border p-1"
-                    />
-                    <div className="flex gap-1">
-                      <button className="underline">save</button>
-                    </div>
-                    <select name="audienceId" defaultValue={p.audienceId ?? ""} className="border p-1">
-                      <option value="">— no audience —</option>
-                      {client.audiences.map((a) => (
-                        <option key={a.id} value={a.id}>{a.name}</option>
-                      ))}
+                  </label>
+                </div>
+                <div className="grid grid-cols-4 gap-1">
+                  <label className="text-xs" title="Estimated lifetime revenue if this deal closes">Value (est. lifetime rev.)<input type="number" name="dealValue" defaultValue={p.dealValue ?? ""} className="border p-1 w-full" /></label>
+                  <label className="text-xs">Audience
+                    <select name="audienceId" defaultValue={p.audienceId ?? ""} className="border p-1 w-full">
+                      <option value="">— none —</option>
+                      {client.audiences.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
                     </select>
-                    <input name="notes" defaultValue={p.notes ?? ""} placeholder="notes" className="border p-1 col-span-2" />
-                    <select name="callStatus" defaultValue={p.callStatus ?? ""} className="border p-1">
-                      <option value="">— call status —</option>
+                  </label>
+                  <label className="text-xs">Call status
+                    <select name="callStatus" defaultValue={p.callStatus ?? ""} className="border p-1 w-full">
+                      <option value="">— none —</option>
                       {CALL_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                     </select>
-                    <input name="disqualifiedReason" defaultValue={p.disqualifiedReason ?? ""} placeholder="disqualified reason" className="border p-1 col-span-2" />
-                  </form>
-                  <form action={deletePipelineEntry.bind(null, id, p.id)}>
-                    <button className="underline text-red-600 text-xs">delete entry</button>
-                  </form>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+                  </label>
+                  <label className="text-xs flex items-end gap-1 pb-1"><input type="checkbox" name="qualified" defaultChecked={p.qualified} /> qualified</label>
+                </div>
+                <div className="grid grid-cols-4 gap-1">
+                  <label className="text-xs" title="Auto-filled by the tool from the Smartlead reply">Positive reply (auto)<input type="date" name="positiveReplyDate" defaultValue={p.positiveReplyDate ? p.positiveReplyDate.toISOString().slice(0, 10) : ""} className="border p-1 w-full" /></label>
+                  <label className="text-xs">Discovery call<input type="datetime-local" name="discoveryCallDate" defaultValue={p.discoveryCallDate ? p.discoveryCallDate.toISOString().slice(0, 16) : ""} className="border p-1 w-full" /></label>
+                  <label className="text-xs">Sales call<input type="datetime-local" name="salesCallDate" defaultValue={p.salesCallDate ? p.salesCallDate.toISOString().slice(0, 16) : ""} className="border p-1 w-full" /></label>
+                  <label className="text-xs">Close date<input type="date" name="closeDate" defaultValue={p.closeDate ? p.closeDate.toISOString().slice(0, 10) : ""} className="border p-1 w-full" /></label>
+                </div>
+                <div className="grid grid-cols-2 gap-1 items-end">
+                  <label className="text-xs">Notes<input name="notes" defaultValue={p.notes ?? ""} className="border p-1 w-full" /></label>
+                  <label className="text-xs">Disqualified reason<input name="disqualifiedReason" defaultValue={p.disqualifiedReason ?? ""} className="border p-1 w-full" /></label>
+                </div>
+                <button className="bg-black text-white px-3 py-1 rounded text-xs mt-1">Save</button>
+              </form>
+              <form action={deletePipelineEntry.bind(null, id, p.id)} className="mt-1">
+                <button className="underline text-red-600 text-xs">delete entry</button>
+              </form>
+            </div>
+          ))}
+        </div>
         <form action={boundCreatePipelineEntry} className="grid grid-cols-6 gap-2">
           <input name="contactName" placeholder="Contact name" className="border p-1" required />
           <input name="email" placeholder="Email" className="border p-1" />
@@ -470,14 +462,32 @@ export default async function AdminClientDetail({
       {/* Metric configs (v1.1) */}
       <section className="border p-4 rounded">
         <h2 className="font-bold mb-3">Metrics targets &amp; tips</h2>
-        <p className="text-gray-500 mb-3">
-          The numbers themselves are always computed live for whatever time period the client has
-          selected. &quot;On track&quot; vs &quot;needs attention&quot; is calculated automatically by
-          comparing that computed value against Min/Max below — you don&apos;t set status directly.
-          Leave Min blank for &quot;at most&quot; metrics (e.g. emails per booked appt), leave Max blank
-          for &quot;at least&quot; metrics (e.g. emails sent), or set both for a range (e.g. reply rate).
-          Leave both blank to always show &quot;on track.&quot;
-        </p>
+        <div className="text-gray-500 mb-3 space-y-1">
+          <p>
+            The metric numbers are always computed live. Here you set the &quot;healthy range&quot; and
+            how it scales with the client&apos;s selected time window. &quot;On track&quot; vs
+            &quot;needs attention&quot; is then calculated automatically — you never set status by hand.
+          </p>
+          <p>
+            <b>Cadence</b> — <b>Weekly</b>: the Min/Max are a per-week goal (e.g. 5,000 emails/week); it
+            auto-expands for longer windows (a month ≈ 4.3× the weekly number). <b>Perpetual</b>: a rate
+            or ratio that should always sit in the same range no matter the window (e.g. reply %, emails
+            per appointment). <b>Daily</b>: a per-day goal, scaled by number of days.
+          </p>
+          <p>
+            <b>Min / Max</b> — the healthy range at the base unit. Min only = &quot;at least this&quot;
+            (emails sent). Max only = &quot;at most this&quot; (emails per booked appt). Both = a band
+            (reply % 0.8–1.5). Blank = always &quot;on track.&quot;
+          </p>
+        </div>
+        <div className="grid grid-cols-6 gap-2 py-1 text-xs font-semibold text-gray-500">
+          <span>Metric</span>
+          <span>Cadence</span>
+          <span>Min</span>
+          <span>Max</span>
+          <span>Tip 1</span>
+          <span>Tip 2</span>
+        </div>
         {METRIC_KEYS.map((key) => {
           const config = metricConfigByKey.get(key);
           return (
@@ -487,7 +497,11 @@ export default async function AdminClientDetail({
               className="grid grid-cols-6 gap-2 py-2 border-t items-center"
             >
               <span className="font-medium">{METRIC_LABELS[key]}</span>
-              <input name="targetLabel" defaultValue={config?.targetLabel ?? ""} placeholder="Display text (e.g. < 600)" className="border p-1" />
+              <select name="cadence" defaultValue={config?.cadence ?? "PERPETUAL"} className="border p-1">
+                <option value="WEEKLY">Weekly</option>
+                <option value="DAILY">Daily</option>
+                <option value="PERPETUAL">Perpetual</option>
+              </select>
               <input type="number" step="any" name="targetMin" defaultValue={config?.targetMin ?? ""} placeholder="Min" className="border p-1" />
               <input type="number" step="any" name="targetMax" defaultValue={config?.targetMax ?? ""} placeholder="Max" className="border p-1" />
               <input name="tip1" defaultValue={(config?.tips as string[] | undefined)?.[0] ?? ""} placeholder="Tip 1" className="border p-1" />

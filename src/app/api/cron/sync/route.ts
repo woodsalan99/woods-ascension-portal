@@ -68,7 +68,10 @@ export async function GET(req: Request) {
       // audienceId -> dateKey -> bucket
       const audienceBuckets = new Map<string, Map<string, DayBucket>>();
       // email (lowercased) -> candidate for auto-adding to the pipeline
-      const positiveLeadCandidates = new Map<string, { name: string | null; audienceId: string | null }>();
+      const positiveLeadCandidates = new Map<
+        string,
+        { name: string | null; audienceId: string | null; replyDate: Date | null }
+      >();
 
       for (const campaign of client.campaigns) {
         const records = await fetchCampaignStatistics(
@@ -125,6 +128,7 @@ export async function GET(req: Request) {
               positiveLeadCandidates.set(emailKey, {
                 name: record.leadName,
                 audienceId: campaign.audienceId,
+                replyDate: record.replyTime ? new Date(record.replyTime) : null,
               });
             }
           }
@@ -152,6 +156,7 @@ export async function GET(req: Request) {
               contactName: lead.name && lead.name.trim().length > 0 ? lead.name : email,
               email,
               company: guessCompanyFromEmail(email),
+              positiveReplyDate: lead.replyDate,
               notes: "Auto-added from a positive Smartlead reply",
             })),
           });

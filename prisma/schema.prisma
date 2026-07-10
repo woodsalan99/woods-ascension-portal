@@ -47,6 +47,15 @@ enum MetricKey {
   EMAILS_PER_QUALIFIED
 }
 
+// How a metric's target scales with the selected time window.
+// WEEKLY/DAILY targets are multiplied by the number of weeks/days in the
+// window; PERPETUAL targets (rates, efficiency ratios) stay constant.
+enum MetricCadence {
+  DAILY
+  WEEKLY
+  PERPETUAL
+}
+
 model Client {
   id             String               @id @default(cuid())
   name           String
@@ -152,7 +161,13 @@ model PipelineEntry {
   company            String
   dealValue          Int? // whole dollars; null allowed
   notes              String?
-  callDateTime       DateTime?
+  // Journey dates. positiveReplyDate is auto-populated by the sync from the
+  // Smartlead reply; the rest are admin-entered as the lead progresses.
+  positiveReplyDate  DateTime?
+  discoveryCallDate  DateTime? // the booked appointment / discovery call
+  salesCallDate      DateTime?
+  closeDate          DateTime?
+  callDateTime       DateTime? // legacy primary appointment date (kept; mirrors discoveryCallDate)
   callStatus         String? // CONFIRMED | PENDING | HELD | NO_SHOW
   qualified          Boolean   @default(true)
   disqualifiedReason String?
@@ -203,15 +218,15 @@ model InfrastructureItem {
 // the live value against targetMin/targetMax (only-min = "at least", only-max
 // = "at most", both = range, neither set = always ON_TRACK). See D22.
 model MetricConfig {
-  id          String    @id @default(cuid())
-  clientId    String
-  client      Client    @relation(fields: [clientId], references: [id])
-  metricKey   MetricKey
-  targetLabel String // freeform display text, e.g. "5,000 / week" or "< 600"
-  targetMin   Float?
-  targetMax   Float?
-  tips        Json // string[]
-  sortOrder   Int
+  id        String        @id @default(cuid())
+  clientId  String
+  client    Client        @relation(fields: [clientId], references: [id])
+  metricKey MetricKey
+  cadence   MetricCadence @default(PERPETUAL) // how the target scales with the time window
+  targetMin Float? // "healthy" lower bound, at the cadence's base unit (per week for WEEKLY, etc.)
+  targetMax Float? // "healthy" upper bound, at the cadence's base unit
+  tips      Json // string[]
+  sortOrder Int
 
   @@unique([clientId, metricKey])
 }
