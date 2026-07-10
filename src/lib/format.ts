@@ -24,9 +24,13 @@ export function formatDealValue(cents: number | null): string {
   return `$${cents}`;
 }
 
-export function formatDayLabel(date: Date, timezone: string): string {
+// DailyStat.date is a date-only value stored at UTC midnight, already
+// bucketed into the client's calendar day during sync. It must be
+// formatted in UTC — formatting it in the client TZ rolls midnight back
+// to the previous evening and shifts every label a day earlier.
+export function formatDayLabel(date: Date): string {
   return new Intl.DateTimeFormat("en-US", {
-    timeZone: timezone,
+    timeZone: "UTC",
     month: "short",
     day: "numeric",
   }).format(date);

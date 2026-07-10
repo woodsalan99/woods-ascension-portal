@@ -68,12 +68,25 @@ export default async function MetricsPage({
 
   const configByKey = new Map(client.metricConfigs.map((c) => [c.metricKey, c]));
 
+  // Fraction shown under Positive Reply % so the client can see where it
+  // comes from: positives out of total replies.
+  const subValues: Partial<Record<MetricKey, string>> = {
+    POSITIVE_REPLY_RATE:
+      stats.totalReplies > 0
+        ? `${stats.positiveReplies.toLocaleString("en-US")} of ${stats.totalReplies.toLocaleString("en-US")} replies`
+        : undefined,
+  };
+
   return (
     <>
       <div className="wa-page-head">
         <div>
           <h1 className="wa-page-title">Metrics</h1>
-          <div className="wa-page-sub">Track campaign performance and key conversion metrics.</div>
+          <div className="wa-page-sub">
+            Track campaign performance and key conversion metrics. Dates &amp; daily buckets shown in{" "}
+            <b>{client.timezone.replace("_", " ")}</b> (matches Smartlead). Replies are counted on the
+            day they arrived; sends on the day they went out.
+          </div>
         </div>
         <div className="wa-page-controls">
           <AudienceFilter audiences={client.audiences.map((a) => ({ id: a.id, name: a.name }))} />
@@ -90,6 +103,7 @@ export default async function MetricsPage({
               key={key}
               label={METRIC_LABELS[key]}
               value={displayValues[key]}
+              subValue={subValues[key]}
               targetLabel={config?.targetLabel ?? "—"}
               status={status}
               tips={(config?.tips as string[] | undefined) ?? []}

@@ -18,6 +18,8 @@ export type ChartDay = {
   replies: number;
   bounces: number;
   appts: number;
+  positiveReplyEmails: string[];
+  isToday: boolean;
 };
 
 const fmt = (n: number) => n.toLocaleString("en-US");
@@ -35,7 +37,10 @@ function ChartTooltip({
   const row = payload[0].payload;
   return (
     <div className="wa-tip">
-      <div className="wa-tip-day">{label}</div>
+      <div className="wa-tip-day">
+        {label}
+        {row.isToday && " · today"}
+      </div>
       <div className="wa-tip-row">
         <span className="wa-dot" style={{ background: "#B9C4CE" }} />
         Sends <b>{fmt(row.sends)}</b>
@@ -52,6 +57,19 @@ function ChartTooltip({
         <div className="wa-tip-row wa-tip-appt">
           <span className="wa-dot" style={{ background: "var(--gold)" }} />
           {row.appts} appointment{row.appts > 1 ? "s" : ""} booked
+        </div>
+      )}
+      {row.positiveReplyEmails.length > 0 && (
+        <div style={{ marginTop: 6, paddingTop: 6, borderTop: "1px solid rgba(255,255,255,.15)", fontSize: 11, opacity: 0.9 }}>
+          <div style={{ marginBottom: 2, opacity: 0.7 }}>Positive replies counted:</div>
+          {row.positiveReplyEmails.map((e, i) => (
+            <div key={i}>{e}</div>
+          ))}
+        </div>
+      )}
+      {row.isToday && (
+        <div style={{ marginTop: 6, fontSize: 10.5, fontStyle: "italic", opacity: 0.7 }}>
+          Today&apos;s data may be partial — updates hourly.
         </div>
       )}
     </div>

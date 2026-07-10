@@ -4,29 +4,37 @@ import { dateKeyInTimezone, dateKeyToUtcMidnight } from "@/lib/timezone";
 import { guessCompanyFromEmail } from "@/lib/format";
 
 type DayBucket = {
-  sends: number;
-  totalReplies: number;
-  positiveReplies: number;
-  bounces: number;
+  sends: number; // by SEND date
+  totalReplies: number; // by REPLY date
+  positiveReplies: number; // by REPLY date
+  bounces: number; // by SEND date
+  positiveReplyEmails: string[]; // by REPLY date
 };
 
 function emptyBucket(): DayBucket {
-  return { sends: 0, totalReplies: 0, positiveReplies: 0, bounces: 0 };
+  return { sends: 0, totalReplies: 0, positiveReplies: 0, bounces: 0, positiveReplyEmails: [] };
 }
 
-function applyRecord(bucket: DayBucket, positiveCategoryNames: Set<string>, record: {
-  replyTime: string | null;
-  leadCategory: string | null;
-  isBounced: boolean;
-}) {
-  bucket.sends += 1;
-  if (record.replyTime) {
-    bucket.totalReplies += 1;
-    if (record.leadCategory && positiveCategoryNames.has(record.leadCategory)) {
-      bucket.positiveReplies += 1;
-    }
+function getBucket(map: Map<string, DayBucket>, key: string): DayBucket {
+  let b = map.get(key);
+  if (!b) {
+    b = emptyBucket();
+    map.set(key, b);
   }
-  if (record.isBounced) bucket.bounces += 1;
+  return b;
+}
+
+function getAudienceBucket(
+  audienceBuckets: Map<string, Map<string, DayBucket>>,
+  audienceId: string,
+  key: string,
+): DayBucket {
+  let dateMap = audienceBuckets.get(audienceId);
+  if (!dateMap) {
+    dateMap = new Map();
+    audienceBuckets.set(audienceId, dateMap);
+  }
+  return getBucket(dateMap, key);
 }
 
 export async function GET(req: Request) {
@@ -69,32 +77,49 @@ export async function GET(req: Request) {
         campaignsSynced++;
 
         for (const record of records) {
-          if (!record.sentTime) continue;
-          const dateKey = dateKeyInTimezone(
-            new Date(record.sentTime),
-            client.timezone,
+          const isPositive = !!(
+            record.replyTime &&
+            record.leadCategory &&
+            positiveCategoryNames.has(record.leadCategory)
           );
 
-          const bucket = buckets.get(dateKey) ?? emptyBucket();
-          applyRecord(bucket, positiveCategoryNames, record);
-          buckets.set(dateKey, bucket);
+          // SEND side — sends + bounces bucketed by the day the email was SENT.
+          if (record.sentTime) {
+            const sendKey = dateKeyInTimezone(new Date(record.sentTime), client.timezone);
+            const b = getBucket(buckets, sendKey);
+            b.sends += 1;
+            if (record.isBounced) b.bounces += 1;
+            if (campaign.audienceId) {
+              const ab = getAudienceBucket(audienceBuckets, campaign.audienceId, sendKey);
+              ab.sends += 1;
+              if (record.isBounced) ab.bounces += 1;
+            }
+          }
 
-          if (campaign.audienceId) {
-            const dateMap = audienceBuckets.get(campaign.audienceId) ?? new Map();
-            const audienceBucket = dateMap.get(dateKey) ?? emptyBucket();
-            applyRecord(audienceBucket, positiveCategoryNames, record);
-            dateMap.set(dateKey, audienceBucket);
-            audienceBuckets.set(campaign.audienceId, dateMap);
+          // REPLY side — replies + positives bucketed by the day the REPLY
+          // came in (NOT the send date). This is the fix for the day-shifted
+          // positive-reply counts — a reply belongs to the day it arrived.
+          if (record.replyTime) {
+            const replyKey = dateKeyInTimezone(new Date(record.replyTime), client.timezone);
+            const b = getBucket(buckets, replyKey);
+            b.totalReplies += 1;
+            if (isPositive) {
+              b.positiveReplies += 1;
+              if (record.leadEmail) b.positiveReplyEmails.push(record.leadEmail);
+            }
+            if (campaign.audienceId) {
+              const ab = getAudienceBucket(audienceBuckets, campaign.audienceId, replyKey);
+              ab.totalReplies += 1;
+              if (isPositive) {
+                ab.positiveReplies += 1;
+                if (record.leadEmail) ab.positiveReplyEmails.push(record.leadEmail);
+              }
+            }
           }
 
           // Auto-add positive replies to the pipeline (v1.1) — deduped by
           // email against existing entries after the campaign loop below.
-          if (
-            record.replyTime &&
-            record.leadCategory &&
-            positiveCategoryNames.has(record.leadCategory) &&
-            record.leadEmail
-          ) {
+          if (isPositive && record.leadEmail) {
             const emailKey = record.leadEmail.toLowerCase();
             if (!positiveLeadCandidates.has(emailKey)) {
               positiveLeadCandidates.set(emailKey, {
@@ -154,8 +179,7 @@ export async function GET(req: Request) {
         }
       }
       for (const [dateKey] of apptsByDay) {
-        const bucket = buckets.get(dateKey) ?? emptyBucket();
-        buckets.set(dateKey, bucket);
+        getBucket(buckets, dateKey); // ensure a row exists for appointment-only days
       }
 
       for (const [dateKey, bucket] of buckets) {
@@ -169,6 +193,7 @@ export async function GET(req: Request) {
             positiveReplies: bucket.positiveReplies,
             bounces: bucket.bounces,
             apptsBooked: apptsByDay.get(dateKey) ?? 0,
+            positiveReplyEmails: bucket.positiveReplyEmails,
           },
           update: {
             sends: bucket.sends,
@@ -176,6 +201,7 @@ export async function GET(req: Request) {
             positiveReplies: bucket.positiveReplies,
             bounces: bucket.bounces,
             apptsBooked: apptsByDay.get(dateKey) ?? 0,
+            positiveReplyEmails: bucket.positiveReplyEmails,
           },
         });
         daysUpserted++;
@@ -194,6 +220,7 @@ export async function GET(req: Request) {
               positiveReplies: bucket.positiveReplies,
               bounces: bucket.bounces,
               apptsBooked: apptsByDayForAudience.get(dateKey) ?? 0,
+              positiveReplyEmails: bucket.positiveReplyEmails,
             },
             update: {
               sends: bucket.sends,
@@ -201,6 +228,7 @@ export async function GET(req: Request) {
               positiveReplies: bucket.positiveReplies,
               bounces: bucket.bounces,
               apptsBooked: apptsByDayForAudience.get(dateKey) ?? 0,
+              positiveReplyEmails: bucket.positiveReplyEmails,
             },
           });
           audienceDaysUpserted++;

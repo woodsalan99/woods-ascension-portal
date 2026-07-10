@@ -1,4 +1,5 @@
 import { formatCallWhen, formatDayLabel, formatDealValue } from "@/lib/format";
+import { dateKeyInTimezone } from "@/lib/timezone";
 import type { ChartDay } from "@/components/dashboard/ActivityChart";
 import type { MilestoneVM } from "@/components/dashboard/Journey";
 import type { OnboardingStepVM } from "@/components/dashboard/Onboarding";
@@ -61,12 +62,15 @@ export function computeActivityStats(
   const dailyStats = cutoff ? allDailyStats.filter((s) => s.date >= cutoff) : allDailyStats;
 
   const chartWindow = dailyStats.slice(-30);
+  const todayKey = dateKeyInTimezone(new Date(), client.timezone);
   const chartData: ChartDay[] = chartWindow.map((s) => ({
-    d: formatDayLabel(s.date, client.timezone),
+    d: formatDayLabel(s.date),
     sends: s.sends,
     replies: s.positiveReplies,
     bounces: s.bounces,
     appts: s.apptsBooked,
+    positiveReplyEmails: (s.positiveReplyEmails as string[] | null) ?? [],
+    isToday: s.date.toISOString().slice(0, 10) === todayKey,
   }));
   const windowSends = chartWindow.reduce((sum, s) => sum + s.sends, 0);
   const windowBounces = chartWindow.reduce((sum, s) => sum + s.bounces, 0);

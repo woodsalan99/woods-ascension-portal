@@ -111,11 +111,12 @@ model DailyStat {
   clientId        String
   client          Client   @relation(fields: [clientId], references: [id])
   date            DateTime // date-only, client-TZ bucket, stored as UTC midnight
-  sends           Int      @default(0)
-  totalReplies    Int      @default(0)
-  positiveReplies Int      @default(0)
-  bounces         Int      @default(0)
+  sends           Int      @default(0) // bucketed by SEND date
+  totalReplies    Int      @default(0) // bucketed by REPLY date
+  positiveReplies Int      @default(0) // bucketed by REPLY date
+  bounces         Int      @default(0) // bucketed by SEND date
   apptsBooked     Int      @default(0) // manual, derived from PipelineEntry counts by admin action or nightly rollup
+  positiveReplyEmails Json? // string[] of emails counted positive on this reply-day (debug/audit)
 
   @@unique([clientId, date])
 }
@@ -129,11 +130,12 @@ model AudienceDailyStat {
   audienceId      String
   audience        Audience @relation(fields: [audienceId], references: [id])
   date            DateTime
-  sends           Int      @default(0)
-  totalReplies    Int      @default(0)
-  positiveReplies Int      @default(0)
-  bounces         Int      @default(0)
+  sends           Int      @default(0) // bucketed by SEND date
+  totalReplies    Int      @default(0) // bucketed by REPLY date
+  positiveReplies Int      @default(0) // bucketed by REPLY date
+  bounces         Int      @default(0) // bucketed by SEND date
   apptsBooked     Int      @default(0)
+  positiveReplyEmails Json? // string[] of emails counted positive on this reply-day (debug/audit)
 
   @@unique([audienceId, date])
 }
