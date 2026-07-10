@@ -43,6 +43,14 @@ export async function GET(req: Request) {
     return new Response("Unauthorized", { status: 401 });
   }
 
+  // Self-heal: a prior run can be left stuck in RUNNING if its request was
+  // killed mid-flight (e.g. a deploy rolled out during the ~50s sync). Mark
+  // any RUNNING row older than 10 minutes as FAILED so the log stays honest.
+  await prisma.syncRun.updateMany({
+    where: { status: "RUNNING", startedAt: { lt: new Date(Date.now() - 10 * 60_000) } },
+    data: { status: "FAILED", finishedAt: new Date(), detail: "Interrupted (likely a deploy during sync)" },
+  });
+
   const syncRun = await prisma.syncRun.create({ data: { status: "RUNNING" } });
 
   try {
