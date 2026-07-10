@@ -14,6 +14,7 @@ import {
   Boxes,
   LogOut,
   ScrollText,
+  FileText,
 } from "lucide-react";
 
 const NAV_ITEMS = [
@@ -22,6 +23,7 @@ const NAV_ITEMS = [
   { href: "/appointments", label: "Appointments", icon: Calendar },
   { href: "/roadmap", label: "Roadmap", icon: Map },
   { href: "/infrastructure", label: "Infrastructure", icon: Boxes },
+  { href: "/documents", label: "Documents", icon: FileText },
   { href: "/changelog", label: "Changelog", icon: ScrollText },
 ];
 

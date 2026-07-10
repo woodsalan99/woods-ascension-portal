@@ -37,6 +37,18 @@ export function formatDayLabel(date: Date): string {
   }).format(date);
 }
 
+// Date-only display (no time) for appointment dates, formatted in UTC to
+// match how date-only values are stored (midnight UTC) — avoids the
+// client-TZ rollback that would shift the day.
+export function formatCallDay(date: Date): string {
+  return new Intl.DateTimeFormat("en-US", {
+    timeZone: "UTC",
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  }).format(date);
+}
+
 export function formatCallWhen(date: Date, timezone: string): string {
   const datePart = new Intl.DateTimeFormat("en-US", {
     timeZone: timezone,

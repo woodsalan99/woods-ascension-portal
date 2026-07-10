@@ -14,6 +14,7 @@ import {
   deleteAudience,
   deleteCampaign,
   deleteChangelogEntry,
+  deleteDocument,
   deleteInfrastructureItem,
   deleteMilestone,
   deleteOnboardingStep,
@@ -29,6 +30,7 @@ import {
   updateMilestone,
   updateOnboardingStep,
   updatePipelineEntry,
+  uploadDocument,
   upsertMetricConfig,
 } from "./actions";
 
@@ -64,7 +66,10 @@ export default async function AdminClientDetail({
     where: { id },
     include: {
       campaigns: true,
-      pipeline: { orderBy: [{ stage: "asc" }, { createdAt: "asc" }] },
+      // Sort by immutable keys only — sorting by a mutable field (stage)
+      // makes an edited row jump position, which reads as the edit vanishing.
+      // id breaks ties from createMany (same createdAt on auto-added leads).
+      pipeline: { orderBy: [{ createdAt: "asc" }, { id: "asc" }] },
       milestones: { orderBy: { sortOrder: "asc" } },
       onboarding: { orderBy: { sortOrder: "asc" } },
       notes: { orderBy: { weekOf: "desc" } },
@@ -73,6 +78,7 @@ export default async function AdminClientDetail({
       infrastructure: { orderBy: { sortOrder: "asc" } },
       metricConfigs: true,
       changelog: { orderBy: { date: "desc" } },
+      documents: { orderBy: { docDate: "desc" }, select: { id: true, name: true, fileName: true, note: true, docDate: true } },
     },
   });
 
@@ -87,6 +93,7 @@ export default async function AdminClientDetail({
   const boundCreateOnboardingStep = createOnboardingStep.bind(null, id);
   const boundCreateWeeklyNote = createWeeklyNote.bind(null, id);
   const boundCreateChangelogEntry = createChangelogEntry.bind(null, id);
+  const boundUploadDocument = uploadDocument.bind(null, id);
   const boundInviteUser = inviteUserAction.bind(null, id);
   const boundCreateAudience = createAudience.bind(null, id);
   const boundCreateInfrastructureItem = createInfrastructureItem.bind(null, id);
@@ -280,12 +287,17 @@ export default async function AdminClientDetail({
                       {CALL_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
                     </select>
                   </label>
-                  <label className="text-xs flex items-end gap-1 pb-1"><input type="checkbox" name="qualified" defaultChecked={p.qualified} /> qualified</label>
+                  {p.stage !== "STAGE_1" ? (
+                    <label className="text-xs flex items-end gap-1 pb-1"><input type="checkbox" name="qualified" defaultChecked={p.qualified} /> qualified</label>
+                  ) : (
+                    // qualified only applies once a lead reaches appointment stage; keep the prior value on save
+                    <input type="hidden" name="qualified" value={p.qualified ? "on" : ""} />
+                  )}
                 </div>
                 <div className="grid grid-cols-4 gap-1">
-                  <label className="text-xs" title="Auto-filled by the tool from the Smartlead reply">Positive reply (auto)<input type="date" name="positiveReplyDate" defaultValue={p.positiveReplyDate ? p.positiveReplyDate.toISOString().slice(0, 10) : ""} className="border p-1 w-full" /></label>
-                  <label className="text-xs">Discovery call<input type="datetime-local" name="discoveryCallDate" defaultValue={p.discoveryCallDate ? p.discoveryCallDate.toISOString().slice(0, 16) : ""} className="border p-1 w-full" /></label>
-                  <label className="text-xs">Sales call<input type="datetime-local" name="salesCallDate" defaultValue={p.salesCallDate ? p.salesCallDate.toISOString().slice(0, 16) : ""} className="border p-1 w-full" /></label>
+                  <label className="text-xs" title="Auto-filled by the tool from the Smartlead reply">Positive reply date (auto)<input type="date" name="positiveReplyDate" defaultValue={p.positiveReplyDate ? p.positiveReplyDate.toISOString().slice(0, 10) : ""} className="border p-1 w-full" /></label>
+                  <label className="text-xs">Discovery call<input type="date" name="discoveryCallDate" defaultValue={p.discoveryCallDate ? p.discoveryCallDate.toISOString().slice(0, 10) : ""} className="border p-1 w-full" /></label>
+                  <label className="text-xs">Sales call<input type="date" name="salesCallDate" defaultValue={p.salesCallDate ? p.salesCallDate.toISOString().slice(0, 10) : ""} className="border p-1 w-full" /></label>
                   <label className="text-xs">Close date<input type="date" name="closeDate" defaultValue={p.closeDate ? p.closeDate.toISOString().slice(0, 10) : ""} className="border p-1 w-full" /></label>
                 </div>
                 <div className="grid grid-cols-2 gap-1 items-end">
@@ -547,6 +559,48 @@ export default async function AdminClientDetail({
             <input type="checkbox" name="published" /> publish immediately
           </label>
           <button className="bg-black text-white px-3 py-1 rounded col-span-2">Add note</button>
+        </form>
+      </section>
+
+      {/* Documents */}
+      <section className="border p-4 rounded">
+        <h2 className="font-bold mb-3">Documents</h2>
+        <p className="text-gray-500 mb-3">
+          Invoices, contracts, and other official documents the client can view/download. Add a date
+          and an optional note that shows when they open it. Max 15 MB per file.
+        </p>
+        <table className="w-full mb-3">
+          <tbody>
+            {client.documents.map((d) => (
+              <tr key={d.id} className="border-t align-top">
+                <td className="py-2">
+                  <div className="font-semibold">
+                    {d.name} — {d.docDate.toISOString().slice(0, 10)}
+                  </div>
+                  <div className="text-gray-500 text-xs">{d.fileName}</div>
+                  {d.note && <div className="text-gray-600">{d.note}</div>}
+                  <div className="flex gap-2 mt-1">
+                    <a href={`/api/documents/${d.id}`} target="_blank" rel="noopener noreferrer" className="underline text-blue-600">
+                      view
+                    </a>
+                    <a href={`/api/documents/${d.id}?download=1`} className="underline text-blue-600">
+                      download
+                    </a>
+                    <form action={deleteDocument.bind(null, id, d.id)}>
+                      <button className="underline text-red-600">delete</button>
+                    </form>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <form action={boundUploadDocument} className="grid grid-cols-2 gap-2">
+          <input type="file" name="file" className="border p-1 col-span-2" required />
+          <input name="name" placeholder="Title (e.g. 'Setup invoice')" className="border p-1" required />
+          <input type="date" name="docDate" className="border p-1" required />
+          <input name="note" placeholder="Note shown to client on open (optional)" className="border p-1 col-span-2" />
+          <button className="bg-black text-white px-3 py-1 rounded col-span-2">Upload document</button>
         </form>
       </section>
 

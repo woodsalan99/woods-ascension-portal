@@ -390,3 +390,30 @@ export async function deleteChangelogEntry(clientId: string, entryId: string) {
   await prisma.changelogEntry.delete({ where: { id: entryId } });
   revalidatePath(`/admin/clients/${clientId}`);
 }
+
+export async function uploadDocument(clientId: string, formData: FormData) {
+  await requireAdmin();
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    throw new Error("No file provided");
+  }
+  const bytes = Buffer.from(await file.arrayBuffer());
+  await prisma.document.create({
+    data: {
+      clientId,
+      name: str(formData, "name") || file.name,
+      fileName: file.name,
+      contentType: file.type || "application/octet-stream",
+      data: bytes,
+      note: optStr(formData, "note"),
+      docDate: str(formData, "docDate") ? new Date(str(formData, "docDate")) : new Date(),
+    },
+  });
+  revalidatePath(`/admin/clients/${clientId}`);
+}
+
+export async function deleteDocument(clientId: string, documentId: string) {
+  await requireAdmin();
+  await prisma.document.delete({ where: { id: documentId } });
+  revalidatePath(`/admin/clients/${clientId}`);
+}

@@ -1,6 +1,6 @@
 import { getDashboardScope } from "@/lib/dashboard-scope";
 import { getDashboardClient, type DashboardClient } from "@/lib/dashboard-data";
-import { formatCallWhen, formatDealValue } from "@/lib/format";
+import { formatCallDay, formatDealValue } from "@/lib/format";
 import { AudienceFilter } from "@/components/dashboard/AudienceFilter";
 import { OutcomeSelect } from "@/components/dashboard/OutcomeSelect";
 import { KPI } from "@/components/dashboard/KPI";
@@ -21,13 +21,13 @@ function deriveStatusLabel(callDateTime: Date, callStatus: string | null): strin
   return "Pending";
 }
 
-function AppointmentTable({ entries, timezone }: { entries: Entry[]; timezone: string }) {
+function AppointmentTable({ entries }: { entries: Entry[] }) {
   return (
     <div style={{ overflowX: "auto" }}>
       <table className="wa-table">
         <thead>
           <tr>
-            <th>Date &amp; Time</th>
+            <th>Date</th>
             <th>Contact</th>
             <th>Company</th>
             <th>Status</th>
@@ -38,7 +38,7 @@ function AppointmentTable({ entries, timezone }: { entries: Entry[]; timezone: s
         <tbody>
           {entries.map((e) => (
             <tr key={e.id}>
-              <td>{formatCallWhen(e.callDateTime!, timezone)}</td>
+              <td>{formatCallDay(e.callDateTime!)}</td>
               <td className="wa-table-name">{e.contactName}</td>
               <td>
                 {e.company}
@@ -131,7 +131,7 @@ export default async function AppointmentsPage({
           </div>
         ) : (
           <div style={{ marginTop: 10 }}>
-            <AppointmentTable entries={upcoming} timezone={client.timezone} />
+            <AppointmentTable entries={upcoming} />
           </div>
         )}
       </div>
@@ -142,7 +142,7 @@ export default async function AppointmentsPage({
             Past appointments ({past.length})
           </summary>
           <div style={{ marginTop: 12 }}>
-            <AppointmentTable entries={past} timezone={client.timezone} />
+            <AppointmentTable entries={past} />
           </div>
         </details>
       )}

@@ -1,4 +1,4 @@
-import { formatCallWhen, formatDayLabel, formatDealValue } from "@/lib/format";
+import { formatCallDay, formatDayLabel, formatDealValue } from "@/lib/format";
 import { dateKeyInTimezone } from "@/lib/timezone";
 import type { ChartDay } from "@/components/dashboard/ActivityChart";
 import type { MilestoneVM } from "@/components/dashboard/Journey";
@@ -86,7 +86,10 @@ export function computeActivityStats(
   for (const p of allPipeline) {
     const apptDate = p.discoveryCallDate ?? p.callDateTime;
     if (!apptDate) continue;
-    const key = dateKeyInTimezone(apptDate, client.timezone);
+    // Key by UTC date to align with the chart's day keys (DailyStat dates
+    // are UTC midnight, and admin-entered appointment dates are date-only
+    // stored at UTC midnight).
+    const key = apptDate.toISOString().slice(0, 10);
     const entry = apptByDay.get(key) ?? { names: [], occurred: false };
     entry.names.push(p.contactName || p.email || "Appointment");
     if (p.callStatus === "HELD") entry.occurred = true;
@@ -264,7 +267,7 @@ export function computeAppointments(
     .sort((a, b) => a.callDateTime!.getTime() - b.callDateTime!.getTime());
   const limited = limit ? withCall.slice(0, limit) : withCall;
   return limited.map((p) => ({
-    when: formatCallWhen(p.callDateTime!, client.timezone),
+    when: formatCallDay(p.callDateTime!),
     contactName: p.contactName,
     company: p.company,
     topic: [p.notes, p.dealValue ? formatDealValue(p.dealValue) : null].filter(Boolean).join(" · "),

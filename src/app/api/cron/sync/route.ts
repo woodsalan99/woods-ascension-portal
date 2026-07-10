@@ -148,9 +148,23 @@ export async function GET(req: Request) {
       if (positiveLeadCandidates.size > 0) {
         const existing = await prisma.pipelineEntry.findMany({
           where: { clientId: client.id, email: { in: [...positiveLeadCandidates.keys()] } },
-          select: { email: true },
+          select: { id: true, email: true, positiveReplyDate: true },
         });
         const existingEmails = new Set(existing.map((e) => e.email!.toLowerCase()));
+
+        // Backfill positiveReplyDate on already-existing entries that are
+        // missing it (they were auto-added before we captured the reply date).
+        for (const e of existing) {
+          if (e.positiveReplyDate) continue;
+          const cand = positiveLeadCandidates.get(e.email!.toLowerCase());
+          if (cand?.replyDate) {
+            await prisma.pipelineEntry.update({
+              where: { id: e.id },
+              data: { positiveReplyDate: cand.replyDate },
+            });
+          }
+        }
+
         const toCreate = [...positiveLeadCandidates.entries()].filter(
           ([email]) => !existingEmails.has(email),
         );
