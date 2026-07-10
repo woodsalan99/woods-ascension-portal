@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { inviteUser } from "@/lib/clerk-invite";
-import type { MetricKey, MetricStatus, MilestoneState, Role, StepState } from "@prisma/client";
+import type { MetricKey, MilestoneState, Role, StepState } from "@prisma/client";
 
 function str(fd: FormData, key: string): string {
   return String(fd.get(key) ?? "").trim();
@@ -340,12 +340,18 @@ export async function deleteInfrastructureItem(clientId: string, itemId: string)
   revalidatePath(`/admin/clients/${clientId}`);
 }
 
+function optFloat(fd: FormData, key: string): number | null {
+  const v = str(fd, key);
+  return v.length > 0 ? parseFloat(v) : null;
+}
+
 export async function upsertMetricConfig(clientId: string, metricKey: MetricKey, formData: FormData) {
   await requireAdmin();
   const tips = [str(formData, "tip1"), str(formData, "tip2")].filter((t) => t.length > 0);
   const data = {
     targetLabel: str(formData, "targetLabel"),
-    status: str(formData, "status") as MetricStatus,
+    targetMin: optFloat(formData, "targetMin"),
+    targetMax: optFloat(formData, "targetMax"),
     tips,
   };
   await prisma.metricConfig.upsert({
@@ -353,5 +359,24 @@ export async function upsertMetricConfig(clientId: string, metricKey: MetricKey,
     create: { clientId, metricKey, sortOrder: 0, ...data },
     update: data,
   });
+  revalidatePath(`/admin/clients/${clientId}`);
+}
+
+export async function createChangelogEntry(clientId: string, formData: FormData) {
+  await requireAdmin();
+  await prisma.changelogEntry.create({
+    data: {
+      clientId,
+      date: new Date(str(formData, "date")),
+      title: str(formData, "title"),
+      body: optStr(formData, "body"),
+    },
+  });
+  revalidatePath(`/admin/clients/${clientId}`);
+}
+
+export async function deleteChangelogEntry(clientId: string, entryId: string) {
+  await requireAdmin();
+  await prisma.changelogEntry.delete({ where: { id: entryId } });
   revalidatePath(`/admin/clients/${clientId}`);
 }

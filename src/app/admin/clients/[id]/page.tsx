@@ -1,7 +1,10 @@
 import { prisma } from "@/lib/prisma";
+import { fetchAllCampaigns } from "@/lib/smartlead";
+import { CampaignPicker } from "@/components/admin/CampaignPicker";
 import {
   createAudience,
   createCampaign,
+  createChangelogEntry,
   createInfrastructureItem,
   createMilestone,
   createOnboardingStep,
@@ -9,6 +12,7 @@ import {
   createWeeklyNote,
   deleteAudience,
   deleteCampaign,
+  deleteChangelogEntry,
   deleteInfrastructureItem,
   deleteMilestone,
   deleteOnboardingStep,
@@ -28,6 +32,7 @@ import {
 } from "./actions";
 
 const STAGE_KEYS = ["STAGE_1", "STAGE_2", "STAGE_3", "STAGE_4"] as const;
+const CALL_STATUSES = ["CONFIRMED", "PENDING", "HELD", "NO_SHOW"] as const;
 const MILESTONE_STATES = ["DONE", "CURRENT", "NEXT"] as const;
 const STEP_STATES = ["DONE", "CURRENT", "ACTIVE", "NEXT"] as const;
 const METRIC_KEYS = [
@@ -66,8 +71,11 @@ export default async function AdminClientDetail({
       audiences: { orderBy: { sortOrder: "asc" } },
       infrastructure: { orderBy: { sortOrder: "asc" } },
       metricConfigs: true,
+      changelog: { orderBy: { date: "desc" } },
     },
   });
+
+  const smartleadCampaigns = await fetchAllCampaigns().catch(() => []);
 
   const stageLabels = (client.stageLabels as Record<string, string>) ?? {};
   const metricConfigByKey = new Map(client.metricConfigs.map((c) => [c.metricKey, c]));
@@ -77,6 +85,7 @@ export default async function AdminClientDetail({
   const boundCreateMilestone = createMilestone.bind(null, id);
   const boundCreateOnboardingStep = createOnboardingStep.bind(null, id);
   const boundCreateWeeklyNote = createWeeklyNote.bind(null, id);
+  const boundCreateChangelogEntry = createChangelogEntry.bind(null, id);
   const boundInviteUser = inviteUserAction.bind(null, id);
   const boundCreateAudience = createAudience.bind(null, id);
   const boundCreateInfrastructureItem = createInfrastructureItem.bind(null, id);
@@ -216,8 +225,7 @@ export default async function AdminClientDetail({
           </tbody>
         </table>
         <form action={boundCreateCampaign} className="grid grid-cols-4 gap-2">
-          <input name="name" placeholder="Campaign name" className="border p-1" required />
-          <input name="smartleadCampaignId" placeholder="Smartlead campaign ID" className="border p-1" required />
+          <CampaignPicker campaigns={smartleadCampaigns} />
           <select name="audienceId" className="border p-1">
             <option value="">— no audience —</option>
             {client.audiences.map((a) => (
@@ -226,6 +234,11 @@ export default async function AdminClientDetail({
           </select>
           <button className="bg-black text-white px-3 py-1 rounded">Add</button>
         </form>
+        {smartleadCampaigns.length === 0 && (
+          <p className="text-gray-400 text-xs mt-1">
+            Couldn&apos;t reach Smartlead for autocomplete — you can still type the campaign name and ID manually.
+          </p>
+        )}
       </section>
 
       {/* Pipeline */}
@@ -234,7 +247,9 @@ export default async function AdminClientDetail({
         <table className="w-full mb-3">
           <thead>
             <tr className="text-left">
-              <th>Contact</th><th>Company</th><th>Stage</th><th>Value</th><th>Qualified</th><th>Call</th><th></th>
+              <th>Contact</th><th>Company</th><th>Stage</th>
+              <th title="Estimated lifetime revenue if this deal closes">Value ⓘ</th>
+              <th>Qualified</th><th>Call</th><th></th>
             </tr>
           </thead>
           <tbody>
@@ -252,7 +267,13 @@ export default async function AdminClientDetail({
                         <option key={s} value={s}>{stageLabels[s] ?? s}</option>
                       ))}
                     </select>
-                    <input type="number" name="dealValue" defaultValue={p.dealValue ?? ""} className="border p-1" />
+                    <input
+                      type="number"
+                      name="dealValue"
+                      defaultValue={p.dealValue ?? ""}
+                      title="Estimated lifetime revenue if this deal closes"
+                      className="border p-1"
+                    />
                     <label className="flex items-center gap-1">
                       <input type="checkbox" name="qualified" defaultChecked={p.qualified} /> qual.
                     </label>
@@ -272,7 +293,10 @@ export default async function AdminClientDetail({
                       ))}
                     </select>
                     <input name="notes" defaultValue={p.notes ?? ""} placeholder="notes" className="border p-1 col-span-2" />
-                    <input name="callStatus" defaultValue={p.callStatus ?? ""} placeholder="call status" className="border p-1" />
+                    <select name="callStatus" defaultValue={p.callStatus ?? ""} className="border p-1">
+                      <option value="">— call status —</option>
+                      {CALL_STATUSES.map((s) => <option key={s} value={s}>{s}</option>)}
+                    </select>
                     <input name="disqualifiedReason" defaultValue={p.disqualifiedReason ?? ""} placeholder="disqualified reason" className="border p-1 col-span-2" />
                   </form>
                   <form action={deletePipelineEntry.bind(null, id, p.id)}>
@@ -297,7 +321,13 @@ export default async function AdminClientDetail({
               <option key={a.id} value={a.id}>{a.name}</option>
             ))}
           </select>
-          <input type="number" name="dealValue" placeholder="Deal value" className="border p-1" />
+          <input
+            type="number"
+            name="dealValue"
+            placeholder="Value ⓘ"
+            title="Estimated lifetime revenue if this deal closes"
+            className="border p-1"
+          />
           <button className="bg-black text-white px-3 py-1 rounded col-span-5">Add pipeline entry</button>
         </form>
       </section>
@@ -305,6 +335,17 @@ export default async function AdminClientDetail({
       {/* Milestones */}
       <section className="border p-4 rounded">
         <h2 className="font-bold mb-3">Milestones</h2>
+        <p className="text-gray-500 mb-3">
+          <b>State</b> — DONE: already achieved, shows a green checkmark on the client&apos;s timeline.
+          CURRENT: the client&apos;s active focus right now, highlighted gold with a pulse on their
+          dashboard (usually only one milestone should be CURRENT at a time). NEXT: upcoming, not
+          started yet, shown greyed out.
+          <br />
+          <b>Current value / Target value</b> — only used for count-based milestones (e.g. &quot;15
+          qualified appointments&quot;) to show a progress bar. Target = the goal number, Current = how
+          far along the client is. Leave both blank for date/event milestones (e.g. &quot;Campaign
+          launch&quot;) — no progress bar will show.
+        </p>
         <table className="w-full mb-3">
           <tbody>
             {client.milestones.map((m) => (
@@ -343,6 +384,13 @@ export default async function AdminClientDetail({
       {/* Onboarding */}
       <section className="border p-4 rounded">
         <h2 className="font-bold mb-3">Onboarding steps</h2>
+        <p className="text-gray-500 mb-3">
+          <b>State</b> — DONE: complete, green checkmark. CURRENT: what the client should be doing right
+          now (usually just one step) — shows a &quot;Mark complete&quot; button if &quot;client can
+          complete&quot; is checked, otherwise just a CTA link if one is set. ACTIVE: happening in the
+          background on Alan&apos;s side, shown as &quot;Underway&quot; (no action needed from the
+          client). NEXT: not started yet.
+        </p>
         <table className="w-full mb-3">
           <tbody>
             {client.onboarding.map((o) => (
@@ -421,8 +469,12 @@ export default async function AdminClientDetail({
       <section className="border p-4 rounded">
         <h2 className="font-bold mb-3">Metrics targets &amp; tips</h2>
         <p className="text-gray-500 mb-3">
-          The numbers themselves are always computed live. This is just the target text, status, and
-          &quot;how to improve&quot; tips shown alongside each metric.
+          The numbers themselves are always computed live for whatever time period the client has
+          selected. &quot;On track&quot; vs &quot;needs attention&quot; is calculated automatically by
+          comparing that computed value against Min/Max below — you don&apos;t set status directly.
+          Leave Min blank for &quot;at most&quot; metrics (e.g. emails per booked appt), leave Max blank
+          for &quot;at least&quot; metrics (e.g. emails sent), or set both for a range (e.g. reply rate).
+          Leave both blank to always show &quot;on track.&quot;
         </p>
         {METRIC_KEYS.map((key) => {
           const config = metricConfigByKey.get(key);
@@ -430,14 +482,12 @@ export default async function AdminClientDetail({
             <form
               key={key}
               action={upsertMetricConfig.bind(null, id, key)}
-              className="grid grid-cols-5 gap-2 py-2 border-t items-center"
+              className="grid grid-cols-6 gap-2 py-2 border-t items-center"
             >
               <span className="font-medium">{METRIC_LABELS[key]}</span>
-              <input name="targetLabel" defaultValue={config?.targetLabel ?? ""} placeholder="Target (e.g. < 600)" className="border p-1" />
-              <select name="status" defaultValue={config?.status ?? "ON_TRACK"} className="border p-1">
-                <option value="ON_TRACK">On track</option>
-                <option value="NEEDS_ATTENTION">Needs attention</option>
-              </select>
+              <input name="targetLabel" defaultValue={config?.targetLabel ?? ""} placeholder="Display text (e.g. < 600)" className="border p-1" />
+              <input type="number" step="any" name="targetMin" defaultValue={config?.targetMin ?? ""} placeholder="Min" className="border p-1" />
+              <input type="number" step="any" name="targetMax" defaultValue={config?.targetMax ?? ""} placeholder="Max" className="border p-1" />
               <input name="tip1" defaultValue={(config?.tips as string[] | undefined)?.[0] ?? ""} placeholder="Tip 1" className="border p-1" />
               <div className="flex gap-1">
                 <input name="tip2" defaultValue={(config?.tips as string[] | undefined)?.[1] ?? ""} placeholder="Tip 2" className="border p-1 flex-1" />
@@ -481,6 +531,36 @@ export default async function AdminClientDetail({
             <input type="checkbox" name="published" /> publish immediately
           </label>
           <button className="bg-black text-white px-3 py-1 rounded col-span-2">Add note</button>
+        </form>
+      </section>
+
+      {/* Changelog (v1.1) */}
+      <section className="border p-4 rounded">
+        <h2 className="font-bold mb-3">Long-term notes / changelog</h2>
+        <p className="text-gray-500 mb-3">
+          Client-visible (their &quot;Changelog&quot; tab), but framed as mostly-internal tracking — use
+          it to log when you launched/bought/changed something for this client.
+        </p>
+        <table className="w-full mb-3">
+          <tbody>
+            {client.changelog.map((e) => (
+              <tr key={e.id} className="border-t align-top">
+                <td className="py-2">
+                  <div className="font-semibold">{e.title} — {e.date.toISOString().slice(0, 10)}</div>
+                  {e.body && <div className="text-gray-600">{e.body}</div>}
+                  <form action={deleteChangelogEntry.bind(null, id, e.id)}>
+                    <button className="underline text-red-600 text-xs mt-1">delete</button>
+                  </form>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <form action={boundCreateChangelogEntry} className="grid grid-cols-2 gap-2">
+          <input type="date" name="date" className="border p-1" required />
+          <input name="title" placeholder="Title (e.g. 'Bought 8 new domains')" className="border p-1" required />
+          <textarea name="body" placeholder="Details (optional)" className="border p-1 col-span-2" />
+          <button className="bg-black text-white px-3 py-1 rounded col-span-2">Add entry</button>
         </form>
       </section>
     </div>

@@ -19,7 +19,7 @@ export function MetricCard({ label, value, targetLabel, status, tips }: MetricCa
       </div>
       {tips.length > 0 && (
         <div style={{ marginTop: 10, fontSize: 12, color: "var(--muted)" }}>
-          <div style={{ fontWeight: 600, marginBottom: 4 }}>How to improve</div>
+          <div style={{ fontWeight: 600, marginBottom: 4 }}>How Woods Ascension improves this</div>
           <ul style={{ paddingLeft: 16, listStyle: "disc" }}>
             {tips.map((t, i) => (
               <li key={i}>{t}</li>

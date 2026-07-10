@@ -12,6 +12,23 @@ export type LeadCategory = {
   sentimentType: "positive" | "negative" | null;
 };
 
+export type SmartleadCampaignSummary = {
+  id: number;
+  name: string;
+  status: string;
+};
+
+// Used by the admin campaign-picker autocomplete — not cached, always the
+// live account list, so admins see campaigns created moments ago.
+export async function fetchAllCampaigns(): Promise<SmartleadCampaignSummary[]> {
+  const res = await fetch(`${SMARTLEAD_BASE}/campaigns?api_key=${apiKey()}`);
+  if (!res.ok) {
+    throw new Error(`fetchAllCampaigns failed: ${res.status}`);
+  }
+  const data = (await res.json()) as Array<{ id: number; name: string; status: string }>;
+  return data.map((c) => ({ id: c.id, name: c.name, status: c.status }));
+}
+
 export async function fetchLeadCategories(): Promise<LeadCategory[]> {
   const res = await fetch(
     `${SMARTLEAD_BASE}/leads/fetch-categories?api_key=${apiKey()}`,

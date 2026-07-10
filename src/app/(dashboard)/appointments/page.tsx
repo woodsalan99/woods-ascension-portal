@@ -111,6 +111,7 @@ export default async function AppointmentsPage({
                       <OutcomeSelect
                         entryId={e.id}
                         currentOutcome={deriveOutcome(e.callStatus, e.qualified)}
+                        currentNotes={e.notes ?? ""}
                         action={updateAppointmentOutcome}
                       />
                     </td>

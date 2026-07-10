@@ -38,11 +38,6 @@ enum MilestoneState {
   NEXT
 }
 
-enum MetricStatus {
-  ON_TRACK
-  NEEDS_ATTENTION
-}
-
 enum MetricKey {
   EMAILS_SENT
   POSITIVE_REPLIES
@@ -77,6 +72,7 @@ model Client {
   audiences      Audience[]
   infrastructure InfrastructureItem[]
   metricConfigs  MetricConfig[]
+  changelog      ChangelogEntry[]
 }
 
 model Audience {
@@ -200,17 +196,34 @@ model InfrastructureItem {
 
 // Actual metric VALUES are always computed live from DailyStat/PipelineEntry.
 // This only stores the admin-authored "coaching" layer on top — see D20/v1.1.
+// status is NOT stored — it's computed per selected time period by comparing
+// the live value against targetMin/targetMax (only-min = "at least", only-max
+// = "at most", both = range, neither set = always ON_TRACK). See D22.
 model MetricConfig {
-  id          String       @id @default(cuid())
+  id          String    @id @default(cuid())
   clientId    String
-  client      Client       @relation(fields: [clientId], references: [id])
+  client      Client    @relation(fields: [clientId], references: [id])
   metricKey   MetricKey
   targetLabel String // freeform display text, e.g. "5,000 / week" or "< 600"
-  status      MetricStatus
+  targetMin   Float?
+  targetMax   Float?
   tips        Json // string[]
   sortOrder   Int
 
   @@unique([clientId, metricKey])
+}
+
+// v1.1: internal tracking log, client-visible but framed as "mostly ignore
+// this" — when Woods Ascension launched/bought/changed something for this
+// client. Admin-authored, read-only for the client.
+model ChangelogEntry {
+  id        String   @id @default(cuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id])
+  date      DateTime
+  title     String
+  body      String?
+  createdAt DateTime @default(now())
 }
 
 model WeeklyNote {

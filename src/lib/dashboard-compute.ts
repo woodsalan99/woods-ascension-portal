@@ -21,11 +21,44 @@ export function computeLaunchState(client: DashboardClient) {
   return { isPreLaunch, daysToLaunch, daySinceStart };
 }
 
+export type MetricsPeriod = "LAST_WEEK" | "LAST_2_WEEKS" | "LAST_MONTH" | "LAST_90_DAYS" | "ALL_TIME";
+
+const PERIOD_DAYS: Record<MetricsPeriod, number | null> = {
+  LAST_WEEK: 7,
+  LAST_2_WEEKS: 14,
+  LAST_MONTH: 30,
+  LAST_90_DAYS: 90,
+  ALL_TIME: null,
+};
+
+export const PERIOD_LABELS: Record<MetricsPeriod, string> = {
+  LAST_WEEK: "Last week",
+  LAST_2_WEEKS: "Last 2 weeks",
+  LAST_MONTH: "Last month",
+  LAST_90_DAYS: "Last 90 days",
+  ALL_TIME: "All time",
+};
+
+function periodCutoff(period: MetricsPeriod): Date | null {
+  const days = PERIOD_DAYS[period];
+  if (days === null) return null;
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - days);
+  return cutoff;
+}
+
 // audienceId=null means "All audiences" (uses the client-level aggregate).
-export function computeActivityStats(client: DashboardClient, audienceId: string | null) {
-  const dailyStats = audienceId
+export function computeActivityStats(
+  client: DashboardClient,
+  audienceId: string | null,
+  period: MetricsPeriod = "ALL_TIME",
+) {
+  const allDailyStats = audienceId
     ? (client.audiences.find((a) => a.id === audienceId)?.dailyStats ?? [])
     : client.dailyStats;
+
+  const cutoff = periodCutoff(period);
+  const dailyStats = cutoff ? allDailyStats.filter((s) => s.date >= cutoff) : allDailyStats;
 
   const chartWindow = dailyStats.slice(-30);
   const chartData: ChartDay[] = chartWindow.map((s) => ({
@@ -43,14 +76,36 @@ export function computeActivityStats(client: DashboardClient, audienceId: string
   const positiveReplies = dailyStats.reduce((sum, s) => sum + s.positiveReplies, 0);
   const appointmentsBooked = dailyStats.reduce((sum, s) => sum + s.apptsBooked, 0);
 
-  const pipeline = audienceId
+  const allPipeline = audienceId
     ? client.pipeline.filter((p) => p.audienceId === audienceId)
     : client.pipeline;
+  const pipeline = cutoff ? allPipeline.filter((p) => p.createdAt >= cutoff) : allPipeline;
   const pipelineValue = pipeline
     .filter((p) => p.stage !== "STAGE_1")
     .reduce((sum, p) => sum + (p.dealValue ?? 0), 0);
+  const qualifiedCount = pipeline.filter((p) => p.qualified).length;
 
-  return { chartData, bounceRate, emailsSent, positiveReplies, appointmentsBooked, pipelineValue };
+  return {
+    chartData,
+    bounceRate,
+    emailsSent,
+    positiveReplies,
+    appointmentsBooked,
+    pipelineValue,
+    qualifiedCount,
+  };
+}
+
+export type MetricStatusVM = "ON_TRACK" | "NEEDS_ATTENTION";
+
+export function computeMetricStatus(
+  value: number,
+  targetMin: number | null,
+  targetMax: number | null,
+): MetricStatusVM {
+  if (targetMin !== null && value < targetMin) return "NEEDS_ATTENTION";
+  if (targetMax !== null && value > targetMax) return "NEEDS_ATTENTION";
+  return "ON_TRACK";
 }
 
 export function computeMilestones(client: DashboardClient): MilestoneVM[] {

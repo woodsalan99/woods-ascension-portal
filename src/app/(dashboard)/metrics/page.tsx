@@ -1,8 +1,9 @@
 import { getScopedContext } from "@/lib/auth";
 import { getDashboardClient } from "@/lib/dashboard-data";
-import { computeActivityStats } from "@/lib/dashboard-compute";
+import { computeActivityStats, computeMetricStatus, type MetricsPeriod } from "@/lib/dashboard-compute";
 import { ActivityChart } from "@/components/dashboard/ActivityChart";
 import { AudienceFilter } from "@/components/dashboard/AudienceFilter";
+import { PeriodFilter } from "@/components/dashboard/PeriodFilter";
 import { MetricCard } from "@/components/dashboard/MetricCard";
 import type { MetricKey } from "@prisma/client";
 
@@ -24,34 +25,44 @@ const METRIC_ORDER: MetricKey[] = [
   "EMAILS_PER_QUALIFIED",
 ];
 
+const VALID_PERIODS = new Set([
+  "LAST_WEEK",
+  "LAST_2_WEEKS",
+  "LAST_MONTH",
+  "LAST_90_DAYS",
+  "ALL_TIME",
+]);
+
 export default async function MetricsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ audience?: string }>;
+  searchParams: Promise<{ audience?: string; period?: string }>;
 }) {
-  const { audience: audienceId } = await searchParams;
+  const { audience: audienceId, period } = await searchParams;
   const ctx = await getScopedContext();
   if (!ctx.clientId) throw new Error("CLIENT user has no clientId assigned");
   const client = await getDashboardClient(ctx.clientId);
 
   const selectedAudienceId = audienceId && client.audiences.some((a) => a.id === audienceId) ? audienceId : null;
-  const stats = computeActivityStats(client, selectedAudienceId);
+  const selectedPeriod = (VALID_PERIODS.has(period ?? "") ? period : "ALL_TIME") as MetricsPeriod;
+  const stats = computeActivityStats(client, selectedAudienceId, selectedPeriod);
 
-  const pipeline = selectedAudienceId
-    ? client.pipeline.filter((p) => p.audienceId === selectedAudienceId)
-    : client.pipeline;
-  const qualifiedCount = pipeline.filter((p) => p.qualified).length;
-
-  const computedValues: Record<MetricKey, string> = {
+  // raw numeric value (for status comparison) + display string, per metric
+  const rawValues: Record<MetricKey, number> = {
+    EMAILS_SENT: stats.emailsSent,
+    POSITIVE_REPLIES: stats.positiveReplies,
+    QUALIFIED_APPTS: stats.appointmentsBooked,
+    POSITIVE_REPLY_RATE: stats.emailsSent > 0 ? (stats.positiveReplies / stats.emailsSent) * 100 : 0,
+    EMAILS_PER_BOOKED: stats.appointmentsBooked > 0 ? stats.emailsSent / stats.appointmentsBooked : 0,
+    EMAILS_PER_QUALIFIED: stats.qualifiedCount > 0 ? stats.emailsSent / stats.qualifiedCount : 0,
+  };
+  const displayValues: Record<MetricKey, string> = {
     EMAILS_SENT: stats.emailsSent.toLocaleString("en-US"),
     POSITIVE_REPLIES: stats.positiveReplies.toLocaleString("en-US"),
     QUALIFIED_APPTS: stats.appointmentsBooked.toLocaleString("en-US"),
-    POSITIVE_REPLY_RATE:
-      stats.emailsSent > 0 ? `${((stats.positiveReplies / stats.emailsSent) * 100).toFixed(2)}%` : "—",
-    EMAILS_PER_BOOKED:
-      stats.appointmentsBooked > 0 ? Math.round(stats.emailsSent / stats.appointmentsBooked).toLocaleString("en-US") : "—",
-    EMAILS_PER_QUALIFIED:
-      qualifiedCount > 0 ? Math.round(stats.emailsSent / qualifiedCount).toLocaleString("en-US") : "—",
+    POSITIVE_REPLY_RATE: stats.emailsSent > 0 ? `${rawValues.POSITIVE_REPLY_RATE.toFixed(2)}%` : "—",
+    EMAILS_PER_BOOKED: stats.appointmentsBooked > 0 ? Math.round(rawValues.EMAILS_PER_BOOKED).toLocaleString("en-US") : "—",
+    EMAILS_PER_QUALIFIED: stats.qualifiedCount > 0 ? Math.round(rawValues.EMAILS_PER_QUALIFIED).toLocaleString("en-US") : "—",
   };
 
   const configByKey = new Map(client.metricConfigs.map((c) => [c.metricKey, c]));
@@ -65,19 +76,21 @@ export default async function MetricsPage({
         </div>
         <div className="wa-page-controls">
           <AudienceFilter audiences={client.audiences.map((a) => ({ id: a.id, name: a.name }))} />
+          <PeriodFilter />
         </div>
       </div>
 
       <div className="wa-kpis" style={{ gridTemplateColumns: "repeat(3, 1fr)" }}>
         {METRIC_ORDER.map((key) => {
           const config = configByKey.get(key);
+          const status = computeMetricStatus(rawValues[key], config?.targetMin ?? null, config?.targetMax ?? null);
           return (
             <MetricCard
               key={key}
               label={METRIC_LABELS[key]}
-              value={computedValues[key]}
+              value={displayValues[key]}
               targetLabel={config?.targetLabel ?? "—"}
-              status={config?.status ?? "ON_TRACK"}
+              status={status}
               tips={(config?.tips as string[] | undefined) ?? []}
             />
           );

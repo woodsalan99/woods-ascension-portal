@@ -17,14 +17,21 @@ export async function updateAppointmentOutcome(entryId: string, formData: FormDa
   }
 
   const outcome = String(formData.get("outcome") ?? "");
-  const data =
+  const notes = String(formData.get("notes") ?? "").trim();
+
+  const outcomeData =
     outcome === "QUALIFIED"
       ? { qualified: true, disqualifiedReason: null, callStatus: "HELD" }
       : outcome === "NO_SHOW"
         ? { qualified: false, disqualifiedReason: "No show", callStatus: "NO_SHOW" }
-        : { qualified: false, disqualifiedReason: "Not qualified", callStatus: "HELD" };
+        : outcome === "NOT_QUALIFIED"
+          ? { qualified: false, disqualifiedReason: "Not qualified", callStatus: "HELD" }
+          : {}; // PENDING — leave qualified/callStatus untouched
 
-  await prisma.pipelineEntry.update({ where: { id: entryId }, data });
+  await prisma.pipelineEntry.update({
+    where: { id: entryId },
+    data: { ...outcomeData, notes: notes.length > 0 ? notes : null },
+  });
 
   revalidatePath("/appointments");
   revalidatePath("/");
