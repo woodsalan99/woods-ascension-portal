@@ -7,9 +7,14 @@ export default async function AdminHome() {
     <div className="p-8 text-sm">
       <div className="flex items-center justify-between">
         <h1 className="text-xl font-semibold">Admin — Clients</h1>
-        <a href="/admin/clients/new" className="bg-black text-white px-3 py-1 rounded">
-          + New client
-        </a>
+        <div className="flex gap-2">
+          <a href="/admin/deliverability" className="border px-3 py-1 rounded">
+            Deliverability
+          </a>
+          <a href="/admin/clients/new" className="bg-black text-white px-3 py-1 rounded">
+            + New client
+          </a>
+        </div>
       </div>
       <ul className="mt-4 space-y-2">
         {clients.map((c) => (

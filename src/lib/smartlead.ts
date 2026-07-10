@@ -6,6 +6,81 @@ function apiKey() {
   return key;
 }
 
+export type DomainHealth = {
+  domain: string;
+  sent: number;
+  replied: number;
+  bounced: number;
+  replyRate: number; // percent
+  bounceRate: number; // percent
+};
+
+// Account-wide reply/bounce per sending domain for a date window. Since a
+// domain serves exactly one client, its account-wide numbers already reflect
+// only that client's sending.
+export async function fetchDomainHealth(startDate: string, endDate: string): Promise<DomainHealth[]> {
+  const res = await fetch(
+    `${SMARTLEAD_BASE}/analytics/mailbox/domain-wise-health-metrics?api_key=${apiKey()}&start_date=${startDate}&end_date=${endDate}`,
+  );
+  if (!res.ok) throw new Error(`fetchDomainHealth failed: ${res.status}`);
+  const json = (await res.json()) as {
+    data?: { domain_health_metrics?: Array<Record<string, string>> };
+  };
+  const rows = json.data?.domain_health_metrics ?? [];
+  return rows.map((r) => {
+    const sent = Number(r.sent ?? 0);
+    const replied = Number(r.replied ?? 0);
+    const bounced = Number(r.bounced ?? 0);
+    // Compute rates from counts — the API's reply_rate/bounce_rate strings
+    // aren't reliably populated on this endpoint.
+    return {
+      domain: r.domain,
+      sent,
+      replied,
+      bounced,
+      replyRate: sent > 0 ? (replied / sent) * 100 : 0,
+      bounceRate: sent > 0 ? (bounced / sent) * 100 : 0,
+    };
+  });
+}
+
+export type DomainMeta = { domain: string; inboxCount: number; oldestCreatedAt: string };
+
+// Aggregates the email-account list into per-domain inbox counts + age
+// (oldest inbox). Paginates since accounts can exceed one page.
+export async function fetchDomainInboxMeta(): Promise<Map<string, DomainMeta>> {
+  const byDomain = new Map<string, DomainMeta>();
+  const limit = 100;
+  let offset = 0;
+
+  while (true) {
+    const res = await fetch(
+      `${SMARTLEAD_BASE}/email-accounts/?api_key=${apiKey()}&offset=${offset}&limit=${limit}`,
+    );
+    if (!res.ok) throw new Error(`fetchDomainInboxMeta failed: ${res.status}`);
+    const accounts = (await res.json()) as Array<{ from_email: string; created_at: string }>;
+    if (!Array.isArray(accounts) || accounts.length === 0) break;
+
+    for (const a of accounts) {
+      const domain = a.from_email?.split("@")[1]?.toLowerCase();
+      if (!domain) continue;
+      const existing = byDomain.get(domain);
+      if (!existing) {
+        byDomain.set(domain, { domain, inboxCount: 1, oldestCreatedAt: a.created_at });
+      } else {
+        existing.inboxCount += 1;
+        if (a.created_at < existing.oldestCreatedAt) existing.oldestCreatedAt = a.created_at;
+      }
+    }
+
+    if (accounts.length < limit) break;
+    offset += limit;
+    await new Promise((r) => setTimeout(r, 200));
+  }
+
+  return byDomain;
+}
+
 export type LeadCategory = {
   id: number;
   name: string;

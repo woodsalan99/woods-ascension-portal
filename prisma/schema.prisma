@@ -83,6 +83,22 @@ model Client {
   metricConfigs  MetricConfig[]
   changelog      ChangelogEntry[]
   documents      Document[]
+  domains        Domain[]
+}
+
+// Deliverability tracking for sending domains (admin-only). Health metrics
+// (reply/bounce) come live from Smartlead; this table holds the bits
+// Smartlead doesn't: which client a domain belongs to (Smartlead doesn't
+// tag it), the cold-send start date, a burned mark, and notes.
+model Domain {
+  id            String    @id @default(cuid())
+  domain        String    @unique
+  clientId      String?
+  client        Client?   @relation(fields: [clientId], references: [id])
+  coldStartDate DateTime? // first real (non-warmup) send — for lifespan tracking
+  burnedAt      DateTime? // manually marked burned/retired
+  note          String?
+  createdAt     DateTime  @default(now())
 }
 
 // Client-visible official documents (invoices, contracts, etc). File bytes
