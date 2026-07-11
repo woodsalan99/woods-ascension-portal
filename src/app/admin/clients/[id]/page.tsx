@@ -267,7 +267,7 @@ export default async function AdminClientDetail({
         <div className="space-y-3 mb-4">
           {client.pipeline.map((p) => (
             <div key={p.id} className="border rounded p-2">
-              <form action={updatePipelineEntry.bind(null, id, p.id)} className="space-y-1">
+              <form key={p.updatedAt.getTime()} action={updatePipelineEntry.bind(null, id, p.id)} className="space-y-1">
                 <div className="grid grid-cols-4 gap-1">
                   <label className="text-xs">Contact<input name="contactName" defaultValue={p.contactName} className="border p-1 w-full" /></label>
                   <label className="text-xs">Email<input name="email" defaultValue={p.email ?? ""} className="border p-1 w-full" /></label>
@@ -392,7 +392,7 @@ export default async function AdminClientDetail({
             {client.milestones.map((m) => (
               <tr key={m.id} className="border-t">
                 <td>
-                  <form action={updateMilestone.bind(null, id, m.id)} className="grid grid-cols-6 gap-1 py-1 items-center">
+                  <form key={`${m.state}-${m.currentValue}-${m.targetValue}-${m.sortOrder}`} action={updateMilestone.bind(null, id, m.id)} className="grid grid-cols-6 gap-1 py-1 items-center">
                     <input name="label" defaultValue={m.label} className="border p-1 col-span-2" />
                     <input name="subLabel" defaultValue={m.subLabel ?? ""} className="border p-1" />
                     <select name="state" defaultValue={m.state} className="border p-1">
@@ -437,7 +437,7 @@ export default async function AdminClientDetail({
             {client.onboarding.map((o) => (
               <tr key={o.id} className="border-t">
                 <td>
-                  <form action={updateOnboardingStep.bind(null, id, o.id)} className="grid grid-cols-7 gap-1 py-1 items-center">
+                  <form key={`${o.state}-${o.sortOrder}-${o.clientActionable}`} action={updateOnboardingStep.bind(null, id, o.id)} className="grid grid-cols-7 gap-1 py-1 items-center">
                     <input name="label" defaultValue={o.label} className="border p-1 col-span-2" />
                     <input name="dayLabel" defaultValue={o.dayLabel} className="border p-1" />
                     <select name="state" defaultValue={o.state} className="border p-1">
@@ -537,9 +537,14 @@ export default async function AdminClientDetail({
         </div>
         {METRIC_KEYS.map((key) => {
           const config = metricConfigByKey.get(key);
+          const tips = (config?.tips as string[] | undefined) ?? [];
           return (
             <form
-              key={key}
+              // Key on the saved values so the form remounts after each save,
+              // making the uncontrolled inputs reflect the persisted state
+              // (an uncontrolled <select> otherwise ignores defaultValue changes
+              // after a Server Action, which reads as the change "reverting").
+              key={`${key}-${config?.cadence ?? ""}-${config?.targetMin ?? ""}-${config?.targetMax ?? ""}-${tips.join("|")}`}
               action={upsertMetricConfig.bind(null, id, key)}
               className="grid grid-cols-6 gap-2 py-2 border-t items-center"
             >
@@ -551,9 +556,9 @@ export default async function AdminClientDetail({
               </select>
               <input type="number" step="any" name="targetMin" defaultValue={config?.targetMin ?? ""} placeholder="Min" className="border p-1" />
               <input type="number" step="any" name="targetMax" defaultValue={config?.targetMax ?? ""} placeholder="Max" className="border p-1" />
-              <input name="tip1" defaultValue={(config?.tips as string[] | undefined)?.[0] ?? ""} placeholder="Tip 1" className="border p-1" />
+              <input name="tip1" defaultValue={tips[0] ?? ""} placeholder="Tip 1" className="border p-1" />
               <div className="flex gap-1">
-                <input name="tip2" defaultValue={(config?.tips as string[] | undefined)?.[1] ?? ""} placeholder="Tip 2" className="border p-1 flex-1" />
+                <input name="tip2" defaultValue={tips[1] ?? ""} placeholder="Tip 2" className="border p-1 flex-1" />
                 <button className="underline">save</button>
               </div>
             </form>
