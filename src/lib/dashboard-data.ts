@@ -7,7 +7,10 @@ export async function getDashboardClient(clientId: string) {
       dailyStats: { orderBy: { date: "asc" } },
       milestones: { orderBy: { sortOrder: "asc" } },
       onboarding: { orderBy: { sortOrder: "asc" } },
-      pipeline: { orderBy: [{ createdAt: "asc" }, { id: "asc" }] },
+      pipeline: {
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        include: { calls: { orderBy: { date: "asc" } } },
+      },
       notes: { where: { published: true }, orderBy: { weekOf: "desc" }, take: 1 },
       audiences: {
         orderBy: { sortOrder: "asc" },

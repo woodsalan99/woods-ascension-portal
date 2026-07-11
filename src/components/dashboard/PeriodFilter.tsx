@@ -1,15 +1,7 @@
 "use client";
 
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
-import { PERIOD_LABELS, type MetricsPeriod } from "@/lib/dashboard-compute";
-
-const PERIOD_ORDER: MetricsPeriod[] = [
-  "LAST_WEEK",
-  "LAST_2_WEEKS",
-  "LAST_MONTH",
-  "LAST_90_DAYS",
-  "ALL_TIME",
-];
+import { PERIOD_LABELS, PERIOD_ORDER } from "@/lib/dashboard-compute";
 
 export function PeriodFilter() {
   const router = useRouter();

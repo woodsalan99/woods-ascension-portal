@@ -38,6 +38,11 @@ enum MilestoneState {
   NEXT
 }
 
+enum CallType {
+  DISCOVERY
+  SALES
+}
+
 enum MetricKey {
   EMAILS_SENT
   POSITIVE_REPLIES
@@ -195,17 +200,32 @@ model PipelineEntry {
   dealValue          Int? // whole dollars; null allowed
   notes              String?
   // Journey dates. positiveReplyDate is auto-populated by the sync from the
-  // Smartlead reply; the rest are admin-entered as the lead progresses.
+  // Smartlead reply. Discovery/sales calls now live in PipelineCall (a lead
+  // can have several); discoveryCallDate/salesCallDate remain for backfill
+  // but callDateTime is kept in sync with the primary (next) discovery call
+  // so the client Appointments page keeps working.
   positiveReplyDate  DateTime?
-  discoveryCallDate  DateTime? // the booked appointment / discovery call
-  salesCallDate      DateTime?
+  discoveryCallDate  DateTime? // legacy single date (superseded by calls[])
+  salesCallDate      DateTime? // legacy single date (superseded by calls[])
   closeDate          DateTime?
-  callDateTime       DateTime? // legacy primary appointment date (kept; mirrors discoveryCallDate)
+  callDateTime       DateTime? // primary appointment date = next-upcoming discovery call
   callStatus         String? // CONFIRMED | PENDING | HELD | NO_SHOW
   qualified          Boolean   @default(true)
   disqualifiedReason String?
+  nextActionStep     String? // admin note: what to do next for this booked lead
+  calls              PipelineCall[]
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
+}
+
+model PipelineCall {
+  id              String        @id @default(cuid())
+  pipelineEntryId String
+  entry           PipelineEntry @relation(fields: [pipelineEntryId], references: [id], onDelete: Cascade)
+  type            CallType
+  date            DateTime
+  note            String?
+  createdAt       DateTime      @default(now())
 }
 
 model Milestone {

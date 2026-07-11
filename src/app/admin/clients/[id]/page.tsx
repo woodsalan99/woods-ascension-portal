@@ -3,6 +3,7 @@ import { fetchAllCampaigns } from "@/lib/smartlead";
 import { CampaignPicker } from "@/components/admin/CampaignPicker";
 import { setPreviewClient } from "@/lib/preview-actions";
 import {
+  addPipelineCall,
   createAudience,
   createCampaign,
   createChangelogEntry,
@@ -15,6 +16,7 @@ import {
   deleteCampaign,
   deleteChangelogEntry,
   deleteDocument,
+  deletePipelineCall,
   deleteInfrastructureItem,
   deleteMilestone,
   deleteOnboardingStep,
@@ -69,7 +71,10 @@ export default async function AdminClientDetail({
       // Sort by immutable keys only — sorting by a mutable field (stage)
       // makes an edited row jump position, which reads as the edit vanishing.
       // id breaks ties from createMany (same createdAt on auto-added leads).
-      pipeline: { orderBy: [{ createdAt: "asc" }, { id: "asc" }] },
+      pipeline: {
+        orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+        include: { calls: { orderBy: { date: "asc" } } },
+      },
       milestones: { orderBy: { sortOrder: "asc" } },
       onboarding: { orderBy: { sortOrder: "asc" } },
       notes: { orderBy: { weekOf: "desc" } },
@@ -294,11 +299,12 @@ export default async function AdminClientDetail({
                     <input type="hidden" name="qualified" value={p.qualified ? "on" : ""} />
                   )}
                 </div>
-                <div className="grid grid-cols-4 gap-1">
+                <div className="grid grid-cols-3 gap-1">
                   <label className="text-xs" title="Auto-filled by the tool from the Smartlead reply">Positive reply date (auto)<input type="date" name="positiveReplyDate" defaultValue={p.positiveReplyDate ? p.positiveReplyDate.toISOString().slice(0, 10) : ""} className="border p-1 w-full" /></label>
-                  <label className="text-xs">Discovery call<input type="date" name="discoveryCallDate" defaultValue={p.discoveryCallDate ? p.discoveryCallDate.toISOString().slice(0, 10) : ""} className="border p-1 w-full" /></label>
-                  <label className="text-xs">Sales call<input type="date" name="salesCallDate" defaultValue={p.salesCallDate ? p.salesCallDate.toISOString().slice(0, 10) : ""} className="border p-1 w-full" /></label>
                   <label className="text-xs">Close date<input type="date" name="closeDate" defaultValue={p.closeDate ? p.closeDate.toISOString().slice(0, 10) : ""} className="border p-1 w-full" /></label>
+                  {p.stage !== "STAGE_1" && (
+                    <label className="text-xs">Next action step<input name="nextActionStep" defaultValue={p.nextActionStep ?? ""} placeholder="e.g. send proposal" className="border p-1 w-full" /></label>
+                  )}
                 </div>
                 <div className="grid grid-cols-2 gap-1 items-end">
                   <label className="text-xs">Notes<input name="notes" defaultValue={p.notes ?? ""} className="border p-1 w-full" /></label>
@@ -306,7 +312,36 @@ export default async function AdminClientDetail({
                 </div>
                 <button className="bg-black text-white px-3 py-1 rounded text-xs mt-1">Save</button>
               </form>
-              <form action={deletePipelineEntry.bind(null, id, p.id)} className="mt-1">
+
+              {/* Calls (multiple discovery/sales calls per lead) */}
+              <div className="mt-2 border-t pt-2">
+                <div className="text-xs font-semibold text-gray-500 mb-1">Calls</div>
+                {p.calls.length > 0 && (
+                  <ul className="mb-1 space-y-0.5">
+                    {p.calls.map((c) => (
+                      <li key={c.id} className="text-xs flex items-center gap-2">
+                        <span className="font-medium">{c.type === "DISCOVERY" ? "Discovery" : "Sales"}</span>
+                        <span>{c.date.toISOString().slice(0, 10)}</span>
+                        {c.note && <span className="text-gray-500">— {c.note}</span>}
+                        <form action={deletePipelineCall.bind(null, id, p.id, c.id)}>
+                          <button className="underline text-red-600">remove</button>
+                        </form>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+                <form action={addPipelineCall.bind(null, id, p.id)} className="flex gap-1 items-center">
+                  <select name="type" className="border p-1 text-xs">
+                    <option value="DISCOVERY">Discovery</option>
+                    <option value="SALES">Sales</option>
+                  </select>
+                  <input type="date" name="date" className="border p-1 text-xs" required />
+                  <input name="note" placeholder="note (optional)" className="border p-1 text-xs flex-1" />
+                  <button className="underline text-xs">add call</button>
+                </form>
+              </div>
+
+              <form action={deletePipelineEntry.bind(null, id, p.id)} className="mt-2">
                 <button className="underline text-red-600 text-xs">delete entry</button>
               </form>
             </div>

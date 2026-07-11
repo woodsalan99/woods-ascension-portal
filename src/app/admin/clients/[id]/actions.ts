@@ -107,6 +107,23 @@ export async function deleteCampaign(clientId: string, campaignId: string) {
   revalidatePath(`/admin/clients/${clientId}`);
 }
 
+// Keep PipelineEntry.callDateTime (the "primary appointment" the client
+// Appointments page reads) in sync with the lead's discovery calls: the
+// next upcoming one, else the most recent past one.
+async function recomputePrimaryCall(entryId: string) {
+  const calls = await prisma.pipelineCall.findMany({
+    where: { pipelineEntryId: entryId, type: "DISCOVERY" },
+    orderBy: { date: "asc" },
+  });
+  const now = new Date();
+  const upcoming = calls.find((c) => c.date >= now);
+  const primary = upcoming ?? calls[calls.length - 1];
+  await prisma.pipelineEntry.update({
+    where: { id: entryId },
+    data: { callDateTime: primary?.date ?? null, discoveryCallDate: primary?.date ?? null },
+  });
+}
+
 export async function createPipelineEntry(clientId: string, formData: FormData) {
   await requireAdmin();
   await prisma.pipelineEntry.create({
@@ -120,13 +137,11 @@ export async function createPipelineEntry(clientId: string, formData: FormData) 
       dealValue: optInt(formData, "dealValue"),
       notes: optStr(formData, "notes"),
       positiveReplyDate: optDate(formData, "positiveReplyDate"),
-      discoveryCallDate: optDate(formData, "discoveryCallDate"),
-      salesCallDate: optDate(formData, "salesCallDate"),
       closeDate: optDate(formData, "closeDate"),
-      callDateTime: optDate(formData, "discoveryCallDate"), // keep legacy field mirrored to the appointment date
       callStatus: optStr(formData, "callStatus"),
       qualified: formData.get("qualified") === "on",
       disqualifiedReason: optStr(formData, "disqualifiedReason"),
+      nextActionStep: optStr(formData, "nextActionStep"),
     },
   });
   revalidatePath(`/admin/clients/${clientId}`);
@@ -145,13 +160,11 @@ export async function updatePipelineEntry(clientId: string, entryId: string, for
       dealValue: optInt(formData, "dealValue"),
       notes: optStr(formData, "notes"),
       positiveReplyDate: optDate(formData, "positiveReplyDate"),
-      discoveryCallDate: optDate(formData, "discoveryCallDate"),
-      salesCallDate: optDate(formData, "salesCallDate"),
       closeDate: optDate(formData, "closeDate"),
-      callDateTime: optDate(formData, "discoveryCallDate"), // keep legacy field mirrored to the appointment date
       callStatus: optStr(formData, "callStatus"),
       qualified: formData.get("qualified") === "on",
       disqualifiedReason: optStr(formData, "disqualifiedReason"),
+      nextActionStep: optStr(formData, "nextActionStep"),
     },
   });
   revalidatePath(`/admin/clients/${clientId}`);
@@ -160,6 +173,29 @@ export async function updatePipelineEntry(clientId: string, entryId: string, for
 export async function deletePipelineEntry(clientId: string, entryId: string) {
   await requireAdmin();
   await prisma.pipelineEntry.delete({ where: { id: entryId } });
+  revalidatePath(`/admin/clients/${clientId}`);
+}
+
+export async function addPipelineCall(clientId: string, entryId: string, formData: FormData) {
+  await requireAdmin();
+  const date = optDate(formData, "date");
+  if (!date) throw new Error("Call date required");
+  await prisma.pipelineCall.create({
+    data: {
+      pipelineEntryId: entryId,
+      type: str(formData, "type") as "DISCOVERY" | "SALES",
+      date,
+      note: optStr(formData, "note"),
+    },
+  });
+  await recomputePrimaryCall(entryId);
+  revalidatePath(`/admin/clients/${clientId}`);
+}
+
+export async function deletePipelineCall(clientId: string, entryId: string, callId: string) {
+  await requireAdmin();
+  await prisma.pipelineCall.delete({ where: { id: callId } });
+  await recomputePrimaryCall(entryId);
   revalidatePath(`/admin/clients/${clientId}`);
 }
 

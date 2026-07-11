@@ -16,6 +16,7 @@ export type ChartDay = {
   d: string;
   sends: number;
   replies: number;
+  totalReplies: number;
   bounces: number;
   appts: number;
   apptNames: string[];
@@ -23,6 +24,8 @@ export type ChartDay = {
   positiveReplyEmails: string[];
   isToday: boolean;
 };
+
+const TOTAL_REPLY_COLOR = "#3D6FB4";
 
 const fmt = (n: number) => n.toLocaleString("en-US");
 
@@ -50,6 +53,10 @@ function ChartTooltip({
       <div className="wa-tip-row">
         <span className="wa-dot" style={{ background: "var(--green)" }} />
         Positive replies <b>{row.replies}</b>
+      </div>
+      <div className="wa-tip-row">
+        <span className="wa-dot" style={{ background: TOTAL_REPLY_COLOR }} />
+        Total replies <b>{row.totalReplies}</b>
       </div>
       <div className="wa-tip-row">
         <span className="wa-dot" style={{ background: "var(--brick)" }} />
@@ -117,7 +124,7 @@ function ApptDot(props: { cx?: number; cy?: number; payload?: ChartDay }) {
 }
 
 export function ActivityChart({ data, bounceRate }: { data: ChartDay[]; bounceRate: number | null }) {
-  const [show, setShow] = useState({ sends: true, replies: true, bounces: false });
+  const [show, setShow] = useState({ sends: true, replies: true, totalReplies: false, bounces: false });
   const toggle = (k: keyof typeof show) => setShow((s) => ({ ...s, [k]: !s[k] }));
 
   if (data.length === 0) {
@@ -159,6 +166,10 @@ export function ActivityChart({ data, bounceRate }: { data: ChartDay[]; bounceRa
             <span className="wa-dot" style={{ background: "var(--green)" }} />
             Positive replies
           </button>
+          <button className={`wa-chip ${show.totalReplies ? "on" : ""}`} onClick={() => toggle("totalReplies")}>
+            <span className="wa-dot" style={{ background: TOTAL_REPLY_COLOR }} />
+            Total replies
+          </button>
           <button className={`wa-chip ${show.bounces ? "on" : ""}`} onClick={() => toggle("bounces")}>
             <span className="wa-dot" style={{ background: "var(--brick)" }} />
             Bounces
@@ -178,7 +189,8 @@ export function ActivityChart({ data, bounceRate }: { data: ChartDay[]; bounceRa
               interval="preserveStartEnd"
             />
             <YAxis yAxisId="l" tick={{ fontSize: 11, fill: "#77828F" }} tickLine={false} axisLine={false} />
-            <YAxis yAxisId="r" orientation="right" hide domain={[0, 10]} />
+            <YAxis yAxisId="r" orientation="right" hide domain={[0, "auto"]} />
+            <YAxis yAxisId="appt" orientation="right" hide domain={[0, 10]} />
             <Tooltip content={<ChartTooltip />} cursor={{ fill: "rgba(16,30,46,.04)" }} />
             {show.sends && (
               <Bar yAxisId="l" dataKey="sends" fill="#C6CFD8" radius={[4, 4, 0, 0]} maxBarSize={26} />
@@ -186,12 +198,15 @@ export function ActivityChart({ data, bounceRate }: { data: ChartDay[]; bounceRa
             {show.bounces && (
               <Line yAxisId="r" dataKey="bounces" stroke="var(--brick)" strokeWidth={1.5} dot={false} strokeDasharray="4 3" />
             )}
+            {show.totalReplies && (
+              <Line yAxisId="r" dataKey="totalReplies" stroke={TOTAL_REPLY_COLOR} strokeWidth={2} dot={false} strokeDasharray="2 2" />
+            )}
             {show.replies && (
               <Line yAxisId="r" dataKey="replies" stroke="var(--green)" strokeWidth={2.5} dot={false} />
             )}
             <Line
-              yAxisId="r"
-              dataKey={(row: ChartDay) => (row.appts > 0 ? row.appts + 6.8 : null)}
+              yAxisId="appt"
+              dataKey={(row: ChartDay) => (row.appts > 0 ? 8 : null)}
               stroke="transparent"
               dot={<ApptDot />}
               isAnimationActive={false}
