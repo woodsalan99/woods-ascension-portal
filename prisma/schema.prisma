@@ -89,6 +89,19 @@ model Client {
   changelog      ChangelogEntry[]
   documents      Document[]
   domains        Domain[]
+  internalNotes  InternalNote[]
+}
+
+// Admin-only internal notes log per client — never shown to the client.
+// A dated scratchpad to keep everything about a client in one place.
+model InternalNote {
+  id        String   @id @default(cuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id])
+  date      DateTime
+  title     String?
+  body      String
+  createdAt DateTime @default(now())
 }
 
 // Deliverability tracking for sending domains (admin-only). Health metrics

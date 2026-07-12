@@ -427,6 +427,25 @@ export async function deleteChangelogEntry(clientId: string, entryId: string) {
   revalidatePath(`/admin/clients/${clientId}`);
 }
 
+export async function createInternalNote(clientId: string, formData: FormData) {
+  await requireAdmin();
+  await prisma.internalNote.create({
+    data: {
+      clientId,
+      date: str(formData, "date") ? new Date(str(formData, "date")) : new Date(),
+      title: optStr(formData, "title"),
+      body: str(formData, "body"),
+    },
+  });
+  revalidatePath(`/admin/clients/${clientId}`);
+}
+
+export async function deleteInternalNote(clientId: string, noteId: string) {
+  await requireAdmin();
+  await prisma.internalNote.delete({ where: { id: noteId } });
+  revalidatePath(`/admin/clients/${clientId}`);
+}
+
 export async function uploadDocument(clientId: string, formData: FormData) {
   await requireAdmin();
   const file = formData.get("file");

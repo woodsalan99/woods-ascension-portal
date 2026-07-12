@@ -7,6 +7,7 @@ import {
   createAudience,
   createCampaign,
   createChangelogEntry,
+  createInternalNote,
   createInfrastructureItem,
   createMilestone,
   createOnboardingStep,
@@ -15,6 +16,7 @@ import {
   deleteAudience,
   deleteCampaign,
   deleteChangelogEntry,
+  deleteInternalNote,
   deleteDocument,
   deletePipelineCall,
   deleteInfrastructureItem,
@@ -84,6 +86,7 @@ export default async function AdminClientDetail({
       metricConfigs: true,
       changelog: { orderBy: { date: "desc" } },
       documents: { orderBy: { docDate: "desc" }, select: { id: true, name: true, fileName: true, note: true, docDate: true } },
+      internalNotes: { orderBy: { date: "desc" } },
     },
   });
 
@@ -98,6 +101,7 @@ export default async function AdminClientDetail({
   const boundCreateOnboardingStep = createOnboardingStep.bind(null, id);
   const boundCreateWeeklyNote = createWeeklyNote.bind(null, id);
   const boundCreateChangelogEntry = createChangelogEntry.bind(null, id);
+  const boundCreateInternalNote = createInternalNote.bind(null, id);
   const boundUploadDocument = uploadDocument.bind(null, id);
   const boundInviteUser = inviteUserAction.bind(null, id);
   const boundCreateAudience = createAudience.bind(null, id);
@@ -641,6 +645,36 @@ export default async function AdminClientDetail({
           <input type="date" name="docDate" className="border p-1" required />
           <input name="note" placeholder="Note shown to client on open (optional)" className="border p-1 col-span-2" />
           <button className="bg-black text-white px-3 py-1 rounded col-span-2">Upload document</button>
+        </form>
+      </section>
+
+      {/* Internal notes — admin only, never client-visible */}
+      <section className="border p-4 rounded bg-yellow-50">
+        <h2 className="font-bold mb-1">Internal notes (admin only)</h2>
+        <p className="text-gray-500 mb-3">
+          A private, dated log for this client. <b>Never shown to the client</b> — unlike the
+          client-visible changelog below. Use it to keep everything in one place.
+        </p>
+        <div className="space-y-2 mb-3">
+          {client.internalNotes.map((n) => (
+            <div key={n.id} className="border rounded p-2 bg-white">
+              <div className="text-xs text-gray-500">{n.date.toISOString().slice(0, 10)}</div>
+              {n.title && <div className="font-semibold">{n.title}</div>}
+              <div className="whitespace-pre-wrap text-sm">{n.body}</div>
+              <form action={deleteInternalNote.bind(null, id, n.id)} className="mt-1">
+                <button className="underline text-red-600 text-xs">delete</button>
+              </form>
+            </div>
+          ))}
+          {client.internalNotes.length === 0 && (
+            <div className="text-gray-400 text-sm">No internal notes yet.</div>
+          )}
+        </div>
+        <form action={boundCreateInternalNote} className="grid grid-cols-4 gap-2">
+          <input type="date" name="date" defaultValue={new Date().toISOString().slice(0, 10)} className="border p-1" />
+          <input name="title" placeholder="Title (optional)" className="border p-1 col-span-3" />
+          <textarea name="body" placeholder="Note…" rows={3} className="border p-1 col-span-4" required />
+          <button className="bg-black text-white px-3 py-1 rounded col-span-4">Add internal note</button>
         </form>
       </section>
 
