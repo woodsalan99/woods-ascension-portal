@@ -25,3 +25,24 @@ export async function getDashboardScope(): Promise<DashboardScope> {
 
   redirect("/admin");
 }
+
+// Same resolution as getDashboardScope, but for the CLIENT-role write
+// actions in (dashboard)/actions.ts — an admin previewing a client can
+// exercise those actions too (that's the point of "view as client"), writing
+// against the previewed clientId instead of throwing. Never redirects: write
+// actions should error loudly, not bounce the request.
+export async function requireDashboardWriteScope(): Promise<DashboardScope> {
+  const ctx = await getScopedContext();
+
+  if (ctx.role === "CLIENT") {
+    if (!ctx.clientId) throw new Error("CLIENT user has no clientId assigned");
+    return { clientId: ctx.clientId, isPreview: false };
+  }
+
+  if (ctx.role === "ADMIN") {
+    const previewId = (await cookies()).get(PREVIEW_COOKIE)?.value;
+    if (previewId) return { clientId: previewId, isPreview: true };
+  }
+
+  throw new Error("Client role (or an admin in preview mode) is required");
+}

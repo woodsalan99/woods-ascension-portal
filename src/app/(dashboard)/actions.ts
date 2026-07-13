@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
-import { requireClient } from "@/lib/auth";
+import { requireDashboardWriteScope } from "@/lib/dashboard-scope";
 
 // v1.1 / D21: the only CLIENT-role write paths in the app. Each one
 // re-fetches the target row and checks clientId against the caller's own
@@ -10,7 +10,7 @@ import { requireClient } from "@/lib/auth";
 // client alone, same tenancy guarantee as every read (§4, Module B).
 
 export async function updateAppointmentOutcome(entryId: string, formData: FormData) {
-  const ctx = await requireClient();
+  const ctx = await requireDashboardWriteScope();
   const entry = await prisma.pipelineEntry.findUniqueOrThrow({ where: { id: entryId } });
   if (entry.clientId !== ctx.clientId) {
     throw new Error("Forbidden");
@@ -43,7 +43,7 @@ export async function updateAppointmentOutcome(entryId: string, formData: FormDa
 // writes to the same PipelineEntry/PipelineCall tables the admin panel reads,
 // it shows up there automatically — no separate sync needed.
 export async function addAppointment(formData: FormData) {
-  const ctx = await requireClient();
+  const ctx = await requireDashboardWriteScope();
 
   const contactName = String(formData.get("contactName") ?? "").trim();
   const company = String(formData.get("company") ?? "").trim();
@@ -79,7 +79,7 @@ export async function addAppointment(formData: FormData) {
 }
 
 export async function completeOnboardingStep(stepId: string) {
-  const ctx = await requireClient();
+  const ctx = await requireDashboardWriteScope();
   const step = await prisma.onboardingStep.findUniqueOrThrow({ where: { id: stepId } });
   if (step.clientId !== ctx.clientId) {
     throw new Error("Forbidden");

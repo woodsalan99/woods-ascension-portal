@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { fetchAllCampaigns } from "@/lib/smartlead";
 import { CampaignPicker } from "@/components/admin/CampaignPicker";
 import { setPreviewClient } from "@/lib/preview-actions";
+import { applyTemplate } from "../../templates/actions";
 import {
   addPipelineCall,
   createAudience,
@@ -91,6 +92,7 @@ export default async function AdminClientDetail({
   });
 
   const smartleadCampaigns = await fetchAllCampaigns().catch(() => []);
+  const templates = await prisma.template.findMany({ orderBy: { name: "asc" } });
 
   const stageLabels = (client.stageLabels as Record<string, string>) ?? {};
   const metricConfigByKey = new Map(client.metricConfigs.map((c) => [c.metricKey, c]));
@@ -116,11 +118,24 @@ export default async function AdminClientDetail({
           </a>
           <h1 className="text-xl font-bold mt-2">{client.name}</h1>
         </div>
-        <form action={setPreviewClient.bind(null, id)}>
-          <button className="bg-black text-white px-3 py-2 rounded">
-            View dashboard as this client →
-          </button>
-        </form>
+        <div className="flex items-center gap-2">
+          {templates.length > 0 && (
+            <form action={applyTemplate.bind(null, id)} className="flex items-center gap-1">
+              <select name="templateId" className="border p-1 text-xs" required defaultValue="">
+                <option value="" disabled>Apply template…</option>
+                {templates.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+              <button className="border px-3 py-2 rounded text-xs">Apply</button>
+            </form>
+          )}
+          <form action={setPreviewClient.bind(null, id)}>
+            <button className="bg-black text-white px-3 py-2 rounded">
+              View dashboard as this client →
+            </button>
+          </form>
+        </div>
       </div>
 
       {/* Client fields */}
@@ -140,13 +155,23 @@ export default async function AdminClientDetail({
           </label>
           <label>Calendar link<input name="calendarLink" defaultValue={client.calendarLink ?? ""} className="border w-full p-1" /></label>
           <label>Intake form link<input name="intakeFormLink" defaultValue={client.intakeFormLink ?? ""} className="border w-full p-1" /></label>
-          <label>
+          <label title="Day 1 of the 'Day N' counter clients see on Overview">
+            Onboarding date (Day 1)
+            <input
+              type="date"
+              name="onboardingDate"
+              defaultValue={client.onboardingDate ? client.onboardingDate.toISOString().slice(0, 10) : ""}
+              className="border w-full p-1"
+            />
+          </label>
+          <label title="Defaults to onboarding date + 22 days (Day 23) if left blank">
             Launch date
             <input
               type="date"
               name="launchDate"
               defaultValue={client.launchDate ? client.launchDate.toISOString().slice(0, 10) : ""}
               className="border w-full p-1"
+              placeholder="auto: onboarding + 22 days"
             />
           </label>
           <div className="grid grid-cols-3 gap-2">
@@ -154,6 +179,12 @@ export default async function AdminClientDetail({
             <label>Inboxes warming<input type="number" name="inboxesWarming" defaultValue={client.inboxesWarming ?? ""} className="border w-full p-1" /></label>
             <label>Warmup sends<input type="number" name="warmupSends" defaultValue={client.warmupSends ?? ""} className="border w-full p-1" /></label>
           </div>
+          <label className="col-span-2" title="Shown as a styled banner at the top of the client's Overview page — great for a first-onboarding welcome">
+            Welcome banner title<input name="welcomeTitle" defaultValue={client.welcomeTitle ?? ""} className="border w-full p-1" placeholder="e.g. Welcome to Woods Ascension" />
+          </label>
+          <label className="col-span-2">
+            Welcome banner message<textarea name="welcomeMessage" defaultValue={client.welcomeMessage ?? ""} className="border w-full p-1" rows={2} placeholder="What to expect over the next few weeks..." />
+          </label>
           <div className="col-span-2 grid grid-cols-4 gap-2">
             <label>Stage 1 label<input name="stage1Label" defaultValue={stageLabels.STAGE_1 ?? ""} className="border w-full p-1" /></label>
             <label>Stage 2 label<input name="stage2Label" defaultValue={stageLabels.STAGE_2 ?? ""} className="border w-full p-1" /></label>
@@ -450,19 +481,30 @@ export default async function AdminClientDetail({
             {client.onboarding.map((o) => (
               <tr key={o.id} className="border-t">
                 <td>
-                  <form key={`${o.state}-${o.sortOrder}-${o.clientActionable}`} action={updateOnboardingStep.bind(null, id, o.id)} className="grid grid-cols-7 gap-1 py-1 items-center">
-                    <input name="label" defaultValue={o.label} className="border p-1 col-span-2" />
-                    <input name="dayLabel" defaultValue={o.dayLabel} className="border p-1" />
-                    <select name="state" defaultValue={o.state} className="border p-1">
-                      {STEP_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
-                    </select>
-                    <input name="ctaLabel" defaultValue={o.ctaLabel ?? ""} placeholder="CTA label" className="border p-1" />
-                    <input name="ctaUrl" defaultValue={o.ctaUrl ?? ""} placeholder="CTA URL" className="border p-1" />
-                    <input type="number" name="sortOrder" defaultValue={o.sortOrder} className="border p-1 w-16" />
-                    <label className="flex items-center gap-1 text-xs">
-                      <input type="checkbox" name="clientActionable" defaultChecked={o.clientActionable} /> client can complete
-                    </label>
-                    <button className="underline col-span-2">save</button>
+                  <form key={`${o.state}-${o.sortOrder}-${o.clientActionable}`} action={updateOnboardingStep.bind(null, id, o.id)} className="space-y-1 py-1">
+                    <div className="grid grid-cols-7 gap-1 items-center">
+                      <input name="label" defaultValue={o.label} className="border p-1 col-span-2" placeholder="Title" />
+                      <input name="dayLabel" defaultValue={o.dayLabel} className="border p-1" />
+                      <select name="state" defaultValue={o.state} className="border p-1">
+                        {STEP_STATES.map((s) => <option key={s} value={s}>{s}</option>)}
+                      </select>
+                      <input name="ctaLabel" defaultValue={o.ctaLabel ?? ""} placeholder="CTA label" className="border p-1" />
+                      <input name="ctaUrl" defaultValue={o.ctaUrl ?? ""} placeholder="CTA URL" className="border p-1" />
+                      <input type="number" name="sortOrder" defaultValue={o.sortOrder} className="border p-1 w-16" />
+                    </div>
+                    <textarea
+                      name="description"
+                      defaultValue={o.description ?? ""}
+                      placeholder="Description shown when the client expands this step (optional)"
+                      className="border p-1 w-full text-xs"
+                      rows={2}
+                    />
+                    <div className="flex items-center gap-3">
+                      <label className="flex items-center gap-1 text-xs">
+                        <input type="checkbox" name="clientActionable" defaultChecked={o.clientActionable} /> client can complete
+                      </label>
+                      <button className="underline text-xs">save</button>
+                    </div>
                   </form>
                   <form action={deleteOnboardingStep.bind(null, id, o.id)}>
                     <button className="underline text-red-600 text-xs">delete</button>
@@ -481,6 +523,7 @@ export default async function AdminClientDetail({
           <label className="flex items-center gap-1 text-xs">
             <input type="checkbox" name="clientActionable" /> client can complete
           </label>
+          <textarea name="description" placeholder="Description (optional)" className="border p-1 col-span-4 text-xs" rows={2} />
           <button className="bg-black text-white px-3 py-1 rounded col-span-4">Add step</button>
         </form>
       </section>

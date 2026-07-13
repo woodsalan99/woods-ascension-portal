@@ -14,11 +14,16 @@ function deriveOutcome(callStatus: string | null, qualified: boolean): string {
   return "PENDING";
 }
 
+// Call dates are stored date-only (UTC midnight), so compare by calendar
+// day, not exact timestamp — otherwise a same-day appointment reads as
+// "Pending" (already past) for nearly the entire day. Matches the
+// todayStart convention used for the upcoming/past split below.
 function deriveStatusLabel(callDateTime: Date, callStatus: string | null): string {
   if (callStatus === "NO_SHOW") return "No-show";
   if (callStatus === "HELD") return "Completed";
-  if (callDateTime > new Date()) return "Upcoming";
-  return "Pending";
+  const todayStart = new Date();
+  todayStart.setUTCHours(0, 0, 0, 0);
+  return callDateTime >= todayStart ? "Upcoming" : "Pending";
 }
 
 function AppointmentTable({ entries }: { entries: Entry[] }) {
@@ -97,7 +102,11 @@ export default async function AppointmentsPage({
 
   const upcoming = all.filter((e) => !isPast(e)).sort((a, b) => a.callDateTime!.getTime() - b.callDateTime!.getTime());
   const past = all.filter(isPast).sort((a, b) => b.callDateTime!.getTime() - a.callDateTime!.getTime());
-  const qualifiedCount = all.filter((e) => e.callStatus === "HELD" && e.qualified).length;
+  // "Qualified" is judged against appointments that have actually occurred
+  // (held or no-showed) — not against everything booked, since upcoming
+  // appointments don't have an outcome yet.
+  const occurred = all.filter((e) => e.callStatus === "HELD" || e.callStatus === "NO_SHOW");
+  const qualifiedCount = occurred.filter((e) => e.qualified).length;
 
   return (
     <>
@@ -117,15 +126,34 @@ export default async function AppointmentsPage({
         <KPI
           label="Qualified"
           value={qualifiedCount}
-          detail={all.length > 0 ? `${Math.round((qualifiedCount / all.length) * 100)}% of total` : undefined}
+          detail={
+            occurred.length > 0
+              ? `${Math.round((qualifiedCount / occurred.length) * 100)}% of appointments that have occurred`
+              : undefined
+          }
           accent
         />
       </div>
 
       <div className="wa-card">
+        <div className="wa-eyebrow">Upcoming</div>
+        {upcoming.length === 0 ? (
+          <div className="wa-empty wa-empty-slim" style={{ marginTop: 10 }}>
+            <p>
+              <b>No upcoming appointments.</b> New bookings will appear here.
+            </p>
+          </div>
+        ) : (
+          <div style={{ marginTop: 10 }}>
+            <AppointmentTable entries={upcoming} />
+          </div>
+        )}
+      </div>
+
+      <div className="wa-card">
         <div className="wa-eyebrow">Add an appointment</div>
         <div className="wa-page-sub" style={{ marginTop: 2, marginBottom: 10 }}>
-          Booked a call yourself? Log it here — it&apos;ll appear below and in Woods Ascension&apos;s pipeline.
+          See anything missing? Log a call here and it&apos;ll appear below for easy tracking.
         </div>
         <form
           action={async (formData: FormData) => {
@@ -161,21 +189,6 @@ export default async function AppointmentsPage({
             Add appointment
           </button>
         </form>
-      </div>
-
-      <div className="wa-card">
-        <div className="wa-eyebrow">Upcoming</div>
-        {upcoming.length === 0 ? (
-          <div className="wa-empty wa-empty-slim" style={{ marginTop: 10 }}>
-            <p>
-              <b>No upcoming appointments.</b> New bookings will appear here.
-            </p>
-          </div>
-        ) : (
-          <div style={{ marginTop: 10 }}>
-            <AppointmentTable entries={upcoming} />
-          </div>
-        )}
       </div>
 
       {past.length > 0 && (

@@ -11,6 +11,9 @@ export default async function AdminHome() {
           <a href="/admin/deliverability" className="border px-3 py-1 rounded">
             Deliverability
           </a>
+          <a href="/admin/templates" className="border px-3 py-1 rounded">
+            Templates
+          </a>
           <a href="/admin/clients/new" className="bg-black text-white px-3 py-1 rounded">
             + New client
           </a>

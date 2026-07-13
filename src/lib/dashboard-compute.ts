@@ -15,9 +15,12 @@ export function computeLaunchState(client: DashboardClient) {
   const daysToLaunch = client.launchDate
     ? Math.max(0, Math.ceil((client.launchDate.getTime() - now.getTime()) / 86_400_000))
     : null;
+  // Day 1 = the onboarding date itself (not day 0). Falls back to createdAt
+  // for clients set up before this field existed.
+  const startDate = client.onboardingDate ?? client.createdAt;
   const daySinceStart = Math.max(
-    0,
-    Math.floor((now.getTime() - client.createdAt.getTime()) / 86_400_000),
+    1,
+    Math.floor((now.getTime() - startDate.getTime()) / 86_400_000) + 1,
   );
   return { isPreLaunch, daysToLaunch, daySinceStart };
 }
@@ -257,6 +260,7 @@ export function computeOnboarding(client: DashboardClient): OnboardingStepVM[] {
   return client.onboarding.map((o) => ({
     id: o.id,
     label: o.label,
+    description: o.description,
     dayLabel: o.dayLabel,
     state: o.state,
     ctaLabel: o.ctaLabel,

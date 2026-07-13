@@ -25,6 +25,13 @@ export default async function OverviewPage() {
 
   return (
     <>
+      {client.welcomeTitle && (
+        <div className="wa-welcome">
+          <div className="wa-welcome-title">{client.welcomeTitle}</div>
+          {client.welcomeMessage && <div className="wa-welcome-message">{client.welcomeMessage}</div>}
+        </div>
+      )}
+
       <div className="wa-page-head">
         <div>
           <h1 className="wa-page-title">

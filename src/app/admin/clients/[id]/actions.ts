@@ -24,6 +24,13 @@ function optDate(fd: FormData, key: string): Date | null {
 
 export async function updateClient(clientId: string, formData: FormData) {
   await requireAdmin();
+
+  const onboardingDate = optDate(formData, "onboardingDate");
+  // If admin sets/changes onboarding date but hasn't set a launch date yet,
+  // default launch to onboarding + 22 days ("Day 23") — still editable.
+  const explicitLaunchDate = optDate(formData, "launchDate");
+  const launchDate = explicitLaunchDate ?? (onboardingDate ? new Date(onboardingDate.getTime() + 22 * 86_400_000) : null);
+
   await prisma.client.update({
     where: { id: clientId },
     data: {
@@ -33,12 +40,13 @@ export async function updateClient(clientId: string, formData: FormData) {
       status: str(formData, "status"),
       calendarLink: optStr(formData, "calendarLink"),
       intakeFormLink: optStr(formData, "intakeFormLink"),
-      launchDate: optStr(formData, "launchDate")
-        ? new Date(str(formData, "launchDate"))
-        : null,
+      onboardingDate,
+      launchDate,
       domainsLive: optInt(formData, "domainsLive"),
       inboxesWarming: optInt(formData, "inboxesWarming"),
       warmupSends: optInt(formData, "warmupSends"),
+      welcomeTitle: optStr(formData, "welcomeTitle"),
+      welcomeMessage: optStr(formData, "welcomeMessage"),
       stageLabels: {
         STAGE_1: str(formData, "stage1Label"),
         STAGE_2: str(formData, "stage2Label"),
@@ -57,6 +65,7 @@ export async function createClient(formData: FormData) {
       name: str(formData, "name"),
       slug: str(formData, "slug"),
       timezone: str(formData, "timezone") || "America/New_York",
+      onboardingDate: new Date(),
       stageLabels: {
         STAGE_1: "Positive Reply",
         STAGE_2: "Appointment Booked",
@@ -262,6 +271,7 @@ export async function createOnboardingStep(clientId: string, formData: FormData)
     data: {
       clientId,
       label: str(formData, "label"),
+      description: optStr(formData, "description"),
       dayLabel: str(formData, "dayLabel"),
       state: str(formData, "state") as StepState,
       ctaLabel: optStr(formData, "ctaLabel"),
@@ -279,6 +289,7 @@ export async function updateOnboardingStep(clientId: string, stepId: string, for
     where: { id: stepId },
     data: {
       label: str(formData, "label"),
+      description: optStr(formData, "description"),
       dayLabel: str(formData, "dayLabel"),
       state: str(formData, "state") as StepState,
       ctaLabel: optStr(formData, "ctaLabel"),

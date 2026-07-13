@@ -123,6 +123,61 @@ export async function fetchLeadCategories(): Promise<LeadCategory[]> {
   }));
 }
 
+// The /leads endpoint (unlike /statistics) carries the lead's actual
+// company_name as entered in Smartlead — used to replace the ugly
+// guessed-from-email-domain fallback (e.g. "Sageadvisors" -> "Sage Advisors").
+export type CampaignLead = {
+  email: string;
+  companyName: string | null;
+};
+
+// Smartlead's company_name is sometimes a clean name ("Shore Funding
+// Solutions") and sometimes a scraped business-listing string with trailing
+// junk ("Sage Advisory Group: California Business Brokers Ca Dre 00977254").
+// Truncate at the first colon/dash-delimited suffix and cap length; anything
+// still unreasonable is treated as unusable so the caller falls back to the
+// domain-guessed name instead of showing garbage.
+function cleanCompanyName(raw: string | null): string | null {
+  if (!raw) return null;
+  const truncated = raw.split(/\s*[:|]\s*/)[0].trim();
+  if (truncated.length === 0 || truncated.length > 45) return null;
+  return truncated;
+}
+
+export async function fetchCampaignLeads(smartleadCampaignId: string): Promise<CampaignLead[]> {
+  const limit = 100; // Smartlead caps this endpoint's limit at 100
+  let offset = 0;
+  const all: CampaignLead[] = [];
+
+  while (true) {
+    const res = await fetch(
+      `${SMARTLEAD_BASE}/campaigns/${smartleadCampaignId}/leads?api_key=${apiKey()}&offset=${offset}&limit=${limit}`,
+    );
+    if (!res.ok) {
+      throw new Error(`fetchCampaignLeads failed for campaign ${smartleadCampaignId}: ${res.status}`);
+    }
+    const json = (await res.json()) as {
+      total_leads: string;
+      data: Array<{ lead: { email: string; company_name: string | null } }>;
+    };
+
+    all.push(
+      ...json.data.map((r) => ({
+        email: r.lead.email,
+        companyName: cleanCompanyName(r.lead.company_name),
+      })),
+    );
+
+    const total = Number(json.total_leads);
+    offset += limit;
+    if (offset >= total || json.data.length === 0) break;
+
+    await new Promise((resolve) => setTimeout(resolve, 250));
+  }
+
+  return all;
+}
+
 export type CampaignStatRecord = {
   leadEmail: string;
   leadName: string | null;

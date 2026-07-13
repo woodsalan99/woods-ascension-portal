@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import { fetchCampaignStatistics, fetchLeadCategories } from "@/lib/smartlead";
+import { fetchCampaignStatistics, fetchCampaignLeads, fetchLeadCategories } from "@/lib/smartlead";
 import { dateKeyInTimezone, dateKeyToUtcMidnight } from "@/lib/timezone";
 import { guessCompanyFromEmail } from "@/lib/format";
 
@@ -170,6 +170,24 @@ export async function GET(req: Request) {
         );
 
         if (toCreate.length > 0) {
+          // Smartlead's /leads endpoint (unlike /statistics) carries the
+          // lead's actual entered company name — pull it in for the leads
+          // we're about to create so the pipeline shows "Sage Advisors"
+          // instead of a domain-derived "Sageadvisors".
+          const companyByEmail = new Map<string, string>();
+          for (const campaign of client.campaigns) {
+            try {
+              const leads = await fetchCampaignLeads(campaign.smartleadCampaignId);
+              for (const lead of leads) {
+                if (lead.companyName && lead.companyName.trim().length > 0) {
+                  companyByEmail.set(lead.email.toLowerCase(), lead.companyName.trim());
+                }
+              }
+            } catch {
+              // Non-fatal — fall back to the guessed name for this campaign's leads.
+            }
+          }
+
           await prisma.pipelineEntry.createMany({
             data: toCreate.map(([email, lead]) => ({
               clientId: client.id,
@@ -177,7 +195,7 @@ export async function GET(req: Request) {
               stage: "STAGE_1" as const,
               contactName: lead.name && lead.name.trim().length > 0 ? lead.name : email,
               email,
-              company: guessCompanyFromEmail(email),
+              company: companyByEmail.get(email) ?? guessCompanyFromEmail(email),
               positiveReplyDate: lead.replyDate,
               notes: "Auto-added from a positive Smartlead reply",
             })),
