@@ -108,19 +108,30 @@ export async function deleteCampaign(clientId: string, campaignId: string) {
 }
 
 // Keep PipelineEntry.callDateTime (the "primary appointment" the client
-// Appointments page reads) in sync with the lead's discovery calls: the
-// next upcoming one, else the most recent past one.
+// Appointments page reads) in sync with the lead's calls — discovery OR
+// sales, whichever is next-upcoming, else the most recent past one.
 async function recomputePrimaryCall(entryId: string) {
   const calls = await prisma.pipelineCall.findMany({
-    where: { pipelineEntryId: entryId, type: "DISCOVERY" },
+    where: { pipelineEntryId: entryId },
     orderBy: { date: "asc" },
   });
   const now = new Date();
   const upcoming = calls.find((c) => c.date >= now);
-  const primary = upcoming ?? calls[calls.length - 1];
+  const primary = upcoming ?? calls[calls.length - 1] ?? null;
+
+  const entry = await prisma.pipelineEntry.findUnique({ where: { id: entryId }, select: { callStatus: true } });
+  // A newly-added future call supersedes any HELD/NO_SHOW outcome left over
+  // from a previous call cycle — that status described the old call, not
+  // this new upcoming one, so leaving it would wrongly bucket it as "past".
+  const staleOutcome =
+    primary && primary.date >= now && (entry?.callStatus === "HELD" || entry?.callStatus === "NO_SHOW");
+
   await prisma.pipelineEntry.update({
     where: { id: entryId },
-    data: { callDateTime: primary?.date ?? null, discoveryCallDate: primary?.date ?? null },
+    data: {
+      callDateTime: primary?.date ?? null,
+      ...(staleOutcome ? { callStatus: "CONFIRMED" } : {}),
+    },
   });
 }
 

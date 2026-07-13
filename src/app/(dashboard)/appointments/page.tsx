@@ -4,7 +4,7 @@ import { formatCallDay, formatDealValue } from "@/lib/format";
 import { AudienceFilter } from "@/components/dashboard/AudienceFilter";
 import { OutcomeSelect } from "@/components/dashboard/OutcomeSelect";
 import { KPI } from "@/components/dashboard/KPI";
-import { updateAppointmentOutcome } from "../actions";
+import { updateAppointmentOutcome, addAppointment } from "../actions";
 
 type Entry = DashboardClient["pipeline"][number];
 
@@ -120,6 +120,47 @@ export default async function AppointmentsPage({
           detail={all.length > 0 ? `${Math.round((qualifiedCount / all.length) * 100)}% of total` : undefined}
           accent
         />
+      </div>
+
+      <div className="wa-card">
+        <div className="wa-eyebrow">Add an appointment</div>
+        <div className="wa-page-sub" style={{ marginTop: 2, marginBottom: 10 }}>
+          Booked a call yourself? Log it here — it&apos;ll appear below and in Woods Ascension&apos;s pipeline.
+        </div>
+        <form
+          action={async (formData: FormData) => {
+            "use server";
+            await addAppointment(formData);
+          }}
+          style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-end" }}
+        >
+          <label style={{ fontSize: 12.5, color: "var(--muted)" }}>
+            Contact name
+            <input name="contactName" required className="wa-select" style={{ display: "block", marginTop: 4, width: 160 }} />
+          </label>
+          <label style={{ fontSize: 12.5, color: "var(--muted)" }}>
+            Company
+            <input name="company" className="wa-select" style={{ display: "block", marginTop: 4, width: 160 }} />
+          </label>
+          <label style={{ fontSize: 12.5, color: "var(--muted)" }}>
+            Email
+            <input name="email" type="email" className="wa-select" style={{ display: "block", marginTop: 4, width: 180 }} />
+          </label>
+          <label style={{ fontSize: 12.5, color: "var(--muted)" }}>
+            Type
+            <select name="type" className="wa-select" style={{ display: "block", marginTop: 4 }}>
+              <option value="DISCOVERY">Discovery</option>
+              <option value="SALES">Sales</option>
+            </select>
+          </label>
+          <label style={{ fontSize: 12.5, color: "var(--muted)" }}>
+            Date
+            <input name="date" type="date" required className="wa-select" style={{ display: "block", marginTop: 4 }} />
+          </label>
+          <button type="submit" className="wa-ob-cta" style={{ fontSize: 12.5, padding: "8px 16px" }}>
+            Add appointment
+          </button>
+        </form>
       </div>
 
       <div className="wa-card">

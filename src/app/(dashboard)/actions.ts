@@ -37,6 +37,47 @@ export async function updateAppointmentOutcome(entryId: string, formData: FormDa
   revalidatePath("/");
 }
 
+// Client-facing "add appointment" (v1.1 batch 6, D21 extension): clients can
+// log a new appointment themselves — a new booked lead + its first call.
+// Create-only; deleting/editing pipeline entries stays admin-only. Since it
+// writes to the same PipelineEntry/PipelineCall tables the admin panel reads,
+// it shows up there automatically — no separate sync needed.
+export async function addAppointment(formData: FormData) {
+  const ctx = await requireClient();
+
+  const contactName = String(formData.get("contactName") ?? "").trim();
+  const company = String(formData.get("company") ?? "").trim();
+  const email = String(formData.get("email") ?? "").trim();
+  const type = String(formData.get("type") ?? "DISCOVERY");
+  const dateStr = String(formData.get("date") ?? "");
+
+  if (!contactName || !dateStr) {
+    throw new Error("Contact name and date are required");
+  }
+  const date = new Date(dateStr);
+  if (Number.isNaN(date.getTime())) {
+    throw new Error("Invalid date");
+  }
+
+  const entry = await prisma.pipelineEntry.create({
+    data: {
+      clientId: ctx.clientId,
+      stage: "STAGE_2",
+      contactName,
+      company: company || contactName,
+      email: email || null,
+      callDateTime: date,
+      callStatus: "CONFIRMED",
+      qualified: true,
+      calls: { create: { type: type === "SALES" ? "SALES" : "DISCOVERY", date } },
+    },
+  });
+
+  revalidatePath("/appointments");
+  revalidatePath("/");
+  return entry.id;
+}
+
 export async function completeOnboardingStep(stepId: string) {
   const ctx = await requireClient();
   const step = await prisma.onboardingStep.findUniqueOrThrow({ where: { id: stepId } });

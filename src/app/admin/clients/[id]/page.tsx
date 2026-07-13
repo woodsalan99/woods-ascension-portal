@@ -270,7 +270,16 @@ export default async function AdminClientDetail({
         <h2 className="font-bold mb-3">Pipeline</h2>
         <div className="space-y-3 mb-4">
           {client.pipeline.map((p) => (
-            <div key={p.id} className="border rounded p-2">
+            <div
+              key={p.id}
+              className="border rounded p-2"
+              style={
+                p.stage !== "STAGE_1"
+                  ? { borderColor: "var(--gold)", borderWidth: 2, background: "var(--gold-soft)" }
+                  : undefined
+              }
+              title={p.stage !== "STAGE_1" ? "Elevated priority — appointment booked or further" : undefined}
+            >
               <form key={p.updatedAt.getTime()} action={updatePipelineEntry.bind(null, id, p.id)} className="space-y-1">
                 <div className="grid grid-cols-4 gap-1">
                   <label className="text-xs">Contact<input name="contactName" defaultValue={p.contactName} className="border p-1 w-full" /></label>

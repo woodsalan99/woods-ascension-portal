@@ -40,6 +40,7 @@ function ChartTooltip({
 }) {
   if (!active || !payload || !payload.length) return null;
   const row = payload[0].payload;
+  const pct = (n: number, denom: number) => (denom > 0 ? ` (${((n / denom) * 100).toFixed(1)}%)` : "");
   return (
     <div className="wa-tip">
       <div className="wa-tip-day">
@@ -52,15 +53,15 @@ function ChartTooltip({
       </div>
       <div className="wa-tip-row">
         <span className="wa-dot" style={{ background: "var(--green)" }} />
-        Positive replies <b>{row.replies}</b>
+        Positive replies <b>{row.replies}{pct(row.replies, row.totalReplies)}</b>
       </div>
       <div className="wa-tip-row">
         <span className="wa-dot" style={{ background: TOTAL_REPLY_COLOR }} />
-        Total replies <b>{row.totalReplies}</b>
+        Total replies <b>{row.totalReplies}{pct(row.totalReplies, row.sends)}</b>
       </div>
       <div className="wa-tip-row">
         <span className="wa-dot" style={{ background: "var(--brick)" }} />
-        Bounces <b>{row.bounces}</b>
+        Bounces <b>{row.bounces}{pct(row.bounces, row.sends)}</b>
       </div>
       {row.appts > 0 && (
         <div className="wa-tip-row wa-tip-appt">

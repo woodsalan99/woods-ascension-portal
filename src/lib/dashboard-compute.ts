@@ -168,14 +168,20 @@ export function computeActivityStats(
   const emailsSent = dailyStats.reduce((sum, s) => sum + s.sends, 0);
   const totalReplies = dailyStats.reduce((sum, s) => sum + s.totalReplies, 0);
   const positiveReplies = dailyStats.reduce((sum, s) => sum + s.positiveReplies, 0);
-  const appointmentsBooked = dailyStats.reduce((sum, s) => sum + s.apptsBooked, 0);
 
   const pipeline = allPipeline.filter((p) => inRange(p.createdAt));
   const pipelineValue = pipeline
     .filter((p) => p.stage !== "STAGE_1")
     .reduce((sum, p) => sum + (p.dealValue ?? 0), 0);
+  // "Booked" = reached appointment-booked stage or further — a live count
+  // from PipelineEntry, not the old DailyStat.apptsBooked rollup (which only
+  // tallied entries CURRENTLY sitting at STAGE_2, so it dropped anything
+  // that had since progressed to STAGE_3/4 and badly undercounted).
+  const appointmentsBooked = pipeline.filter((p) => p.stage !== "STAGE_1").length;
   // "Qualified appointments" = calls that actually occurred (HELD) and were
   // marked qualified — not just any qualified lead, and not just booked.
+  // This is always a subset of "booked" above (HELD implies an appointment
+  // was reached), so emails/qualified >= emails/booked always holds.
   const qualifiedCount = pipeline.filter((p) => p.callStatus === "HELD" && p.qualified).length;
 
   return {
