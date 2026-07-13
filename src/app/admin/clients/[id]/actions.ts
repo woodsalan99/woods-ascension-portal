@@ -115,16 +115,22 @@ async function recomputePrimaryCall(entryId: string) {
     where: { pipelineEntryId: entryId },
     orderBy: { date: "asc" },
   });
-  const now = new Date();
-  const upcoming = calls.find((c) => c.date >= now);
+  // Call dates are stored date-only (UTC midnight), so "upcoming" is judged
+  // by calendar day, not exact timestamp — otherwise a same-day appointment
+  // would read as "past" for nearly the entire day. Matches the todayStart
+  // convention used everywhere else (Appointments page, Overview).
+  const todayStart = new Date();
+  todayStart.setUTCHours(0, 0, 0, 0);
+  const upcoming = calls.find((c) => c.date >= todayStart);
   const primary = upcoming ?? calls[calls.length - 1] ?? null;
 
   const entry = await prisma.pipelineEntry.findUnique({ where: { id: entryId }, select: { callStatus: true } });
-  // A newly-added future call supersedes any HELD/NO_SHOW outcome left over
-  // from a previous call cycle — that status described the old call, not
-  // this new upcoming one, so leaving it would wrongly bucket it as "past".
+  // A newly-added today-or-later call supersedes any HELD/NO_SHOW outcome
+  // left over from a previous call cycle — that status described the old
+  // call, not this new upcoming one, so leaving it would wrongly bucket it
+  // as "past".
   const staleOutcome =
-    primary && primary.date >= now && (entry?.callStatus === "HELD" || entry?.callStatus === "NO_SHOW");
+    primary && primary.date >= todayStart && (entry?.callStatus === "HELD" || entry?.callStatus === "NO_SHOW");
 
   await prisma.pipelineEntry.update({
     where: { id: entryId },
