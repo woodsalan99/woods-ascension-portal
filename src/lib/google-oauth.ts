@@ -9,7 +9,11 @@ import { google } from "googleapis";
 // Scopes needed per provider — Phase 3 only exercises GMAIL; GSC/PLACES
 // are wired here so Phase 4 reuses the same consent flow without changes.
 export const GOOGLE_SCOPES: Record<string, string[]> = {
-  GMAIL: ["https://www.googleapis.com/auth/gmail.readonly"],
+  // gmail.send is needed to forward a parsed lead on to the client as a
+  // clean summary email. Adding a scope invalidates nothing, but the
+  // EXISTING refresh token won't carry the new permission — Alan has to
+  // run the connect flow once more for send to start working.
+  GMAIL: ["https://www.googleapis.com/auth/gmail.readonly", "https://www.googleapis.com/auth/gmail.send"],
   GSC: ["https://www.googleapis.com/auth/webmasters.readonly"],
 };
 

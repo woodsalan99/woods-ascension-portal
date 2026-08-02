@@ -140,11 +140,35 @@ export async function GET(req: Request) {
             });
           }
           leadsCreated++;
+
+          const lsa = outcome.ok ? outcome.data : null;
+          const lsaWhere = [lsa?.serviceType, lsa?.location].filter(Boolean).join(" · ");
           await notify({
             clientId: integ.clientId,
             kind: "NEW_LEAD",
-            title: "New Google Ads lead",
-            message: `A new Local Services Ads lead came in for ${integ.client.name}.`,
+            title: lsa?.phone ? `Google Ads lead — ${lsa.phone}` : "New Google Ads lead",
+            message:
+              [lsaWhere, lsa?.message].filter(Boolean).join(" — ").slice(0, 240) ||
+              "A new Google Local Services Ads lead came in. Open Google to see the details.",
+            emailBody: [
+              lsa?.phone
+                ? `A Google Ads customer replied with their number: ${lsa.phone}`
+                : "A new Google Local Services Ads lead just came in.",
+              "",
+              lsaWhere ? `Job:      ${lsaWhere}` : null,
+              lsa?.phone ? `Phone:    ${lsa.phone}` : null,
+              "",
+              lsa?.message ? "What they said:" : null,
+              lsa?.message ?? null,
+              "",
+              lsa?.phone
+                ? "You can call them straight back."
+                : "Google hides the customer's name and number until you reply. Open the Local Services app, or sign in at https://ads.google.com/local-services-ads to reply and reveal their details.",
+              "",
+              "This lead is also on your Leads page: https://portal.woodsascension.com/leads",
+            ]
+              .filter((line) => line !== null)
+              .join("\n"),
           });
           continue;
         }
@@ -245,8 +269,22 @@ export async function GET(req: Request) {
           await notify({
             clientId: integ.clientId,
             kind: "NEW_LEAD",
-            title: "New website lead",
-            message: `${outcome.data.name} submitted your website's estimate request form.`,
+            title: `New lead: ${outcome.data.name}${outcome.data.city ? ` (${outcome.data.city})` : ""}`,
+            message: [outcome.data.phone, outcome.data.message].filter(Boolean).join(" — ").slice(0, 240),
+            emailBody: [
+              `${outcome.data.name} just asked for an estimate through your website.`,
+              "",
+              `Phone:    ${outcome.data.phone || "not given"}`,
+              `Email:    ${outcome.data.email || "not given"}`,
+              `Address:  ${outcome.data.address || "not given"}`,
+              "",
+              "What they need:",
+              outcome.data.message || "(nothing written)",
+              "",
+              "Reply fast — most homeowners contact two or three painters before choosing one.",
+              "",
+              "This lead is also on your Leads page: https://portal.woodsascension.com/leads",
+            ].join("\n"),
           });
         }
         } catch (err) {

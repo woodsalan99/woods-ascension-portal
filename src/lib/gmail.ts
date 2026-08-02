@@ -33,6 +33,34 @@ function extractPlainText(payload: gmail_v1.Schema$MessagePart | undefined): str
   return "";
 }
 
+// Sends a plain-text email as the connected account (Alan's inbox), used to
+// forward a parsed lead on to the client. Requires the gmail.send scope —
+// an integration connected before that scope was added will throw a 403
+// here until the connect flow is run again.
+export async function sendEmail(params: {
+  refreshToken: string;
+  to: string[];
+  subject: string;
+  body: string;
+}): Promise<void> {
+  const gmail = gmailClient(params.refreshToken);
+  // RFC 2047 encode the subject so non-ASCII (names, punctuation) survives.
+  const subject = `=?UTF-8?B?${Buffer.from(params.subject, "utf8").toString("base64")}?=`;
+  const raw = [
+    `To: ${params.to.join(", ")}`,
+    `Subject: ${subject}`,
+    "MIME-Version: 1.0",
+    'Content-Type: text/plain; charset="UTF-8"',
+    "",
+    params.body,
+  ].join("\r\n");
+
+  await gmail.users.messages.send({
+    userId: "me",
+    requestBody: { raw: Buffer.from(raw, "utf8").toString("base64url") },
+  });
+}
+
 export async function getMessage(refreshToken: string, messageId: string): Promise<{ meta: GmailMeta; text: string } | null> {
   const gmail = gmailClient(refreshToken);
   const res = await gmail.users.messages.get({ userId: "me", id: messageId, format: "full" });
