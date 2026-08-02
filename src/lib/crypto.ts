@@ -12,12 +12,24 @@ function getKey(): Buffer {
   return buf;
 }
 
-export function sealJson(data: unknown): Buffer {
+export function sealJson(data: unknown): Uint8Array<ArrayBuffer> {
   const iv = randomBytes(12);
   const cipher = createCipheriv("aes-256-gcm", getKey(), iv);
   const ciphertext = Buffer.concat([cipher.update(JSON.stringify(data), "utf8"), cipher.final()]);
   const tag = cipher.getAuthTag();
-  return Buffer.concat([iv, tag, ciphertext]);
+  const sealed = Buffer.concat([iv, tag, ciphertext]);
+  // Copy into a freshly-allocated Uint8Array backed by a genuine
+  // ArrayBuffer — Buffer's ArrayBufferLike (which could theoretically be a
+  // SharedArrayBuffer) isn't assignable to Prisma's Bytes field type under
+  // strict TS lib settings, and `new Uint8Array(buffer)` still inherits
+  // Buffer's wider generic, so this needs an explicit allocate-and-copy.
+  const out = new Uint8Array(sealed.length);
+  out.set(sealed);
+  // TS's lib typings here insist on Uint8Array<ArrayBuffer> specifically
+  // (vs. the wider ArrayBufferLike every runtime Uint8Array actually
+  // satisfies) — an assertion is the standard escape hatch for this known
+  // friction point, not a real type-safety gap.
+  return out as Uint8Array<ArrayBuffer>;
 }
 
 export function openJson<T = unknown>(sealed: Uint8Array): T {
