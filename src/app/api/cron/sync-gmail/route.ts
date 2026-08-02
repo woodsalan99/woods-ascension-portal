@@ -96,6 +96,7 @@ export async function GET(req: Request) {
         const { meta, text } = fetched;
         messagesProcessed++;
 
+        try {
         if (lsaMatcher.matches(meta, config)) {
           const existing = await prisma.serviceLead.findUnique({ where: { gmailMessageId: meta.id } });
           if (existing) continue;
@@ -241,6 +242,22 @@ export async function GET(req: Request) {
             kind: "NEW_LEAD",
             title: "New website lead",
             message: `${outcome.data.name} submitted your website's estimate request form.`,
+          });
+        }
+        } catch (err) {
+          // A single malformed/unexpected message should never take down
+          // the whole sync run for every other message and every other
+          // client in this batch — log it, notify Alan, move on. The
+          // message will be re-seen next run only via the time-window
+          // fallback (history.list won't re-deliver it), which is
+          // acceptable since gmailMessageId uniqueness makes re-processing
+          // safe if it does come back around.
+          await notify({
+            clientId: integ.clientId,
+            kind: "SYNC_FAILURE",
+            title: "Gmail sync failure",
+            message: `Unexpected error processing a Gmail message for ${integ.client.name}: ${err instanceof Error ? err.message : String(err)}`,
+            toClient: false,
           });
         }
       }

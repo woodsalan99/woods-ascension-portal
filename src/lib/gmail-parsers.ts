@@ -101,6 +101,11 @@ export const lsaMatcher: Matcher<LsaParsed> = {
 export const formMatcher: Matcher<FormParsed> = {
   provider: "ESTIMATE_FORM",
   matches(meta, cfg) {
+    // A client whose ClientIntegration.config hasn't been filled in yet
+    // (formFromAddress unset) should just never match — not crash the
+    // whole sync run for every other integration/message being processed
+    // in the same batch.
+    if (!cfg.formFromAddress) return false;
     return meta.from.toLowerCase().includes(cfg.formFromAddress.toLowerCase());
   },
   parse(body) {
