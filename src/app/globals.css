@@ -473,6 +473,66 @@ span.wa-ob-active { font-size: 12px; font-weight: 600; color: var(--green); }
 .wa-work-item b { display: block; font-size: 13px; color: var(--ink); font-weight: 600; }
 .wa-work-item span { font-size: 11.5px; color: var(--muted); line-height: 1.5; }
 
+/* ---------- local-services: leads kanban ---------- */
+.wa-pipeline-stats {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(196px, 1fr));
+  background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+  padding: 4px; margin-bottom: 20px; box-shadow: 0 5px 15px rgba(16,30,46,.035);
+}
+.wa-pstat { padding: 17px 20px; border-right: 1px solid var(--line); }
+.wa-pstat:last-child { border-right: 0; }
+.wa-pstat-label { font-size: 12px; color: var(--muted); }
+.wa-pstat-value { font-family: 'Fraunces', serif; font-size: 27px; color: var(--ink); margin-top: 6px; }
+.wa-pstat-value.green { color: var(--green); } .wa-pstat-value.gold { color: var(--gold); }
+.wa-pstat-sub { font-size: 10.5px; color: var(--muted); margin-top: 7px; }
+
+.wa-kanban-wrap {
+  background: #F5EFE3; border: 1px solid #E0D6C2; border-radius: 14px; padding: 18px; overflow-x: auto;
+}
+.wa-kanban { display: flex; gap: 14px; min-width: min-content; }
+.wa-kcol { flex: 0 0 244px; display: flex; flex-direction: column; }
+.wa-kcol-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px; }
+.wa-kcol-title { font-size: 13.5px; font-weight: 700; color: #241F18; }
+.wa-kcount { font-size: 11px; background: rgba(0,0,0,.055); border-radius: 999px; padding: 2px 8px; color: #6F6555; }
+.wa-kcol-help { font-size: 11px; color: #6F6555; margin-bottom: 11px; min-height: 28px; }
+.wa-kcol-value { font-size: 11.5px; color: #B07822; font-weight: 700; margin-bottom: 4px; }
+.wa-klist { display: flex; flex-direction: column; gap: 10px; min-height: 64px; padding: 2px; border-radius: 11px; transition: background .15s ease; }
+.wa-kcol-drag-over .wa-klist { background: rgba(176,120,34,.09); outline: 1.5px dashed #B07822; }
+.wa-lead-card {
+  background: #FFFCF6; border: 1px solid #E0D6C2; border-radius: 11px; padding: 12px; cursor: grab;
+  box-shadow: 0 1px 3px rgba(36,31,24,.05);
+}
+.wa-lead-card:active { cursor: grabbing; }
+.wa-lead-top { display: flex; justify-content: space-between; gap: 8px; align-items: flex-start; }
+.wa-lead-name { font-size: 13.5px; font-weight: 700; color: #241F18; line-height: 1.3; }
+.wa-lead-name-unknown { color: #6F6555; font-style: italic; font-weight: 600; }
+.wa-lead-value { font-size: 12.5px; font-weight: 700; color: #3C965B; white-space: nowrap; }
+.wa-lead-context { font-size: 11.5px; color: #6F6555; margin-top: 5px; }
+.wa-lead-quote { font-size: 11.5px; color: #241F18; margin-top: 8px; padding: 7px 9px; background: rgba(0,0,0,.028); border-radius: 7px; line-height: 1.45; }
+.wa-chip-row { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 9px; }
+.wa-chip { font-size: 10px; padding: 2.5px 7px; border-radius: 999px; background: rgba(0,0,0,.05); color: #6F6555; }
+.wa-chip-lsa { background: rgba(66,133,244,.12); color: #2A5DB0; }
+.wa-chip-maps { background: rgba(52,168,83,.13); color: #1E7A3C; }
+.wa-chip-web { background: rgba(176,120,34,.14); color: #B07822; }
+.wa-chip-ref { background: rgba(120,90,160,.13); color: #6A4F8F; }
+.wa-chip-qualified { background: var(--green-soft); color: var(--green); font-weight: 700; }
+.wa-lead-action { font-size: 11.5px; color: #241F18; margin-top: 9px; font-weight: 600; }
+.wa-lead-links { display: flex; gap: 12px; margin-top: 9px; font-size: 11px; }
+.wa-lead-bottom {
+  display: flex; justify-content: space-between; align-items: center; margin-top: 9px;
+  padding-top: 9px; border-top: 1px solid rgba(0,0,0,.06); font-size: 10.5px; color: #6F6555;
+}
+.wa-due-today { color: #B07822; font-weight: 700; }
+.wa-due-over { color: #B8452F; font-weight: 700; }
+.wa-needs-detail {
+  background: #FFF6E6; border: 1px solid #EDD6A4; border-radius: 8px; padding: 8px 9px;
+  margin-top: 9px; font-size: 11px; color: #8A6520; display: flex; gap: 6px; align-items: flex-start;
+}
+.wa-needs-detail a { color: #8A6520; font-weight: 600; }
+.wa-lead-qualified-toggle {
+  display: flex; align-items: center; gap: 6px; margin-top: 9px; font-size: 11px; color: #6F6555; cursor: pointer;
+}
+
 /* ---------- local-services: admin edit mode ---------- */
 .wa-edit-toggle {
   display: inline-flex; align-items: center; gap: 7px; background: var(--card); color: #3B3355;
