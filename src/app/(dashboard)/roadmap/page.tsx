@@ -1,4 +1,4 @@
-import { getDashboardScope } from "@/lib/dashboard-scope";
+import { requireClientType } from "@/lib/dashboard-scope";
 import { getDashboardClient } from "@/lib/dashboard-data";
 import { computeMilestones, computeOnboarding } from "@/lib/dashboard-compute";
 import { Journey } from "@/components/dashboard/Journey";
@@ -6,7 +6,7 @@ import { Onboarding } from "@/components/dashboard/Onboarding";
 import { completeOnboardingStep } from "../actions";
 
 export default async function RoadmapPage() {
-  const scope = await getDashboardScope();
+  const scope = await requireClientType("COLD_EMAIL");
   const client = await getDashboardClient(scope.clientId);
 
   const milestones = computeMilestones(client);

@@ -2,7 +2,9 @@ import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 
 const isPublicRoute = createRouteMatcher([
   "/sign-in(.*)",
-  "/api/cron/sync",
+  "/api/cron/(.*)", // every cron route (sync, sync-callrail, sync-gmail, ...) — each still
+  // guards itself with its own CRON_SECRET bearer check; this only stops Clerk
+  // from bouncing Railway's cron requests before they reach that check
   "/api/webhooks/clerk",
 ]);
 

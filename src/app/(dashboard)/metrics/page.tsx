@@ -1,4 +1,4 @@
-import { getDashboardScope } from "@/lib/dashboard-scope";
+import { requireClientType } from "@/lib/dashboard-scope";
 import { getDashboardClient } from "@/lib/dashboard-data";
 import {
   computeActivityStats,
@@ -45,7 +45,7 @@ export default async function MetricsPage({
   searchParams: Promise<{ audience?: string; period?: string }>;
 }) {
   const { audience: audienceId, period } = await searchParams;
-  const scope = await getDashboardScope();
+  const scope = await requireClientType("COLD_EMAIL");
   const client = await getDashboardClient(scope.clientId);
 
   const selectedAudienceId = audienceId && client.audiences.some((a) => a.id === audienceId) ? audienceId : null;

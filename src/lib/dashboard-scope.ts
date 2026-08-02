@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { getScopedContext } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import type { ClientType } from "@prisma/client";
 
 export const PREVIEW_COOKIE = "wa_preview_client";
 
@@ -24,6 +26,25 @@ export async function getDashboardScope(): Promise<DashboardScope> {
   if (previewId) return { clientId: previewId, isPreview: true };
 
   redirect("/admin");
+}
+
+// Same resolution as getDashboardScope, but also bounces to "/" (the
+// Overview fork, which sends the user to the right home for their actual
+// type) when the resolved client isn't the type this page is built for.
+// Guards both directions: COLD_EMAIL-only pages (metrics, appointments,
+// roadmap, infrastructure, changelog) require COLD_EMAIL; every new
+// LOCAL_SERVICES page requires LOCAL_SERVICES. Honors admin preview mode
+// the same as getDashboardScope, since it's built on top of it.
+export async function requireClientType(type: ClientType): Promise<DashboardScope> {
+  const scope = await getDashboardScope();
+  const client = await prisma.client.findUniqueOrThrow({
+    where: { id: scope.clientId },
+    select: { type: true },
+  });
+  if (client.type !== type) {
+    redirect("/");
+  }
+  return scope;
 }
 
 // Same resolution as getDashboardScope, but for the CLIENT-role write

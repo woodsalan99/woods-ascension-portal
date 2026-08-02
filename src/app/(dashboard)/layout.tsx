@@ -12,12 +12,22 @@ export default async function DashboardLayout({
 
   const client = await prisma.client.findUniqueOrThrow({
     where: { id: scope.clientId },
-    select: { heroName: true, name: true },
+    select: { heroName: true, name: true, type: true },
   });
+
+  const nextStepsCount =
+    client.type === "LOCAL_SERVICES"
+      ? await prisma.clientTask.count({ where: { clientId: scope.clientId, status: "OPEN" } })
+      : 0;
 
   return (
     <div className="wa-shell-v2">
-      <Sidebar clientName={client.heroName ?? client.name} showSignOut={!scope.isPreview} />
+      <Sidebar
+        clientName={client.heroName ?? client.name}
+        showSignOut={!scope.isPreview}
+        clientType={client.type}
+        nextStepsCount={nextStepsCount}
+      />
       <main className="wa-main">
         {scope.isPreview && (
           <div className="wa-preview-banner">

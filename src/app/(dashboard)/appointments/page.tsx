@@ -1,4 +1,4 @@
-import { getDashboardScope } from "@/lib/dashboard-scope";
+import { requireClientType } from "@/lib/dashboard-scope";
 import { getDashboardClient, type DashboardClient } from "@/lib/dashboard-data";
 import { formatCallDay, formatDealValue } from "@/lib/format";
 import { AudienceFilter } from "@/components/dashboard/AudienceFilter";
@@ -83,7 +83,7 @@ export default async function AppointmentsPage({
   searchParams: Promise<{ audience?: string }>;
 }) {
   const { audience: audienceId } = await searchParams;
-  const scope = await getDashboardScope();
+  const scope = await requireClientType("COLD_EMAIL");
   const client = await getDashboardClient(scope.clientId);
 
   const selectedAudienceId = audienceId && client.audiences.some((a) => a.id === audienceId) ? audienceId : null;

@@ -15,9 +15,16 @@ import {
   LogOut,
   ScrollText,
   FileText,
+  Hand,
+  Users,
+  MapPin,
+  Bookmark,
 } from "lucide-react";
+import type { ClientType } from "@prisma/client";
 
-const NAV_ITEMS = [
+type NavItem = { href: string; label: string; icon: typeof Home; badge?: number };
+
+const COLD_EMAIL_NAV: NavItem[] = [
   { href: "/", label: "Overview", icon: Home },
   { href: "/metrics", label: "Metrics", icon: BarChart3 },
   { href: "/appointments", label: "Appointments", icon: Calendar },
@@ -27,11 +34,37 @@ const NAV_ITEMS = [
   { href: "/changelog", label: "Changelog", icon: ScrollText },
 ];
 
-export function Sidebar({ clientName, showSignOut = true }: { clientName: string; showSignOut?: boolean }) {
+// Order per the approved Canencia mock (canencia_portal_v8.html) — see
+// IMPLEMENTATION_STATE.md D-B for the route names.
+function localServicesNav(nextStepsCount: number): NavItem[] {
+  return [
+    { href: "/", label: "Overview", icon: Home },
+    { href: "/nextsteps", label: "What I Need From You", icon: Hand, badge: nextStepsCount || undefined },
+    { href: "/leads", label: "Leads", icon: Users },
+    { href: "/rank", label: "Where You Rank", icon: MapPin },
+    { href: "/numbers", label: "The Numbers", icon: BarChart3 },
+    { href: "/recap", label: "Monthly Recap", icon: Bookmark },
+    { href: "/documents", label: "Documents", icon: FileText },
+  ];
+}
+
+export function Sidebar({
+  clientName,
+  showSignOut = true,
+  clientType = "COLD_EMAIL",
+  nextStepsCount = 0,
+}: {
+  clientName: string;
+  showSignOut?: boolean;
+  clientType?: ClientType;
+  nextStepsCount?: number;
+}) {
   const pathname = usePathname();
   const [collapsed, setCollapsed] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const { signOut } = useClerk();
+
+  const navItems = clientType === "LOCAL_SERVICES" ? localServicesNav(nextStepsCount) : COLD_EMAIL_NAV;
 
   return (
     <aside className={`wa-sidebar ${collapsed ? "wa-sidebar-collapsed" : ""}`}>
@@ -57,7 +90,7 @@ export function Sidebar({ clientName, showSignOut = true }: { clientName: string
       </div>
 
       <nav className="wa-sidebar-nav">
-        {NAV_ITEMS.map((item) => {
+        {navItems.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
           return (
@@ -68,6 +101,7 @@ export function Sidebar({ clientName, showSignOut = true }: { clientName: string
             >
               <Icon />
               <span className="wa-sidebar-label">{item.label}</span>
+              {item.badge !== undefined && <span className="wa-sidebar-badge">{item.badge}</span>}
             </Link>
           );
         })}

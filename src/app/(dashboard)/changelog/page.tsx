@@ -1,8 +1,8 @@
-import { getDashboardScope } from "@/lib/dashboard-scope";
+import { requireClientType } from "@/lib/dashboard-scope";
 import { prisma } from "@/lib/prisma";
 
 export default async function ChangelogPage() {
-  const scope = await getDashboardScope();
+  const scope = await requireClientType("COLD_EMAIL");
 
   const entries = await prisma.changelogEntry.findMany({
     where: { clientId: scope.clientId },
