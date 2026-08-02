@@ -1,0 +1,2093 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="theme-color" content="#0a1220" />
+<title>Canencia Painting — Growth Portal</title>
+<style>
+  :root{
+    --navy-950:#0a1220; --navy-900:#101e2e; --navy-800:#17283a; --navy-700:#334155;
+    --navy-500:#748092; --navy-300:#aeb7c4;
+    --green-900:#103226; --green-800:#154b38; --green-700:#1e6c4f; --green-600:#2f8463;
+    --green-100:#dcece4; --green-050:#eaf4ee;
+    --gold-700:#8d662f; --gold-600:#a87e3f; --gold-500:#ba8d4b; --gold-200:#e4d0ae;
+    --gold-100:#efe2ce; --gold-050:#f6eddf;
+    --canvas:#f3f3ef; --surface:#ffffff; --surface-soft:#fcfcf9; --surface-muted:#f8f8f4;
+    --border:#e5e4dc; --border-strong:#d8d6cb;
+    --chart-bar:#c6cfd8;
+    --danger-600:#c44c3f;
+    --pipeline-canvas:#f5efe3; --pipeline-card:#fffcf6; --pipeline-text:#241f18;
+    --pipeline-muted:#6f6555; --pipeline-border:#e0d6c2; --pipeline-gold:#b07822;
+    --pipeline-success:#3c965b;
+    --admin:#3b3355; --admin-soft:#efecf6; --admin-border:#d9d2ec;
+    --shadow-soft:0 12px 36px rgba(16,30,46,.055);
+    --shadow-card:0 5px 15px rgba(16,30,46,.035);
+    --radius-lg:18px; --radius-md:14px; --radius-sm:11px;
+    --sidebar:256px; --topbar:58px;
+    --serif:Georgia,'Times New Roman',serif;
+    --sans:Inter,ui-sans-serif,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  }
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  body{margin:0;color:var(--navy-700);background:var(--canvas);font-family:var(--sans);font-size:14px;line-height:1.55;-webkit-font-smoothing:antialiased}
+  h1,h2,h3{font-family:var(--serif);color:var(--navy-900);margin:0;font-weight:400;letter-spacing:-.01em}
+  h1{font-size:29px;line-height:1.2}
+  h2{font-size:21px}
+  h3{font-size:17px}
+  p{margin:6px 0 0}
+  button{font-family:inherit}
+  a{color:var(--gold-600)}
+
+  .shell{display:flex;min-height:100vh}
+  .sidebar{width:var(--sidebar);flex-shrink:0;background:var(--navy-950);color:var(--navy-300);
+    display:flex;flex-direction:column;padding:26px 15px 20px;position:sticky;top:0;height:100vh}
+  .brand{font-family:var(--serif);color:#fff;font-size:15px;line-height:1.25;letter-spacing:.08em;
+    text-transform:uppercase;padding:0 11px 26px;border-bottom:1px solid rgba(255,255,255,.07);margin-bottom:16px}
+  .nav-item{display:flex;align-items:center;gap:11px;width:100%;padding:9px 11px;border:0;background:none;
+    color:var(--navy-300);font-size:13.5px;border-radius:9px;cursor:pointer;text-align:left;margin-bottom:2px;transition:.15s}
+  .nav-item svg{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+  .nav-item:hover{color:#fff;background:rgba(255,255,255,.045)}
+  .nav-item.active{background:var(--green-800);color:#fff}
+  .nav-badge{margin-left:auto;background:var(--gold-500);color:#1a1206;font-size:10.5px;font-weight:700;
+    border-radius:99px;padding:1px 7px;min-width:19px;text-align:center}
+  .nav-foot{margin-top:auto;padding:14px 11px 0;border-top:1px solid rgba(255,255,255,.07);
+    font-size:11.5px;color:var(--navy-500);line-height:1.5}
+
+  .main{flex:1;min-width:0;display:flex;flex-direction:column}
+  .topbar{height:var(--topbar);background:var(--gold-050);border-bottom:1px solid var(--gold-100);
+    display:flex;align-items:center;justify-content:space-between;padding:0 30px;font-size:13px;color:var(--gold-700)}
+  .exit-btn{background:var(--navy-950);color:#fff;border:0;border-radius:8px;padding:8px 14px;font-size:12.5px;cursor:pointer}
+  .content{padding:34px 30px 70px;max-width:1320px;width:100%}
+  .page{display:none}
+  .page.active{display:block;animation:fade .28s ease}
+  @keyframes fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+
+  .page-head{display:flex;justify-content:space-between;align-items:flex-start;gap:22px;margin-bottom:24px;flex-wrap:wrap}
+  .page-head p{max-width:680px;color:var(--navy-500);font-size:13.5px}
+  .eyebrow{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold-600);margin-bottom:7px;font-weight:600}
+  .day-pill{border:1px solid var(--border-strong);border-radius:999px;padding:7px 15px;background:var(--surface);
+    font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--navy-500);white-space:nowrap}
+
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);
+    padding:22px;box-shadow:var(--shadow-card)}
+  .card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+
+  .section-head{display:flex;align-items:baseline;gap:14px;margin:30px 0 14px;flex-wrap:wrap}
+  .section-head h2{font-size:19px}
+  .section-head span{font-size:12.5px;color:var(--navy-500)}
+
+  .kpi-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(238px,1fr));gap:15px;margin-bottom:22px}
+  .kpi-label{font-size:10.5px;letter-spacing:.13em;text-transform:uppercase;color:var(--navy-500);font-weight:600}
+  .kpi-value{font-family:var(--serif);font-size:38px;color:var(--navy-900);line-height:1.05;margin-top:9px}
+  .kpi-value.green{color:var(--green-700)}
+  .kpi-value.gold{color:var(--gold-600)}
+  .kpi-support{font-size:12px;color:var(--navy-500);margin-top:8px}
+  .split-bar{display:flex;height:5px;border-radius:99px;overflow:hidden;margin-top:11px;background:var(--surface-muted)}
+  .split-bar i{display:block}
+  .split-bar i.good{background:var(--green-600)}
+  .split-bar i.alt{background:#4285f4}
+  .split-bar i.junk{background:var(--border-strong)}
+  .split-key{display:flex;gap:13px;font-size:11px;color:var(--navy-500);margin-top:7px;flex-wrap:wrap}
+  .split-key span{display:flex;align-items:center;gap:5px}
+  .dot{width:7px;height:7px;border-radius:99px;display:inline-block}
+  .dot.good{background:var(--green-600)} .dot.alt{background:#4285f4} .dot.junk{background:var(--border-strong)}
+
+  .metric-card{display:flex;flex-direction:column}
+  .metric-value{font-family:var(--serif);font-size:31px;color:var(--navy-900);margin-top:8px;line-height:1.1}
+  .metric-support{font-size:12px;color:var(--navy-500);margin-top:6px}
+  .plain{font-size:12.5px;color:var(--navy-700);margin-top:11px;line-height:1.55}
+  .status{align-self:flex-start;margin-top:12px;font-size:11px;padding:4px 11px;border-radius:999px;font-weight:600}
+  .status.on{background:var(--green-050);color:var(--green-700)}
+  .status.attn{background:var(--gold-050);color:var(--gold-700)}
+  .status.watch{background:var(--surface-muted);color:var(--navy-500)}
+  .healthy-range{font-size:11.5px;color:var(--navy-500);margin-top:11px;padding-top:11px;border-top:1px solid var(--border)}
+  .improvement-title{font-size:11px;font-weight:700;color:var(--navy-700);margin-top:12px}
+  .improvement-list{margin:6px 0 0;padding-left:15px;font-size:11.5px;color:var(--navy-500);line-height:1.6}
+
+  .hero-title{font-size:31px;max-width:800px}
+  .hero-sub{color:var(--navy-500);font-size:13.5px;margin-top:9px;max-width:680px}
+  .hero-wrap{position:relative}
+  .hero-edit{position:absolute;top:-4px;right:0;display:flex;gap:6px;align-items:center}
+  .src-tag{font-size:10px;letter-spacing:.1em;text-transform:uppercase;background:var(--admin-soft);
+    color:var(--admin);border:1px solid var(--admin-border);border-radius:99px;padding:3px 9px;font-weight:700}
+  .mini-btn{border:1px solid var(--admin-border);background:var(--surface);color:var(--admin);
+    border-radius:7px;padding:4px 10px;font-size:11.5px;cursor:pointer}
+  .mini-btn:hover{background:var(--admin-soft)}
+
+  /* admin panel */
+  .admin-box{background:var(--admin-soft);border:1px solid var(--admin-border);border-radius:var(--radius-lg);
+    padding:22px;margin-bottom:20px}
+  .admin-box .kpi-label{color:var(--admin)}
+  .admin-tag{display:inline-flex;align-items:center;gap:6px;font-size:10.5px;letter-spacing:.12em;
+    text-transform:uppercase;font-weight:700;color:var(--admin);margin-bottom:12px}
+  .admin-tag i{width:7px;height:7px;border-radius:99px;background:var(--admin);display:inline-block}
+  .q-block{background:var(--surface);border:1px solid var(--admin-border);border-radius:var(--radius-md);
+    padding:15px 17px;margin-bottom:11px}
+  .q-block label{color:var(--admin)}
+  .q-hint{font-size:11.5px;color:var(--navy-500);margin-top:6px}
+  .autofill{background:var(--surface);border:1px dashed var(--admin-border);border-radius:var(--radius-md);
+    padding:15px 17px;margin-bottom:11px}
+  .autofill .kpi-label{margin-bottom:9px}
+  .af-item{display:flex;gap:9px;align-items:flex-start;font-size:12.5px;color:var(--navy-700);padding:6px 0}
+  .af-item i{flex:0 0 16px;height:16px;border-radius:4px;background:var(--admin-soft);color:var(--admin);
+    display:flex;align-items:center;justify-content:center;font-size:10px;font-style:normal;margin-top:2px}
+  .af-date{color:var(--navy-500);font-size:11px}
+
+  table{width:100%;border-collapse:collapse;font-size:13px}
+  th{text-align:left;font-size:10.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--navy-500);
+    font-weight:600;padding:0 12px 10px;border-bottom:1px solid var(--border)}
+  td{padding:12px;border-bottom:1px solid var(--border);color:var(--navy-700);vertical-align:middle}
+  tr:last-child td{border-bottom:0}
+  .num{font-variant-numeric:tabular-nums}
+  .up{color:var(--green-700);font-weight:600}
+  .flat{color:var(--navy-500)}
+  .pill{display:inline-block;font-size:11px;padding:3px 9px;border-radius:999px;background:var(--surface-muted);
+    border:1px solid var(--border);color:var(--navy-500)}
+  .pill.live{background:var(--green-050);border-color:var(--green-100);color:var(--green-700)}
+  .pill.wait{background:var(--gold-050);border-color:var(--gold-100);color:var(--gold-700)}
+
+  .kw-tabs{display:flex;gap:7px;flex-wrap:wrap;background:var(--surface-muted);padding:4px;
+    border-radius:11px;border:1px solid var(--border);margin-bottom:18px}
+  .kw-tab{border:0;background:none;padding:9px 15px;border-radius:8px;font-size:13px;color:var(--navy-500);cursor:pointer}
+  .kw-tab.active{background:var(--surface);color:var(--navy-900);box-shadow:var(--shadow-card);font-weight:600}
+  .geo-wrap{display:grid;grid-template-columns:minmax(300px,1fr) 296px;gap:26px;align-items:start}
+  .geo-frame{background:var(--surface-soft);border:1px solid var(--border);border-radius:var(--radius-md);padding:20px}
+  .geogrid{display:grid;grid-template-columns:repeat(7,1fr);gap:9px;max-width:420px;margin:0 auto}
+  .geo-cell{aspect-ratio:1;border-radius:99px;display:flex;align-items:center;justify-content:center;
+    font-size:12px;font-weight:700;color:#fff;font-variant-numeric:tabular-nums;transition:transform .15s}
+  .geo-cell:hover{transform:scale(1.12)}
+  .r1{background:#1e6c4f} .r2{background:#3d8a63} .r3{background:#6ba57f}
+  .r4{background:#b99a4d} .r5{background:#c9a961} .r6{background:#d4b87f}
+  .r7{background:#c98a6a} .r8{background:#c47a63} .rx{background:#d8d6cb;color:#8a8578}
+  .geo-legend{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;margin-top:20px;font-size:11.5px;color:var(--navy-500)}
+  .geo-legend span{display:flex;align-items:center;gap:6px}
+  .geo-legend i{width:11px;height:11px;border-radius:99px;display:inline-block}
+  .geo-stat{border-bottom:1px solid var(--border);padding:14px 0}
+  .geo-stat:last-child{border-bottom:0}
+  .geo-stat-value{font-family:var(--serif);font-size:26px;color:var(--navy-900)}
+  .geo-stat-delta{font-size:12px;margin-top:3px}
+
+  .month-strip{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:1px;
+    background:var(--border);border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden}
+  .month-cell{background:var(--surface);padding:16px 17px;text-align:center}
+  .month-cell.now{background:var(--green-050)}
+  .month-name{font-size:11px;letter-spacing:.11em;text-transform:uppercase;color:var(--navy-500);font-weight:600}
+  .month-rank{font-family:var(--serif);font-size:30px;color:var(--navy-900);margin-top:7px;line-height:1}
+  .month-cell.now .month-rank{color:var(--green-700)}
+  .month-delta{font-size:11.5px;margin-top:6px}
+
+  .factor-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:14px;margin-top:4px}
+  .factor{background:var(--surface-soft);border:1px solid var(--border);border-radius:var(--radius-md);padding:17px}
+  .factor-rank{font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;margin-bottom:8px}
+  .factor-rank.big{color:var(--green-700)}
+  .factor-rank.mid{color:var(--gold-700)}
+  .factor-rank.low{color:var(--navy-500)}
+  .factor h4{font-family:var(--serif);font-size:16px;color:var(--navy-900);margin:0;font-weight:400}
+  .factor p{font-size:12.5px;color:var(--navy-500);line-height:1.55}
+  .factor .you{font-size:12px;margin-top:11px;padding-top:11px;border-top:1px solid var(--border);color:var(--navy-700)}
+  .factor .you b{color:var(--navy-900)}
+
+  .chart{display:flex;align-items:flex-end;gap:14px;height:200px;padding:18px 6px 0;border-bottom:1px solid var(--border)}
+  .bar-group{flex:1;display:flex;flex-direction:column;align-items:center;gap:8px;height:100%;justify-content:flex-end}
+  .bar-stack{width:100%;max-width:64px;display:flex;flex-direction:column;justify-content:flex-end;height:100%}
+  .bar{width:100%;background:var(--chart-bar);border-radius:6px 6px 0 0;position:relative}
+  .bar-val{position:absolute;top:-21px;left:0;right:0;text-align:center;font-size:11.5px;color:var(--navy-500);font-variant-numeric:tabular-nums}
+  .bar-label{font-size:11.5px;color:var(--navy-500)}
+  .chart-note{font-size:12.5px;color:var(--navy-500);margin-top:13px;line-height:1.6}
+  .lead-marks{display:flex;gap:14px;padding:0 6px;margin-top:10px}
+  .lead-mark{flex:1;text-align:center;font-size:11.5px;color:var(--green-700);font-weight:600}
+
+  .pipeline-stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(196px,1fr));
+    background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);
+    padding:4px;margin-bottom:20px;box-shadow:var(--shadow-card)}
+  .pstat{padding:17px 20px;border-right:1px solid var(--border)}
+  .pstat:last-child{border-right:0}
+  .pstat-label{font-size:12px;color:var(--navy-500)}
+  .pstat-value{font-family:var(--serif);font-size:27px;color:var(--navy-900);margin-top:6px}
+  .pstat-value small{font-family:var(--sans);font-size:12.5px;color:var(--navy-500)}
+  .pstat-value.green{color:var(--green-700)} .pstat-value.gold{color:var(--gold-600)}
+  .pstat-sub{font-size:10.5px;color:#9b907d;margin-top:7px}
+
+  .kanban-wrap{background:var(--pipeline-canvas);border:1px solid var(--pipeline-border);
+    border-radius:var(--radius-lg);padding:18px;overflow-x:auto}
+  .kanban{display:flex;gap:14px;min-width:min-content}
+  .kcol{flex:0 0 244px;display:flex;flex-direction:column}
+  .kcol-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+  .kcol-title{font-size:13.5px;font-weight:700;color:var(--pipeline-text)}
+  .kcount{font-size:11px;background:rgba(0,0,0,.055);border-radius:99px;padding:2px 8px;color:var(--pipeline-muted)}
+  .kcol-help{font-size:11px;color:var(--pipeline-muted);margin-bottom:11px;min-height:28px}
+  .kcol-value{font-size:11.5px;color:var(--pipeline-gold);font-weight:700;margin-bottom:4px}
+  .klist{display:flex;flex-direction:column;gap:10px;min-height:64px;padding:2px;border-radius:11px;transition:.15s}
+  .klist.drag-over{background:rgba(176,120,34,.09);outline:1.5px dashed var(--pipeline-gold)}
+  .lead-card{background:var(--pipeline-card);border:1px solid var(--pipeline-border);border-radius:11px;
+    padding:12px;cursor:grab;box-shadow:0 1px 3px rgba(36,31,24,.05)}
+  .lead-card:active{cursor:grabbing}
+  .lead-top{display:flex;justify-content:space-between;gap:8px;align-items:flex-start}
+  .lead-name{font-size:13.5px;font-weight:700;color:var(--pipeline-text);line-height:1.3}
+  .lead-name.unknown{color:var(--pipeline-muted);font-style:italic;font-weight:600}
+  .lead-value{font-size:12.5px;font-weight:700;color:var(--pipeline-success);white-space:nowrap}
+  .lead-context{font-size:11.5px;color:var(--pipeline-muted);margin-top:5px}
+  .lead-quote{font-size:11.5px;color:var(--pipeline-text);margin-top:8px;padding:7px 9px;
+    background:rgba(0,0,0,.028);border-radius:7px;line-height:1.45}
+  .chip-row{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px}
+  .chip{font-size:10px;padding:2.5px 7px;border-radius:99px;background:rgba(0,0,0,.05);color:var(--pipeline-muted)}
+  .chip.lsa{background:rgba(66,133,244,.12);color:#2a5db0}
+  .chip.maps{background:rgba(52,168,83,.13);color:#1e7a3c}
+  .chip.web{background:rgba(176,120,34,.14);color:var(--pipeline-gold)}
+  .chip.ref{background:rgba(120,90,160,.13);color:#6a4f8f}
+  .lead-links{display:flex;gap:12px;margin-top:9px;font-size:11px}
+  .lead-links a{color:var(--pipeline-gold);text-decoration:none}
+  .lead-links a:hover{text-decoration:underline}
+  .lead-action{font-size:11.5px;color:var(--pipeline-text);margin-top:9px;font-weight:600}
+  .lead-action.none{color:var(--pipeline-muted);font-weight:400}
+  .lead-bottom{display:flex;justify-content:space-between;align-items:center;margin-top:9px;
+    padding-top:9px;border-top:1px solid rgba(0,0,0,.06);font-size:10.5px;color:var(--pipeline-muted)}
+  .due.today{color:var(--pipeline-gold);font-weight:700}
+  .due.over{color:#b8452f;font-weight:700}
+  .needs-detail{background:#fff6e6;border:1px solid #edd6a4;border-radius:8px;padding:8px 9px;
+    margin-top:9px;font-size:11px;color:#8a6520;display:flex;gap:6px;align-items:flex-start}
+  .kadd{margin-top:10px;border:1px dashed var(--pipeline-border);background:none;border-radius:9px;
+    padding:9px;font-size:12px;color:var(--pipeline-muted);cursor:pointer;width:100%}
+  .kadd:hover{background:rgba(0,0,0,.025)}
+
+  .two-col{display:grid;grid-template-columns:1.5fr 1fr;gap:18px;margin-bottom:18px}
+  .src-row{display:flex;align-items:center;gap:12px;padding:11px 0;border-bottom:1px solid var(--border)}
+  .src-row:last-child{border-bottom:0}
+  .src-name{flex:0 0 158px;font-size:13px}
+  .src-track{flex:1;height:9px;background:var(--surface-muted);border-radius:99px;overflow:hidden}
+  .src-track i{display:block;height:100%;border-radius:99px}
+  .src-num{flex:0 0 68px;text-align:right;font-size:12.5px;color:var(--navy-500);font-variant-numeric:tabular-nums}
+
+  .rev-big{text-align:center;padding:14px 0 18px}
+  .rev-score{font-family:var(--serif);font-size:52px;color:var(--navy-900);line-height:1}
+  .stars{color:var(--gold-500);font-size:19px;letter-spacing:3px;margin-top:8px}
+  .rev-count{font-size:12.5px;color:var(--navy-500);margin-top:8px}
+  .rev-item{padding:13px 0;border-top:1px solid var(--border);font-size:12.5px}
+  .rev-item .who{font-weight:700;color:var(--navy-900)}
+  .rev-item .when{color:var(--navy-500);font-size:11px}
+  .rev-item p{margin-top:5px;color:var(--navy-500);line-height:1.5}
+
+  .form-row{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:10px;align-items:end;margin-top:14px}
+  label{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--navy-500);font-weight:600;display:block;margin-bottom:6px}
+  input,textarea,select{width:100%;padding:10px 12px;border:1px solid var(--border-strong);border-radius:9px;
+    font-family:inherit;font-size:13px;color:var(--navy-700);background:var(--surface)}
+  textarea{min-height:70px;resize:vertical;line-height:1.5}
+  input:focus,textarea:focus,select:focus{outline:2px solid var(--gold-200);outline-offset:1px;border-color:var(--gold-500)}
+  .btn{background:var(--navy-950);color:#fff;border:0;border-radius:9px;padding:11px 18px;font-size:13px;cursor:pointer;white-space:nowrap}
+  .btn:hover{background:var(--navy-900)}
+  .btn.ghost{background:var(--surface);color:var(--navy-700);border:1px solid var(--border-strong)}
+  .btn.ghost:hover{background:var(--surface-muted)}
+  .btn.admin{background:var(--admin)}
+  .btn-row{display:flex;gap:9px;flex-wrap:wrap}
+
+  .queue-item{display:flex;justify-content:space-between;align-items:center;gap:12px;
+    padding:11px 0;border-bottom:1px solid var(--border);font-size:13px}
+  .queue-item:last-child{border-bottom:0}
+
+  .work-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:11px;margin-top:4px}
+  .work-item{display:flex;gap:11px;align-items:flex-start;background:var(--surface-soft);
+    border:1px solid var(--border);border-radius:var(--radius-sm);padding:13px 14px}
+  .work-tick{flex:0 0 19px;height:19px;border-radius:99px;background:var(--green-050);color:var(--green-700);
+    display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;margin-top:1px}
+  .work-item b{display:block;font-size:13px;color:var(--navy-900);font-weight:600}
+  .work-item span{font-size:11.5px;color:var(--navy-500);line-height:1.5}
+
+  /* ask page */
+  .ask-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);
+    padding:0;overflow:hidden;box-shadow:var(--shadow-card);margin-bottom:18px}
+  .ask-head{background:var(--gold-050);border-bottom:1px solid var(--gold-100);padding:18px 22px}
+  .ask-head h2{font-size:19px}
+  .ask-head p{font-size:12.5px;color:var(--gold-700)}
+  .ask-body{padding:8px 22px 18px}
+  .ask-item{display:flex;gap:13px;align-items:flex-start;padding:15px 0;border-bottom:1px solid var(--border);
+    flex-wrap:wrap;cursor:pointer}
+  .ask-item .ask-text span{display:none}
+  .ask-item.open .ask-text span{display:block}
+  .ask-arrow{flex:0 0 auto;color:var(--navy-500);font-size:11px;transition:transform .2s;margin-top:5px}
+  .ask-item.open .ask-arrow{transform:rotate(180deg)}
+  .ask-item:last-child{border-bottom:0}
+  .ask-check{flex:0 0 21px;height:21px;border-radius:6px;border:1.5px solid var(--border-strong);
+    background:var(--surface);cursor:pointer;margin-top:2px;display:flex;align-items:center;
+    justify-content:center;font-size:12px;color:transparent;transition:.15s}
+  .ask-check.done{background:var(--green-700);border-color:var(--green-700);color:#fff}
+  .ask-text b{display:block;font-size:14px;color:var(--navy-900);font-weight:600}
+  .ask-text span{font-size:12.5px;color:var(--navy-500);line-height:1.55;display:block;margin-top:3px}
+  .ask-item.done .ask-text b{text-decoration:line-through;color:var(--navy-500)}
+  .ask-when{margin-left:auto;flex-shrink:0}
+
+  .habit{display:flex;gap:14px;align-items:flex-start;padding:16px 0;border-bottom:1px solid var(--border)}
+  .habit:last-child{border-bottom:0}
+  .habit-ico{flex:0 0 34px;height:34px;border-radius:10px;background:var(--green-050);color:var(--green-700);
+    display:flex;align-items:center;justify-content:center;font-size:16px}
+  .habit b{display:block;font-size:14px;color:var(--navy-900);font-weight:600}
+  .habit p{font-size:12.5px;color:var(--navy-500);line-height:1.55;margin-top:3px}
+  .habit .why{font-size:12px;color:var(--gold-700);margin-top:6px}
+
+  /* growth plan accordion */
+  .phase{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-lg);
+    margin-bottom:13px;overflow:hidden;box-shadow:var(--shadow-card)}
+  .phase[open]{border-color:var(--border-strong)}
+  .phase summary{list-style:none;cursor:pointer;padding:20px 22px;display:flex;gap:16px;align-items:flex-start}
+  .phase summary::-webkit-details-marker{display:none}
+  .phase-badge{flex:0 0 auto;font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-weight:700;
+    border-radius:99px;padding:4px 11px;margin-top:2px}
+  .phase-badge.now{background:var(--gold-050);color:var(--gold-700);border:1px solid var(--gold-100)}
+  .phase-badge.done{background:var(--green-050);color:var(--green-700);border:1px solid var(--green-100)}
+  .phase-badge.next{background:var(--surface-muted);color:var(--navy-500);border:1px solid var(--border)}
+  .phase-title{flex:1;min-width:0}
+  .phase-title h3{font-size:17px}
+  .phase-title p{font-size:12.5px;color:var(--navy-500);margin-top:4px}
+  .chev{flex:0 0 auto;color:var(--navy-500);font-size:13px;margin-top:4px;transition:transform .2s}
+  .phase[open] .chev{transform:rotate(180deg)}
+  .phase-body{padding:0 22px 22px;border-top:1px solid var(--border);margin-top:2px;padding-top:18px}
+  .check{display:flex;gap:9px;align-items:flex-start;font-size:12.5px;color:var(--navy-500);margin-top:9px}
+  .cico{flex:0 0 17px;height:17px;border-radius:99px;background:var(--green-050);color:var(--green-700);
+    display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;margin-top:1px}
+  .cico.pending{background:var(--gold-050);color:var(--gold-700)}
+  .cico.todo{background:var(--surface-muted);color:var(--navy-500)}
+  .resource{display:flex;gap:10px;align-items:center;background:var(--gold-050);border:1px solid var(--gold-100);
+    border-radius:var(--radius-sm);padding:12px 14px;margin-top:15px;font-size:12.5px}
+  .resource a{color:var(--gold-700);font-weight:600;text-decoration:none}
+  .resource a:hover{text-decoration:underline}
+
+  .sys-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:15px}
+  .sys-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius-md);padding:18px}
+  .sys-head{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:9px}
+  .sys-card h3{font-size:15px}
+  .sys-card p{font-size:12.5px;color:var(--navy-500);line-height:1.55}
+  .sys-flow{font-size:11.5px;color:var(--navy-500);margin-top:11px;padding-top:11px;border-top:1px solid var(--border);line-height:1.7}
+  .sys-flow b{color:var(--navy-700)}
+
+  .recap-head{background:linear-gradient(135deg,var(--green-900),var(--green-800));color:#fff;
+    border-radius:var(--radius-lg) var(--radius-lg) 0 0;padding:26px}
+  .recap-head h2{color:#fff}
+  .recap-head p{color:rgba(255,255,255,.72);font-size:13px}
+  .recap-body{background:var(--surface);border:1px solid var(--border);border-top:0;
+    border-radius:0 0 var(--radius-lg) var(--radius-lg);padding:24px}
+  .recap-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--border);
+    border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden;margin-bottom:22px}
+  .recap-cell{background:var(--surface);padding:15px 17px}
+  .recap-cell .kpi-label{font-size:10px}
+  .recap-cell .v{font-family:var(--serif);font-size:24px;color:var(--navy-900);margin-top:6px}
+  .recap-note{background:var(--gold-050);border:1px solid var(--gold-100);border-radius:var(--radius-md);
+    padding:17px;font-size:13.5px;color:var(--navy-700);line-height:1.65}
+  .recap-note .kpi-label{color:var(--gold-700);margin-bottom:8px}
+  .recap-list{margin:12px 0 0;padding-left:17px;font-size:13px;color:var(--navy-500);line-height:1.75}
+
+  .toast{position:fixed;bottom:26px;left:50%;transform:translateX(-50%) translateY(80px);
+    background:var(--navy-950);color:#fff;padding:12px 20px;border-radius:10px;font-size:13px;
+    opacity:0;transition:.3s;z-index:99;box-shadow:var(--shadow-soft)}
+  .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+  .note-strip{background:var(--gold-050);border:1px solid var(--gold-100);border-radius:var(--radius-md);
+    padding:14px 17px;font-size:12.5px;color:var(--gold-700);margin-bottom:20px;line-height:1.65}
+  .note-strip b{color:var(--navy-900)}
+
+  /* 30-second thesis */
+  .thesis{background:var(--surface);border:1px solid var(--gold-100);border-radius:var(--radius-lg);
+    margin-bottom:18px;overflow:hidden;box-shadow:var(--shadow-card)}
+  .thesis summary{list-style:none;cursor:pointer;padding:18px 24px;display:flex;align-items:center;
+    justify-content:center;gap:13px;background:var(--gold-050);position:relative}
+  .thesis summary::-webkit-details-marker{display:none}
+  .thesis summary h2{font-family:var(--serif);font-style:italic;font-size:20px;color:var(--gold-700);font-weight:400}
+  .thesis summary .chev{position:absolute;right:24px;color:var(--gold-600);font-size:13px;transition:transform .2s}
+  .thesis[open] summary .chev{transform:rotate(180deg)}
+  .thesis-body{padding:26px 34px 32px;font-family:var(--serif);font-style:italic;
+    font-size:18.5px;line-height:1.72;color:var(--navy-800);text-align:center;
+    max-width:820px;margin:0 auto}
+  .thesis-body p{margin:0 0 17px}
+  .thesis-body p:last-child{margin-bottom:0}
+  .thesis-body b{color:var(--gold-700);font-style:italic;font-weight:400}
+  .thesis-body .three{margin:0 0 17px;padding:0;list-style:none}
+  .thesis-body .three li{margin-bottom:7px}
+  .thesis-rule{height:1px;background:var(--gold-100);margin:22px 0}
+  @media(max-width:860px){.thesis-body{font-size:16.5px;padding:20px 20px 24px}.thesis summary h2{font-size:17px}}
+
+  /* ask page inputs */
+  .ask-item{flex-wrap:wrap}
+  .ask-input{width:100%;margin-top:13px;padding-left:34px;display:none;cursor:default}
+  .ask-item.open .ask-input{display:block}
+  .ask-input textarea{min-height:110px}
+  .ask-save-row{display:flex;align-items:center;gap:11px;margin-top:9px;flex-wrap:wrap}
+  .save-state{font-size:11.5px;color:var(--navy-500);display:flex;align-items:center;gap:6px}
+  .save-state i{width:7px;height:7px;border-radius:99px;background:var(--border-strong);display:inline-block}
+  .save-state.saved i{background:var(--green-600)}
+  .save-state.saving i{background:var(--gold-500)}
+  .save-state.saved{color:var(--green-700)}
+
+  .dropzone{border:1.5px dashed var(--border-strong);border-radius:var(--radius-md);background:var(--surface-soft);
+    padding:24px;text-align:center;cursor:pointer;transition:.15s}
+  .dropzone:hover,.dropzone.over{border-color:var(--gold-500);background:var(--gold-050)}
+  .dropzone .dz-ico{font-size:26px}
+  .dropzone b{display:block;font-size:13.5px;color:var(--navy-900);margin-top:7px}
+  .dropzone span{font-size:12px;color:var(--navy-500)}
+  .thumbs{display:flex;flex-wrap:wrap;gap:9px;margin-top:13px}
+  .thumb{width:74px;height:74px;border-radius:10px;background:var(--surface-muted);border:1px solid var(--border);
+    overflow:hidden;position:relative}
+  .thumb img{width:100%;height:100%;object-fit:cover;display:block}
+  .thumb .x{position:absolute;top:3px;right:3px;width:18px;height:18px;border-radius:99px;background:rgba(10,18,32,.72);
+    color:#fff;border:0;font-size:11px;cursor:pointer;line-height:1;display:flex;align-items:center;justify-content:center}
+
+  .admin-note{background:var(--admin-soft);border:1px solid var(--admin-border);border-radius:var(--radius-sm);
+    padding:10px 13px;font-size:11.5px;color:var(--admin);margin-top:11px;display:flex;gap:8px;align-items:center}
+
+
+  /* ===== ADMIN EDIT MODE ===== */
+  .edit-toggle{display:flex;align-items:center;gap:7px;background:var(--surface);color:var(--admin);
+    border:1px solid var(--admin-border);border-radius:8px;padding:7px 13px;font-size:12.5px;cursor:pointer}
+  .edit-toggle:hover{background:var(--admin-soft)}
+  .edit-toggle.on{background:var(--admin);color:#fff;border-color:var(--admin)}
+  .et-dot{width:7px;height:7px;border-radius:99px;background:var(--admin-border);display:inline-block}
+  .edit-toggle.on .et-dot{background:#8ee0a1}
+
+  .editbar{display:none;position:sticky;top:0;z-index:40;background:var(--admin);color:#fff;
+    padding:11px 30px;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;
+    box-shadow:0 4px 18px rgba(59,51,85,.22)}
+  body.editing .editbar{display:flex}
+  .eb-left{display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+  .eb-left b{font-size:13px}
+  .eb-hint{font-size:12px;color:rgba(255,255,255,.68)}
+  .eb-right{display:flex;align-items:center;gap:10px}
+  .eb-count{font-size:12px;color:rgba(255,255,255,.72)}
+  .eb-count.dirty{color:#ffd98a;font-weight:600}
+  .editbar .btn.ghost{background:transparent;color:#fff;border-color:rgba(255,255,255,.34)}
+  .editbar .btn.ghost:hover{background:rgba(255,255,255,.1)}
+  .editbar .btn.admin{background:#fff;color:var(--admin);font-weight:600}
+  .editbar .btn.admin:disabled{opacity:.4;cursor:not-allowed}
+
+  body.editing [data-ek]{outline:1px dashed var(--admin-border);outline-offset:3px;border-radius:3px;
+    cursor:text;transition:outline-color .12s}
+  body.editing [data-ek]:hover{outline-color:var(--admin)}
+  body.editing [data-ek]:focus{outline:2px solid var(--admin);outline-offset:3px;background:var(--admin-soft)}
+  body.editing [data-ek].changed{outline:2px solid var(--gold-500);background:var(--gold-050)}
+
+  body.editing [data-locked]{outline:1px dashed #c9b6b0;outline-offset:3px;cursor:not-allowed;position:relative}
+  body.editing [data-locked]::after{content:"🔒";position:absolute;top:-9px;right:-9px;font-size:10px;
+    background:var(--surface);border:1px solid var(--border);border-radius:99px;padding:1px 4px;line-height:1.3}
+  body.editing [data-locked].unlocked{outline:1px dashed var(--gold-500);cursor:text}
+  body.editing [data-locked].unlocked::after{content:"✎";color:var(--gold-700)}
+
+  .modal-bg{display:none;position:fixed;inset:0;background:rgba(10,18,32,.5);z-index:200;
+    align-items:center;justify-content:center;padding:22px}
+  .modal-bg.show{display:flex}
+  .modal{background:var(--surface);border-radius:var(--radius-lg);max-width:620px;width:100%;
+    max-height:82vh;overflow:auto;box-shadow:var(--shadow-soft)}
+  .modal-h{padding:22px 24px 0}
+  .modal-h h2{font-size:20px}
+  .modal-h p{font-size:12.5px;color:var(--navy-500)}
+  .modal-b{padding:18px 24px}
+  .modal-f{padding:0 24px 22px;display:flex;gap:9px;justify-content:flex-end;flex-wrap:wrap}
+  .diff{border:1px solid var(--border);border-radius:var(--radius-md);overflow:hidden;margin-bottom:11px}
+  .diff-h{background:var(--surface-muted);padding:8px 13px;font-size:11px;letter-spacing:.1em;
+    text-transform:uppercase;color:var(--navy-500);font-weight:600;border-bottom:1px solid var(--border)}
+  .diff-r{padding:11px 13px;font-size:12.5px;border-bottom:1px solid var(--border)}
+  .diff-r:last-child{border-bottom:0}
+  .diff-r .old{color:var(--danger-600);text-decoration:line-through;display:block}
+  .diff-r .new{color:var(--green-700);display:block;margin-top:2px}
+  .diff-r .where{font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--navy-500);margin-bottom:5px}
+  .warn{background:#fdf3ec;border:1px solid #f0d3bf;border-radius:var(--radius-sm);padding:12px 14px;
+    font-size:12.5px;color:#8a4a20;margin-bottom:14px;line-height:1.55}
+  .confirm-line{display:flex;gap:9px;align-items:center;font-size:12.5px;margin-top:12px}
+  .io-tab{display:flex;gap:7px;background:var(--surface-muted);padding:4px;border-radius:10px;
+    border:1px solid var(--border);margin-bottom:16px}
+  .io-tab button{flex:1;border:0;background:none;padding:9px;border-radius:7px;font-size:13px;
+    color:var(--navy-500);cursor:pointer}
+  .io-tab button.active{background:var(--surface);color:var(--navy-900);font-weight:600;box-shadow:var(--shadow-card)}
+  .io-pane{display:none} .io-pane.active{display:block}
+  .io-stat{display:flex;justify-content:space-between;padding:9px 0;border-bottom:1px solid var(--border);font-size:13px}
+  .io-stat:last-child{border-bottom:0}
+  @media(max-width:860px){.editbar{padding:11px 16px}.eb-hint{display:none}}
+
+  @media(max-width:1080px){.two-col{grid-template-columns:1fr}.geo-wrap{grid-template-columns:1fr}}
+  @media(max-width:860px){
+    .sidebar{position:fixed;left:-260px;z-index:50;transition:.25s}
+    .sidebar.open{left:0}
+    .content{padding:22px 16px 60px}
+    .topbar{padding:0 16px}
+    .form-row{grid-template-columns:1fr}
+    h1{font-size:24px}
+    .hero-edit{position:static;margin-bottom:10px}
+    .menu-btn{display:block!important}
+  }
+  .menu-btn{display:none;background:none;border:1px solid var(--gold-100);border-radius:8px;padding:7px 11px;cursor:pointer}
+  @media(prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+</style>
+</head>
+<body>
+
+<svg style="display:none">
+  <symbol id="i-home" viewBox="0 0 24 24"><path d="M3 10.5 12 3l9 7.5V21H3z"/></symbol>
+  <symbol id="i-hand" viewBox="0 0 24 24"><path d="M9 11V5a1.5 1.5 0 0 1 3 0v6M12 11V4a1.5 1.5 0 0 1 3 0v7M15 11V6a1.5 1.5 0 0 1 3 0v9a6 6 0 0 1-6 6h-1a6 6 0 0 1-6-6v-3a1.5 1.5 0 0 1 3 0"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></symbol>
+  <symbol id="i-leads" viewBox="0 0 24 24"><path d="M4 5h6v14H4zM14 5h6v8h-6z"/></symbol>
+  <symbol id="i-map" viewBox="0 0 24 24"><path d="M9 3 3 5v16l6-2 6 2 6-2V3l-6 2-6-2zM9 3v16M15 5v16"/></symbol>
+  <symbol id="i-plan" viewBox="0 0 24 24"><path d="M12 2v20M2 12h20M5 5l14 14M19 5 5 19"/></symbol>
+  <symbol id="i-recap" viewBox="0 0 24 24"><path d="M6 2h12v20l-6-4-6 4z"/></symbol>
+  <symbol id="i-doc" viewBox="0 0 24 24"><path d="M14 2H6v20h12V6z"/><path d="M14 2v4h4"/></symbol>
+</svg>
+
+<div class="shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="brand">Woods<br>Ascension</div>
+    <nav>
+      <button class="nav-item active" data-page="overview"><svg><use href="#i-home"/></svg><span>Overview</span></button>
+      <button class="nav-item" data-page="ask"><svg><use href="#i-hand"/></svg><span>What I Need From You</span><span class="nav-badge">3</span></button>
+      <button class="nav-item" data-page="leads"><svg><use href="#i-leads"/></svg><span>Leads</span></button>
+      <button class="nav-item" data-page="rankings"><svg><use href="#i-map"/></svg><span>Where You Rank</span></button>
+      <button class="nav-item" data-page="metrics"><svg><use href="#i-chart"/></svg><span>The Numbers</span></button>
+      <button class="nav-item" data-page="recap"><svg><use href="#i-recap"/></svg><span>Monthly Recap</span></button>
+      <button class="nav-item" data-page="docs"><svg><use href="#i-doc"/></svg><span>Documents</span></button>
+    </nav>
+    <div class="nav-foot">
+      Canencia Painting<br>Ewa Beach · serving Oahu<br>
+      <span style="color:var(--navy-300)">Working together since April 2026</span>
+    </div>
+  </aside>
+
+  <div class="main">
+    <div class="topbar" id="topbar">
+      <button class="menu-btn" id="menuBtn">☰</button>
+      <div id="topbarLabel">Admin preview — viewing as <b>Canencia Painting</b></div>
+      <div class="btn-row" style="gap:8px">
+        <button class="mini-btn" id="ioBtn">Export / Import</button>
+        <button class="edit-toggle" id="editToggle"><span class="et-dot"></span>Edit page</button>
+        <button class="exit-btn">Exit preview →</button>
+      </div>
+    </div>
+
+    <!-- edit mode bar -->
+    <div class="editbar" id="editbar">
+      <div class="eb-left">
+        <b>Edit mode</b>
+        <span class="eb-hint">Click any text to change it. Numbers pulled from Google need unlocking first.</span>
+      </div>
+      <div class="eb-right">
+        <span class="eb-count" id="ebCount">No changes yet</span>
+        <button class="btn ghost" id="ebDiscard">Discard</button>
+        <button class="btn admin" id="ebSave" disabled>Save changes</button>
+      </div>
+    </div>
+
+    <div class="content">
+
+      <!-- ============ OVERVIEW ============ -->
+      <section class="page active" id="overview">
+        <div class="page-head">
+          <div class="hero-wrap" style="flex:1">
+            <div class="hero-edit">
+              <span class="src-tag" id="heroSrc">Auto-written</span>
+              <button class="mini-btn" id="heroEdit">Write my own</button>
+            </div>
+            <div class="eyebrow">July 2026</div>
+            <h1 class="hero-title" id="heroTitle">Your new town pages have started showing up on Google.</h1>
+            <p class="hero-sub" id="heroSub">We've now built 18 pages on your website, one for each town we want you found in. Google began showing them in search results two weeks ago. This is the part that takes the longest — and it's finally starting.</p>
+            <div id="heroForm" style="display:none;margin-top:16px;padding:17px;background:var(--admin-soft);border:1px solid var(--admin-border);border-radius:14px;max-width:680px">
+              <div class="admin-tag"><i></i>Only you can see this</div>
+              <div style="margin-bottom:11px"><label>Headline</label><input type="text" id="hIn" value="Your new town pages have started showing up on Google."></div>
+              <div style="margin-bottom:13px"><label>Sub-headline</label><textarea id="sIn">We've now built 18 pages on your website, one for each town we want you found in. Google began showing them in search results two weeks ago. This is the part that takes the longest — and it's finally starting.</textarea></div>
+              <div class="btn-row">
+                <button class="btn admin" id="hSave">Save my version</button>
+                <button class="btn ghost" id="hReset">Go back to auto-written</button>
+              </div>
+            </div>
+          </div>
+          <div class="day-pill" id="dateRange">—</div>
+        </div>
+
+        <details class="thesis" open>
+          <summary>
+            <h2>30-second summary of our campaign plan</h2>
+            <span class="chev">▼</span>
+          </summary>
+          <div class="thesis-body">
+            <p>Our plan is simple. We bring in more leads through three things: <b>your website</b>, <b>Google Local Service Ads</b>, and <b>Google Maps</b>.</p>
+            <ul class="three">
+              <li><b>The website</b> — we add more town pages every month, and build links to them.</li>
+              <li><b>Local Service Ads</b> — more reviews is what lifts you here.</li>
+              <li><b>Google Maps</b> — more reviews, and more photos from your jobs.</li>
+            </ul>
+            <div class="thesis-rule"></div>
+            <p>The core things I need from you: <b>respond to leads quickly</b>, <b>follow up with them</b>, <b>send me names for reviews</b>, and <b>share photos from your projects</b>. I'll handle everything else.</p>
+            <p>With that foundation in place, we'll keep seeing progress — and once it's working, we can expand into other things like Facebook ads.</p>
+          </div>
+        </details>
+
+        <div class="card" style="margin-bottom:18px">
+          <div class="card-head">
+            <div><div class="kpi-label">Work completed in July</div>
+              <h2>What we built for you this month</h2>
+              <p style="font-size:12.5px;color:var(--navy-500)">Some of this shows up in the numbers right away. Most of it takes a few months to pay off — but it's all getting done.</p></div>
+            <div class="day-pill" id="workPill" style="background:var(--green-050);border-color:var(--green-100);color:var(--green-700)">—</div>
+          </div>
+          <div class="work-list" id="workList"></div>
+              </div>
+
+        <div class="kpi-grid">
+          <article class="card">
+            <div class="kpi-label">Real customers who reached out / Leads</div>
+            <div class="kpi-value">6</div>
+            <div class="kpi-support">4 found you free on Google · 2 from Google Ads</div>
+            <div class="split-bar"><i class="good" style="flex:4"></i><i class="alt" style="flex:2"></i><i class="junk" style="flex:41"></i></div>
+            <div class="split-key">
+              <span><i class="dot good"></i>4 free</span>
+              <span><i class="dot alt"></i>2 paid</span>
+              <span><i class="dot junk"></i>41 junk blocked</span>
+            </div>
+          </article>
+
+          <article class="card">
+            <div class="kpi-label">Cost per lead from Google Local Service Ads</div>
+            <div class="kpi-value green">$22</div>
+            <div class="kpi-support">$22.11 paid to Google in July for 1 lead</div>
+            <div class="healthy-range" style="margin-top:14px">Painters around the country pay about $53 per lead on average. This is only what you pay Google for ads — it doesn't include our monthly fee.</div>
+          </article>
+
+          <article class="card">
+            <div class="kpi-label">Pages showing on Google</div>
+            <div class="kpi-value gold">11 <span style="font-size:22px;color:var(--navy-500)">of 18</span></div>
+            <div class="kpi-support">Started July 17 · the rest are still processing</div>
+            <div class="split-bar"><i class="good" style="flex:11"></i><i class="junk" style="flex:7"></i></div>
+            <div class="split-key"><span><i class="dot good"></i>Showing</span><span><i class="dot junk"></i>Waiting on Google</span></div>
+          </article>
+
+          <article class="card">
+            <div class="kpi-label">Your Google reviews</div>
+            <div class="kpi-value">34</div>
+            <div class="kpi-support">Perfect 5.0 rating · 2 new in July</div>
+            <div class="stars" style="font-size:15px;margin-top:9px">★★★★★</div>
+          </article>
+        </div>
+
+        <div class="two-col">
+          <div class="card">
+            <div class="card-head"><div><div class="kpi-label">Needs you</div><h2>Leads waiting on a next step</h2></div></div>
+            <div class="queue-item">
+              <div><b>Kailua homeowner</b> <span class="pill wait">Name &amp; number in Google</span>
+                <div style="font-size:11.5px;color:var(--navy-500);margin-top:3px">Inside painting · 3 bedrooms + 1 medium room</div></div>
+              <span class="due today" style="font-size:12px">Today</span>
+            </div>
+            <div class="queue-item">
+              <div><b>Maria Santos</b> <span class="pill">Quote sent</span>
+                <div style="font-size:11.5px;color:var(--navy-500);margin-top:3px">Outside painting · Kapolei · needs a follow-up call</div></div>
+              <span class="due over" style="font-size:12px">Overdue · Jul 29</span>
+            </div>
+            <div class="queue-item">
+              <div><b>Tiana Moore</b> <span class="pill">Job finished</span>
+                <div style="font-size:11.5px;color:var(--navy-500);margin-top:3px">Ready for a review request</div></div>
+              <span class="due today" style="font-size:12px">Today</span>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="kpi-label">Junk we kept off your phone</div>
+            <h2 style="margin-top:5px">41 blocked</h2>
+            <p style="font-size:12.5px;color:var(--navy-500)">Robocalls and fake website inquiries that never reached you in July.</p>
+            <div style="margin-top:16px">
+              <div class="src-row"><div class="src-name">Robocalls</div><div class="src-track"><i style="width:80%;background:var(--border-strong)"></i></div><div class="src-num">28</div></div>
+              <div class="src-row"><div class="src-name">Fake form entries</div><div class="src-track"><i style="width:34%;background:var(--border-strong)"></i></div><div class="src-num">12</div></div>
+              <div class="src-row"><div class="src-name">Wrong island</div><div class="src-track"><i style="width:6%;background:var(--border-strong)"></i></div><div class="src-num">1</div></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ WHAT I NEED FROM YOU ============ -->
+      <section class="page" id="ask">
+        <div class="page-head">
+          <div><div class="eyebrow">Your side of it</div><h1>What I need from you</h1>
+            <p>Everything I need on your end, in one place. Most of this takes a couple of minutes — but it's the part that makes the rest work.</p></div>
+          <div class="day-pill" style="background:var(--gold-050);border-color:var(--gold-100);color:var(--gold-700)">3 open right now</div>
+        </div>
+
+        <div class="ask-card">
+          <div class="ask-head" style="display:flex;justify-content:space-between;align-items:flex-start;gap:14px;flex-wrap:wrap">
+            <div>
+              <h2>Right now</h2>
+              <p>Specific things that will move the campaign forward. Tick them off, or type/upload straight into the boxes.</p>
+            </div>
+            <button class="mini-btn" id="askEdit">Edit these</button>
+          </div>
+          <div class="ask-body">
+
+            <div class="ask-item">
+              <div class="ask-check" tabindex="0" role="checkbox" aria-checked="false">✓</div>
+              <div class="ask-text">
+                <b>Send me 10–15 names from past customers</b>
+                <span>Just first name and mobile number for anyone happy with their job — going back as far as you like. I'll do the asking. This is the single biggest thing holding your Google Maps ranking back right now.</span>
+              </div>
+              <span class="ask-when pill wait">Highest priority</span>
+              <span class="ask-arrow">▼</span>
+              <div class="ask-input">
+                <label>Type them straight in — one per line</label>
+                <textarea data-key="ask:names" placeholder="Kalani Medeiros — 808 555 0123&#10;Denise Tanaka — 808 555 0198&#10;..."></textarea>
+                <div class="ask-save-row">
+                  <span class="save-state" data-for="ask:names"><i></i>Saves as you type</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="ask-item">
+              <div class="ask-check" tabindex="0" role="checkbox" aria-checked="false">✓</div>
+              <div class="ask-text">
+                <b>Photos from the Makakilo job</b>
+                <span>Before and after if you have them. Phone photos are perfectly fine. These go straight onto your Google profile, which helps you rank.</span>
+              </div>
+              <span class="ask-when pill">This week</span>
+              <span class="ask-arrow">▼</span>
+              <div class="ask-input">
+                <label>Add photos</label>
+                <div class="dropzone" data-key="ask:photos">
+                  <div class="dz-ico">📷</div>
+                  <b>Tap to add photos, or drag them here</b>
+                  <span>Any number, straight off your phone</span>
+                  <input type="file" accept="image/*" multiple hidden>
+                </div>
+                <div class="thumbs" data-thumbs="ask:photos"></div>
+                <div class="ask-save-row">
+                  <span class="save-state" data-for="ask:photos"><i></i>Saved automatically</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="ask-item">
+              <div class="ask-check" tabindex="0" role="checkbox" aria-checked="false">✓</div>
+              <div class="ask-text">
+                <b>Follow up with Maria Santos</b>
+                <span>Quote went out and the follow-up date passed on July 29. A quick call usually decides these.</span>
+              </div>
+              <span class="ask-when pill wait">Overdue</span>
+              <span class="ask-arrow">▼</span>
+              <div class="ask-input">
+                <label>Anything I should know? (optional)</label>
+                <textarea data-key="ask:maria" placeholder="e.g. spoke to her Tuesday, she's deciding next week"></textarea>
+                <div class="ask-save-row">
+                  <span class="save-state" data-for="ask:maria"><i></i>Saves as you type</span>
+                </div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- ADMIN: edit the asks -->
+        <div class="admin-box" id="askEditor" style="display:none">
+          <div class="admin-tag"><i></i>Only you can see this · edit what you're asking for</div>
+          <div class="q-block">
+            <label>Task title</label>
+            <input type="text" placeholder="e.g. Send me photos from the Kailua job">
+          </div>
+          <div class="q-block">
+            <label>Explanation — why it matters</label>
+            <textarea placeholder="Keep it plain. One or two sentences on what you need and what it does for them."></textarea>
+          </div>
+          <div class="q-block">
+            <label>How should they respond?</label>
+            <select>
+              <option>Tick-box only — nothing to submit</option>
+              <option selected>Text box — they type an answer</option>
+              <option>Photo upload — they add images</option>
+              <option>Both text and photos</option>
+            </select>
+            <p class="q-hint">Anything they type or upload saves instantly and pings you.</p>
+          </div>
+          <div class="q-block">
+            <label>Urgency label</label>
+            <select><option>Highest priority</option><option>This week</option><option>Overdue</option><option>Whenever you can</option></select>
+          </div>
+          <div class="btn-row" style="margin-top:14px">
+            <button class="btn admin">Add task</button>
+            <button class="btn ghost" id="askEditorClose">Close</button>
+          </div>
+          <div class="admin-note"><span>🔔</span><div>You'll get a notification the moment Bryan or Desiree submits anything here, and it'll show up in your month-end recap builder automatically.</div></div>
+        </div>
+
+        <div class="card" style="margin-bottom:18px">
+          <div class="card-head">
+            <div><div class="kpi-label">Every week</div><h2>The five things that move the needle</h2>
+              <p style="font-size:12.5px;color:var(--navy-500)">None of these take long. All of them compound.</p></div>
+          </div>
+          <div class="habit">
+            <div class="habit-ico">📞</div>
+            <div><b>Pick up, or call back fast</b>
+              <p>Most homeowners call three painters and go with whoever answers first. If you can't pick up, they get an automatic text — but a real callback within the hour is what wins the job.</p>
+              <div class="why">Google also watches how fast you respond, and ranks you higher for it.</div></div>
+          </div>
+          <div class="habit">
+            <div class="habit-ico">↩️</div>
+            <div><b>Chase every quote you send</b>
+              <p>A quote with no follow-up is a coin flip. One call a few days later is usually what turns it into a job.</p>
+              <div class="why">Right now you have 2 quotes sitting with no next step booked.</div></div>
+          </div>
+          <div class="habit">
+            <div class="habit-ico">↔️</div>
+            <div><b>Drag leads across as things change</b>
+              <p>When you send a quote, book a job, or lose one — move the card on the Leads page. Takes two seconds.</p>
+              <div class="why">This is the only way we can see which of your listings actually brings in paying work.</div></div>
+          </div>
+          <div class="habit">
+            <div class="habit-ico">⭐</div>
+            <div><b>Send me names for reviews</b>
+              <p>Any happy customer, any time. Use the box further down this page, or just text me. I handle the asking and the follow-up.</p>
+              <div class="why">Reviews are the number one thing deciding your Google Maps position.</div></div>
+          </div>
+          <div class="habit">
+            <div class="habit-ico">📸</div>
+            <div><b>Take photos at every job</b>
+              <p>Before, during, after. Phone photos are perfectly fine. Send them whenever — no need to organise them.</p>
+              <div class="why">Photos are the second biggest ranking factor, and Google favours profiles with fresh ones going up regularly.</div></div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:18px">
+          <div class="card-head">
+            <div><div class="kpi-label">Reviews</div><h2>Add customers you'd like us to ask</h2>
+              <p style="font-size:12.5px;color:var(--navy-500)">Drop a name in whenever you finish a job. We send the request and the follow-up — you don't do anything else.</p></div>
+          </div>
+          <div class="form-row">
+            <div><label>Customer name</label><input type="text" placeholder="e.g. Kalani Medeiros" id="revName"></div>
+            <div><label>Phone number</label><input type="tel" placeholder="(808) 555-0123" id="revPhone"></div>
+            <div><label>Job finished</label><input type="date" id="revDate"></div>
+            <button class="btn" id="revAdd">Add</button>
+          </div>
+          <div style="margin-top:22px;padding-top:18px;border-top:1px solid var(--border)">
+            <div class="kpi-label" style="margin-bottom:8px">Waiting to be asked</div>
+            <div id="revQueue">
+              <div class="queue-item"><div><b>Tiana Moore</b> <span style="color:var(--navy-500);font-size:12px">· finished Jul 29</span></div><span class="pill wait">Asking today</span></div>
+              <div class="queue-item"><div><b>Michael Reyes</b> <span style="color:var(--navy-500);font-size:12px">· finished Jul 22</span></div><span class="pill">Reminder Aug 4</span></div>
+              <div class="queue-item"><div><b>Angela Cruz</b> <span style="color:var(--navy-500);font-size:12px">· finished Jul 18</span></div><span class="pill live">★★★★★ Left a review</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-head"><div><div class="kpi-label">Your accounts</div><h2>Where to check things yourself</h2></div></div>
+          <table>
+            <thead><tr><th>Account</th><th>Sign in with</th><th>What's in there</th><th></th></tr></thead>
+            <tbody>
+              <tr><td><b>Google Ads for painters</b></td><td>canenciapainting@gmail.com</td><td>Every lead Google sent you, and their messages</td><td><a href="#" style="text-decoration:none">Open →</a></td></tr>
+              <tr><td><b>Google Business Profile</b></td><td>canenciapainting@gmail.com</td><td>Your reviews, photos and hours</td><td><a href="#" style="text-decoration:none">Open →</a></td></tr>
+              <tr><td><b>Call recordings</b></td><td>Managed by Woods Ascension</td><td>Every call, recorded</td><td><span class="pill">Ask Alan</span></td></tr>
+            </tbody>
+          </table>
+          <p style="font-size:12px;color:var(--navy-500);margin-top:14px">Passwords live in your own password manager, not in here.</p>
+        </div>
+      </section>
+
+      <!-- ============ LEADS ============ -->
+      <section class="page" id="leads">
+        <div class="page-head">
+          <div><div class="eyebrow">Your leads</div><h1>Leads</h1>
+            <p>Drag a card across as things move along. Tap any card to add notes or update the details.</p></div>
+          <div class="btn-row"><button class="btn" id="addLeadBtn">+ Add lead</button><button class="btn ghost">Edit stages</button></div>
+        </div>
+
+        <div class="pipeline-stats">
+          <div class="pstat"><div class="pstat-label">Still open</div><div class="pstat-value" id="openCount">7 <small>leads</small></div><div class="pstat-sub">Not yet won or lost</div></div>
+          <div class="pstat"><div class="pstat-label">Needs action today</div><div class="pstat-value gold">3</div><div class="pstat-sub">1 is overdue</div></div>
+          <div class="pstat"><div class="pstat-label">Followed up this week</div><div class="pstat-value">5 <small>of 7</small></div><div class="pstat-sub">Last 7 days</div></div>
+          <div class="pstat"><div class="pstat-label">Jobs won in July</div><div class="pstat-value green">$11.9K</div><div class="pstat-sub">2 jobs</div></div>
+        </div>
+
+        <div class="kanban-wrap">
+          <div class="kanban">
+            <section class="kcol" data-stage="new">
+              <div class="kcol-head"><div class="kcol-title">New Lead</div><span class="kcount">2</span></div>
+              <div class="kcol-help">Call or text within five minutes.</div>
+              <div class="klist">
+                <article class="lead-card" draggable="true">
+                  <div class="lead-top"><div class="lead-name unknown">Name hidden by Google</div></div>
+                  <div class="lead-context">Inside painting · Kailua · Jul 31, 7:56 AM</div>
+                  <div class="lead-quote">“Hoping to get quotes on painting a few rooms — 3 small bedrooms and 1 medium sized room.”</div>
+                  <div class="chip-row"><span class="chip lsa">Google Ads</span></div>
+                  <div class="needs-detail"><span>⚠</span><div>Google hides the name and number until you reply. <a href="#" style="color:#8a6520">Open in Google →</a></div></div>
+                  <div class="lead-bottom"><span class="due today">Today</span><span>14h ago</span></div>
+                </article>
+                <article class="lead-card" draggable="true">
+                  <div class="lead-top"><div class="lead-name">Leilani Akana</div></div>
+                  <div class="lead-context">Inside painting · Mililani</div>
+                  <div class="chip-row"><span class="chip web">Website form</span><span class="chip">Checked, not spam</span></div>
+                  <div class="lead-links"><a href="#">✉ Read what they sent</a></div>
+                  <div class="lead-action">Reply to her message</div>
+                  <div class="lead-bottom"><span class="due today">Today · 11:00 AM</span><span>19m ago</span></div>
+                </article>
+              </div>
+              <button class="kadd">+ Add lead</button>
+            </section>
+
+            <section class="kcol" data-stage="contacted">
+              <div class="kcol-head"><div class="kcol-title">Contacted</div><span class="kcount">2</span></div>
+              <div class="kcol-help">You've spoken; estimate not booked yet.</div>
+              <div class="klist">
+                <article class="lead-card" draggable="true">
+                  <div class="lead-top"><div class="lead-name">Kevin Lau</div></div>
+                  <div class="lead-context">Inside painting · Ewa Beach</div>
+                  <div class="chip-row"><span class="chip maps">Google Maps</span></div>
+                  <div class="lead-links"><a href="#">▶ Listen to the call · 4:12</a></div>
+                  <div class="lead-action">Confirm estimate time</div>
+                  <div class="lead-bottom"><span class="due today">Today</span><span>1d ago</span></div>
+                </article>
+                <article class="lead-card" draggable="true">
+                  <div class="lead-top"><div class="lead-name">Janelle Nakamura</div></div>
+                  <div class="lead-context">Cabinets · Honolulu</div>
+                  <div class="chip-row"><span class="chip web">Website form</span></div>
+                  <div class="lead-action">Estimate visit · Aug 5</div>
+                  <div class="lead-bottom"><span class="due">Aug 5</span><span>5h ago</span></div>
+                </article>
+              </div>
+              <button class="kadd">+ Add lead</button>
+            </section>
+
+            <section class="kcol" data-stage="quote">
+              <div class="kcol-head"><div class="kcol-title">Quote Sent</div><span class="kcount">2</span></div>
+              <div class="kcol-help">Waiting to hear back. Follow up.</div>
+              <div class="klist">
+                <article class="lead-card" draggable="true">
+                  <div class="lead-top"><div class="lead-name">Maria Santos</div></div>
+                  <div class="lead-context">Outside painting · Kapolei</div>
+                  <div class="chip-row"><span class="chip lsa">Google Ads</span></div>
+                  <div class="lead-links"><a href="#">▶ Listen to the call · 6:38</a></div>
+                  <div class="lead-action">Follow-up call on the quote</div>
+                  <div class="lead-bottom"><span class="due over">Jul 29 · Overdue</span><span>3d ago</span></div>
+                </article>
+                <article class="lead-card" draggable="true">
+                  <div class="lead-top"><div class="lead-name">Robert Kim</div></div>
+                  <div class="lead-context">Outside painting · Kaneohe</div>
+                  <div class="chip-row"><span class="chip ref">Referral</span></div>
+                  <div class="lead-action none">Nothing scheduled</div>
+                  <div class="lead-bottom"><span class="due">No date</span><span>4d ago</span></div>
+                </article>
+              </div>
+              <button class="kadd">+ Add lead</button>
+            </section>
+
+            <section class="kcol" data-stage="scheduled">
+              <div class="kcol-head"><div class="kcol-title">Job Scheduled</div><span class="kcount">1</span></div>
+              <div class="kcol-help">They said yes. Start date is set.</div>
+              <div class="klist">
+                <article class="lead-card" draggable="true">
+                  <div class="lead-top"><div class="lead-name">Derek Young</div></div>
+                  <div class="lead-context">Outside painting · Kailua</div>
+                  <div class="chip-row"><span class="chip lsa">Google Ads</span><span class="chip">Deposit paid</span></div>
+                  <div class="lead-action">Prep call before start</div>
+                  <div class="lead-bottom"><span class="due">Starts Aug 8</span><span>1d ago</span></div>
+                </article>
+              </div>
+              <button class="kadd">+ Add lead</button>
+            </section>
+
+            <section class="kcol" data-stage="won">
+              <div class="kcol-head"><div class="kcol-title">Job Won</div><span class="kcount">2</span></div>
+              <div class="kcol-value">$11,900 won in July</div>
+              <div class="kcol-help">Put the final job price here — it's the only spot we ask for it.</div>
+              <div class="klist">
+                <article class="lead-card" draggable="true">
+                  <div class="lead-top"><div class="lead-name">Tiana Moore</div><div class="lead-value">$6,100</div></div>
+                  <div class="lead-context">Outside painting · Makakilo</div>
+                  <div class="chip-row"><span class="chip lsa">Google Ads</span><span class="chip">Paid</span></div>
+                  <div class="lead-action">Send review request</div>
+                  <div class="lead-bottom"><span class="due today">Today</span><span>Yesterday</span></div>
+                </article>
+                <article class="lead-card" draggable="true">
+                  <div class="lead-top"><div class="lead-name">Lauren Silva</div><div class="lead-value">$5,800</div></div>
+                  <div class="lead-context">Inside painting · Aiea</div>
+                  <div class="chip-row"><span class="chip maps">Google Maps</span></div>
+                  <div class="lead-action none">Nothing scheduled</div>
+                  <div class="lead-bottom"><span class="due">Jul 24</span><span>6d ago</span></div>
+                </article>
+              </div>
+              <button class="kadd">+ Add lead</button>
+            </section>
+
+            <section class="kcol" data-stage="review-req">
+              <div class="kcol-head"><div class="kcol-title">Review Requested</div><span class="kcount">1</span></div>
+              <div class="kcol-help">We've asked them. One reminder follows.</div>
+              <div class="klist">
+                <article class="lead-card" draggable="true">
+                  <div class="lead-top"><div class="lead-name">Michael Reyes</div><div class="lead-value">$6,300</div></div>
+                  <div class="lead-context">Inside painting · Ewa Beach</div>
+                  <div class="chip-row"><span class="chip ref">Referral</span><span class="chip">Asked Jul 28</span></div>
+                  <div class="lead-action">Reminder if no reply</div>
+                  <div class="lead-bottom"><span class="due">Aug 4</span><span>3d ago</span></div>
+                </article>
+              </div>
+              <button class="kadd">+ Add lead</button>
+            </section>
+
+            <section class="kcol" data-stage="review-done">
+              <div class="kcol-head"><div class="kcol-title">Review Left</div><span class="kcount">1</span></div>
+              <div class="kcol-help">They left a Google review. All done.</div>
+              <div class="klist">
+                <article class="lead-card" draggable="true">
+                  <div class="lead-top"><div class="lead-name">Angela Cruz</div><div class="lead-value">$4,100</div></div>
+                  <div class="lead-context">Inside painting · Waipahu</div>
+                  <div class="chip-row"><span class="chip maps">Google Maps</span><span class="chip">★★★★★</span></div>
+                  <div class="lead-bottom"><span class="due">Jul 21</span><span>Reviewed Jul 26</span></div>
+                </article>
+              </div>
+              <button class="kadd">+ Add lead</button>
+            </section>
+
+            <section class="kcol" data-stage="lost">
+              <div class="kcol-head"><div class="kcol-title">Lost / Went Cold</div><span class="kcount">1</span></div>
+              <div class="kcol-help">Stopped replying or chose someone else.</div>
+              <div class="klist">
+                <article class="lead-card" draggable="true">
+                  <div class="lead-top"><div class="lead-name">Mika Tanaka</div></div>
+                  <div class="lead-context">Condo · Honolulu</div>
+                  <div class="chip-row"><span class="chip maps">Google Maps</span><span class="chip">Chose another quote</span></div>
+                  <div class="lead-bottom"><span class="due">Jul 18</span><span>Closed Jul 25</span></div>
+                </article>
+              </div>
+              <button class="kadd">+ Add lead</button>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ WHERE YOU RANK ============ -->
+      <section class="page" id="rankings">
+        <div class="page-head">
+          <div><div class="eyebrow">Google Maps</div><h1>Where you rank</h1>
+            <p>Every month we check what position you come up in when someone searches from different spots around Oahu. Here's what we found.</p></div>
+          <div class="day-pill">Checked July 28</div>
+        </div>
+
+        <div class="note-strip">
+          <b>How to read the map below.</b> Think of the grid as Oahu. Each circle is a spot where someone might be standing when they pull out their phone and search. The number inside is where you came up in the list of painters — so <b>1 means you were the very first painter shown</b> to someone standing there. Green is good.<br><br>
+          <b>Why the numbers are different in each spot.</b> You don't have one single position on Google. Where you show up changes depending on where the customer is searching from and how far that is from your business — someone in Ewa Beach sees a completely different list than someone in Kailua. That's why we check the whole island instead of just one place.
+        </div>
+
+        <div class="card" style="margin-bottom:18px">
+          <div class="card-head">
+            <div><div class="kpi-label">Your average position, month by month</div>
+              <h2>Are we improving?</h2>
+              <p style="font-size:12.5px;color:var(--navy-500)">This is your average across every spot on the map and every search term we check. Lower is better.</p></div>
+          </div>
+          <div class="month-strip">
+            <div class="month-cell"><div class="month-name">April</div><div class="month-rank">—</div><div class="month-delta flat">Not yet tracked</div></div>
+            <div class="month-cell"><div class="month-name">May</div><div class="month-rank">15.6</div><div class="month-delta flat">Starting point</div></div>
+            <div class="month-cell"><div class="month-name">June</div><div class="month-rank">12.2</div><div class="month-delta up">↑ 3.4 better</div></div>
+            <div class="month-cell now"><div class="month-name">July</div><div class="month-rank">10.4</div><div class="month-delta up">↑ 1.8 better</div></div>
+            <div class="month-cell"><div class="month-name">August</div><div class="month-rank" style="color:var(--border-strong)">—</div><div class="month-delta flat">Checked Aug 28</div></div>
+          </div>
+          <p style="font-size:12.5px;color:var(--navy-500);margin-top:16px;line-height:1.65">
+            You've moved up an average of 5 positions since May. The goal is to get that average under 5, which is roughly when you start appearing in the small map box at the top of Google without anyone having to scroll.
+          </p>
+        </div>
+
+        <div class="card" style="margin-bottom:18px">
+          <div class="card-head">
+            <div><div class="kpi-label">What actually moves these numbers</div>
+              <h2>The things that decide your position</h2>
+              <p style="font-size:12.5px;color:var(--navy-500)">Google weighs a handful of things when it decides which painter to show first. Two of them are almost entirely in your hands.</p></div>
+          </div>
+          <div class="factor-grid">
+            <div class="factor">
+              <div class="factor-rank big">Biggest lever · yours</div>
+              <h4>Reviews</h4>
+              <p>How many you have, how good they are, and how recently they came in. A steady trickle beats a big burst — Google wants to see new ones arriving month after month.</p>
+              <div class="you">You have <b>34 reviews at a perfect 5.0</b>. Most painters ranking above you on the windward side have 60–120. This is the gap.</div>
+            </div>
+            <div class="factor">
+              <div class="factor-rank big">Biggest lever · yours</div>
+              <h4>Photos</h4>
+              <p>Google favours profiles with real, recent job photos going up regularly. Before-and-afters do particularly well, and customers scroll them before they call.</p>
+              <div class="you">You added <b>4 photos in the last 90 days</b>. Aim for a handful from every job — phone photos are completely fine.</div>
+            </div>
+            <div class="factor">
+              <div class="factor-rank mid">Partly ours</div>
+              <h4>Distance from the customer</h4>
+              <p>The single biggest factor, and the one nobody controls. Being based in Ewa Beach means you'll always rank stronger nearby and weaker in Kailua.</p>
+              <div class="you">This is why the town pages matter — they're how we tell Google you genuinely work across the whole island.</div>
+            </div>
+            <div class="factor">
+              <div class="factor-rank low">Ours</div>
+              <h4>Your website &amp; profile</h4>
+              <p>A profile that's complete and consistent, backed by real pages about the towns and services you cover.</p>
+              <div class="you">18 town pages built. <b>11 now showing on Google</b>, the rest still processing.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-bottom:18px">
+          <div class="card-head">
+            <div><div class="kpi-label">July results by search term</div><h2>What people are typing</h2>
+              <p style="font-size:12.5px;color:var(--navy-500)">We track the most common searches separately, because you rank differently for each one.</p></div>
+          </div>
+
+          <div class="kw-tabs">
+            <button class="kw-tab active" data-kw="a">“painters near me”</button>
+            <button class="kw-tab" data-kw="b">“house painters near me”</button>
+            <button class="kw-tab" data-kw="c">“interior painters near me”</button>
+          </div>
+
+          <div class="geo-wrap">
+            <div class="geo-frame">
+              <div class="geogrid" id="geogrid"></div>
+              <div class="geo-legend">
+                <span><i class="r1"></i>1–3 · top of the map</span>
+                <span><i class="r4"></i>4–6</span>
+                <span><i class="r7"></i>7–14</span>
+                <span><i class="rx"></i>15+ · not really visible</span>
+              </div>
+            </div>
+            <div>
+              <div class="geo-stat">
+                <div class="kpi-label">Average position</div>
+                <div class="geo-stat-value" id="gAvg">10.4</div>
+                <div class="geo-stat-delta up" id="gAvgD">↑ 1.8 better than June</div>
+              </div>
+              <div class="geo-stat">
+                <div class="kpi-label">Spots where you're top 3</div>
+                <div class="geo-stat-value" id="gTop">14%</div>
+                <div class="geo-stat-delta up" id="gTopD">↑ from 8% in June</div>
+              </div>
+              <div class="geo-stat">
+                <div class="kpi-label">Where you're strongest</div>
+                <div class="geo-stat-value" style="font-size:18px" id="gBest">Ewa Beach &amp; Kapolei</div>
+                <div class="geo-stat-delta flat">Coming up 1st to 3rd</div>
+              </div>
+              <div class="geo-stat">
+                <div class="kpi-label">Where you're weakest</div>
+                <div class="geo-stat-value" style="font-size:18px" id="gWorst">Windward side</div>
+                <div class="geo-stat-delta flat">Kailua and Kaneohe still 15+</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="two-col">
+          <div class="card">
+            <div class="card-head">
+              <div><div class="kpi-label">Your website</div><h2>How the 18 town pages are doing</h2></div>
+              <div class="day-pill">Last 4 weeks</div>
+            </div>
+            <div class="kpi-grid" style="margin-bottom:6px;grid-template-columns:repeat(3,1fr)">
+              <div><div class="kpi-label">Pages on Google</div><div class="metric-value">11 / 18</div><div class="metric-support up">↑ from 0 two weeks ago</div></div>
+              <div><div class="kpi-label">Visits to your site</div><div class="metric-value">31</div><div class="metric-support up">↑ from 7</div></div>
+              <div><div class="kpi-label">Times you appeared</div><div class="metric-value">1,842</div><div class="metric-support up">↑ from 452</div></div>
+            </div>
+            <p style="font-size:12.5px;color:var(--navy-500);padding-top:14px;border-top:1px solid var(--border);margin-top:14px;line-height:1.65">
+              People have to see you before they can click you. Google showed your pages 1,842 times in the last month, up from 452. The clicks — and then the calls — normally follow a month or two behind that.
+            </p>
+          </div>
+
+          <div class="card">
+            <div class="kpi-label">Pages built</div>
+            <h2 style="margin-top:5px">18 of 18</h2>
+            <p style="font-size:12.5px;color:var(--navy-500)">Three months of work, all published.</p>
+            <div style="margin-top:14px">
+              <div class="queue-item"><span>Mililani / Mauka</span><span class="pill live">On Google</span></div>
+              <div class="queue-item"><span>Waikele</span><span class="pill live">On Google</span></div>
+              <div class="queue-item"><span>Waipio</span><span class="pill live">On Google</span></div>
+              <div class="queue-item"><span>Kapolei</span><span class="pill live">On Google</span></div>
+              <div class="queue-item"><span>Pearl City</span><span class="pill live">On Google</span></div>
+              <div class="queue-item"><span>Waipahu</span><span class="pill wait">Processing</span></div>
+              <div class="queue-item"><span style="color:var(--navy-500)">+ 12 more</span><span class="pill">6 on Google · 6 processing</span></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="section-head"><h2>Behind the scenes</h2><span>Everything running for you in the background</span></div>
+        <div class="sys-grid">
+          <div class="sys-card">
+            <div class="sys-head"><h3>Call tracking</h3><span class="pill live">● Working</span></div>
+            <p>Every call is recorded and tagged with where it came from, so we know which of your listings is actually bringing in work.</p>
+            <div class="sys-flow"><b>Someone calls</b> → tracking number → menu screens out robots → <b>rings Desiree</b></div>
+          </div>
+          <div class="sys-card">
+            <div class="sys-head"><h3>Robocall screening</h3><span class="pill live">● Working</span></div>
+            <p>Callers press 1 for a new quote or 2 if they're already a customer. Robots can't press anything, so they never get through to you.</p>
+            <div class="sys-flow"><b>28 blocked</b> in July · Google Ads calls skip the menu completely</div>
+          </div>
+          <div class="sys-card">
+            <div class="sys-head"><h3>Missed call text-back</h3><span class="pill live">● Working</span></div>
+            <p>If a call isn't answered, that person immediately gets a text saying you'll ring back — so they don't just move on to the next painter.</p>
+            <div class="sys-flow"><b>Text goes out</b> in seconds · their reply lands on Bryan's phone as a normal text</div>
+          </div>
+          <div class="sys-card">
+            <div class="sys-head"><h3>Website form filter</h3><span class="pill live">● Working</span></div>
+            <p>Every message from your website gets checked first. Sales pitches and bot spam get dropped; real homeowners come straight through.</p>
+            <div class="sys-flow"><b>12 fake messages</b> caught in July · 1 real inquiry passed on</div>
+          </div>
+          <div class="sys-card">
+            <div class="sys-head"><h3>Google Ads alerts</h3><span class="pill live">● Working</span></div>
+            <p>Google's own notifications are unreliable, so we watch for new requests ourselves and put them straight into your Leads page.</p>
+            <div class="sys-flow"><b>Heads up:</b> Google hides the name and number until you reply, so those need one tap into the Google app</div>
+          </div>
+          <div class="sys-card">
+            <div class="sys-head"><h3>Review requests</h3><span class="pill wait">● Needs names from you</span></div>
+            <p>Finished jobs move into the review stage and we text the customer a request, with one polite reminder if they don't reply.</p>
+            <div class="sys-flow"><b>Add customers</b> on the What I Need From You page and we'll take it from there</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ THE NUMBERS ============ -->
+      <section class="page" id="metrics">
+        <div class="page-head">
+          <div><div class="eyebrow">July 2026</div><h1>The numbers</h1>
+            <p>Everything worth watching, in three groups. The “healthy” note under each one is what's realistic for a painter on Oahu — not a national average from a much bigger city.</p></div>
+          <div class="day-pill">July 1 – July 30</div>
+        </div>
+
+        <div class="section-head" style="margin-top:0"><h2>Your Google ads</h2><span>The paid listings at the very top of Google</span></div>
+        <div class="kpi-grid">
+          <article class="card metric-card">
+            <div class="kpi-label">Total leads from Google Ads</div><div class="metric-value">1</div>
+            <div class="metric-support">May 0 · June 2 · July 1</div>
+            <div class="plain">People who called or messaged you straight from the paid listing at the top of Google.</div>
+            <span class="status on">Normal</span>
+            <div class="healthy-range">1–4 a month is what this market gives. There simply aren't many painting searches on Oahu each month.</div>
+            <div class="improvement-title">What we do about it</div>
+            <ul class="improvement-list"><li>Keep you first in line for every search there is</li><li>Dispute junk leads so you're not charged</li></ul>
+          </article>
+
+          <article class="card metric-card">
+            <div class="kpi-label">What each lead cost</div><div class="metric-value">$22</div>
+            <div class="metric-support">$22.11 paid to Google in July</div>
+            <div class="plain">Google only charges when a real person contacts you — never for being seen. This is ad cost only, separate from our monthly fee.</div>
+            <span class="status on">Excellent</span>
+            <div class="healthy-range">$20–50 is healthy for painting. The national average is $53, so you're paying less than half.</div>
+            <div class="improvement-title">What we do about it</div>
+            <ul class="improvement-list"><li>Dispute junk leads so Google refunds them</li><li>Keep the settings tight to work you actually want</li></ul>
+          </article>
+
+          <article class="card metric-card">
+            <div class="kpi-label">Times your ad was seen</div><div class="metric-value">293</div>
+            <div class="metric-support">May 202 · June 336 · July 293</div>
+            <div class="plain">How many people on Oahu searched for a painter and saw your listing.</div>
+            <span class="status on">Normal</span>
+            <div class="healthy-range">200–400 a month is simply how many people search here. It's a small island — this isn't a number we can push much higher.</div>
+            <div class="improvement-title">What we do about it</div>
+            <ul class="improvement-list"><li>Keep every painting service switched on</li><li>Cover the whole island, available 24/7</li></ul>
+          </article>
+
+          <article class="card metric-card">
+            <div class="kpi-label">How often you're shown first</div><div class="metric-value">89%</div>
+            <div class="metric-support">Was 99% in June</div>
+            <div class="plain">When your ad shows up, this is how often you're the very first painter on the page — above every competitor.</div>
+            <span class="status on">Excellent</span>
+            <div class="healthy-range">Anything above 85% is strong. There is no higher spot to win.</div>
+            <div class="improvement-title">What we do about it</div>
+            <ul class="improvement-list"><li>Answer or return every lead quickly</li><li>Keep new reviews coming in steadily</li></ul>
+          </article>
+
+          <article class="card metric-card">
+            <div class="kpi-label">Ad money spent</div><div class="metric-value">$22 <span style="font-size:17px;color:var(--navy-500)">of $450</span></div>
+            <div class="metric-support">5% of what we set aside</div>
+            <div class="plain">You've barely spent anything, because there just aren't many searches to pay for.</div>
+            <span class="status watch">Barely used</span>
+            <div class="healthy-range">Money has never been what's holding this back. There's roughly $430 a month sitting unused — that's what would pay for another channel when the time is right.</div>
+            <div class="improvement-title">What we do about it</div>
+            <ul class="improvement-list"><li>Keep the unused budget available rather than spending it for the sake of it</li><li>Look at Facebook or other channels once the website work has matured</li></ul>
+          </article>
+        </div>
+
+        <div class="section-head"><h2>Your customers &amp; reputation</h2><span>What's actually coming in</span></div>
+        <div class="kpi-grid">
+          <article class="card metric-card">
+            <div class="kpi-label">Real customers who reached out / Leads</div><div class="metric-value">6</div>
+            <div class="metric-support">4 found you free · 2 from Google Ads</div>
+            <div class="plain">Actual homeowners wanting a quote for a job.</div>
+            <div class="split-bar"><i class="good" style="flex:4"></i><i class="alt" style="flex:2"></i></div>
+            <div class="split-key"><span><i class="dot good"></i>4 found you free</span><span><i class="dot alt"></i>2 from ads</span></div>
+            <span class="status on">Normal</span>
+            <div class="healthy-range">4–10 a month is realistic today. This should climb as the town pages get onto Google.</div>
+            <div class="improvement-title">What we do about it</div>
+            <ul class="improvement-list"><li>Reach people outside Ewa Beach</li><li>Text back automatically on missed calls</li></ul>
+          </article>
+
+          <article class="card metric-card">
+            <div class="kpi-label">Free (organic) leads</div><div class="metric-value">4</div>
+            <div class="metric-support">3 Google Maps calls · 1 website form</div>
+            <div class="plain">People who found you without you paying anything. These cost nothing per lead.</div>
+            <span class="status on">Growing</span>
+            <div class="healthy-range">This is the number the town pages are built to grow, and it's already ahead of paid.</div>
+            <div class="improvement-title">What we do about it</div>
+            <ul class="improvement-list"><li>More town pages, more reviews, more photos</li><li>Climb the map ranking across the island</li></ul>
+          </article>
+
+          <article class="card metric-card">
+            <div class="kpi-label">Jobs won</div><div class="metric-value">2</div>
+            <div class="metric-support">$11,900 in accepted work</div>
+            <div class="plain">Leads that turned into real paid jobs this month.</div>
+            <span class="status on">On track</span>
+            <div class="healthy-range">Roughly 1 in 3 quotes turning into a job is healthy for painting.</div>
+            <div class="improvement-title">What we do about it</div>
+            <ul class="improvement-list"><li>Make sure every quote gets a follow-up</li><li>Get to new leads faster than competitors</li></ul>
+          </article>
+
+          <article class="card metric-card">
+            <div class="kpi-label">Your Google reviews</div><div class="metric-value">34</div>
+            <div class="metric-support">Perfect 5.0 · 2 new in July</div>
+            <div class="plain">When someone's comparing three painters, review count is usually what decides it.</div>
+            <span class="status attn">Room to grow</span>
+            <div class="healthy-range">2–4 new reviews a month is healthy. Getting to 50 is the next target.</div>
+            <div class="improvement-title">What we do about it</div>
+            <ul class="improvement-list"><li>Ask every finished customer</li><li>One polite reminder if they don't reply</li></ul>
+          </article>
+        </div>
+
+        <div class="card" style="margin-bottom:18px">
+          <div class="card-head"><div><div class="kpi-label">Since we started</div><h3>Ad views and real customers, month by month</h3></div></div>
+          <div class="chart">
+            <div class="bar-group"><div class="bar-stack"><div class="bar" style="height:58%"><span class="bar-val">202</span></div></div><span class="bar-label">May</span></div>
+            <div class="bar-group"><div class="bar-stack"><div class="bar" style="height:96%"><span class="bar-val">336</span></div></div><span class="bar-label">June</span></div>
+            <div class="bar-group"><div class="bar-stack"><div class="bar" style="height:84%"><span class="bar-val">293</span></div></div><span class="bar-label">July</span></div>
+            <div class="bar-group"><div class="bar-stack"><div class="bar" style="height:2%;background:transparent;border:1px dashed var(--border-strong);border-bottom:0"></div></div><span class="bar-label">Aug</span></div>
+          </div>
+          <div class="lead-marks">
+            <div class="lead-mark">0 customers</div><div class="lead-mark">2 customers</div><div class="lead-mark">6 customers</div><div class="lead-mark" style="color:var(--navy-500)">—</div>
+          </div>
+          <p class="chart-note">The grey bars are how many people saw your ad. They've stayed flat, which tells us the size of the search market on Oahu. But real customers went up while ad views stayed the same — meaning more of the people who see you are choosing to call.</p>
+        </div>
+
+        <div>
+          <div class="card">
+            <div class="card-head"><div><div class="kpi-label">Where they came from</div><h3>July's 6 real customers</h3></div></div>
+            <div class="src-row"><div class="src-name">Google Maps calls</div><div class="src-track"><i style="width:50%;background:var(--green-600)"></i></div><div class="src-num">3</div></div>
+            <div class="src-row"><div class="src-name">Google Ads</div><div class="src-track"><i style="width:34%;background:#4285f4"></i></div><div class="src-num">2</div></div>
+            <div class="src-row"><div class="src-name">Website form</div><div class="src-track"><i style="width:17%;background:var(--gold-500)"></i></div><div class="src-num">1</div></div>
+            <div class="src-row"><div class="src-name">Referral</div><div class="src-track"><i style="width:0%;background:#6a4f8f"></i></div><div class="src-num">0</div></div>
+            <p style="font-size:12.5px;color:var(--navy-500);margin-top:12px">Free listings are already bringing in more than the paid ads. That gap should widen as the town pages get onto Google.</p>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ============ MONTHLY RECAP ============ -->
+      <section class="page" id="recap">
+        <div class="page-head">
+          <div><div class="eyebrow">Monthly recap</div><h1>July 2026</h1>
+            <p>What we did, what it produced, and what's coming next month.</p></div>
+          <div class="btn-row">
+            <button class="btn ghost">← June</button>
+            <button class="btn ghost">Download PDF</button>
+            <button class="btn admin" id="recapToggle">Build next recap</button>
+          </div>
+        </div>
+
+        <!-- ADMIN BUILDER -->
+        <div class="admin-box" id="recapBuilder" style="display:none">
+          <div class="admin-tag"><i></i>Only you can see this · August recap builder</div>
+
+          <div class="autofill">
+            <div class="kpi-label">Logged automatically this month — tick what makes the cut</div>
+            <div class="af-item"><i>✓</i><div>6 town pages published <span class="af-date">· Aug 3, 9, 14, 19, 22, 27</span></div></div>
+            <div class="af-item"><i>✓</i><div>4 more pages indexed by Google <span class="af-date">· Aug 11</span></div></div>
+            <div class="af-item"><i>✓</i><div>Geogrid scan run, avg rank 10.4 → 9.1 <span class="af-date">· Aug 28</span></div></div>
+            <div class="af-item"><i>✓</i><div>5 review requests sent, 3 reviews received <span class="af-date">· ongoing</span></div></div>
+            <div class="af-item"><i>✓</i><div>34 robocalls, 9 spam forms blocked <span class="af-date">· ongoing</span></div></div>
+            <div class="af-item"><i>✓</i><div>Internal note: "fixed sitemap so Google crawls town pages faster" <span class="af-date">· Aug 12</span></div></div>
+            <p class="q-hint">Everything you logged during the month lands here automatically. You're editing, not remembering.</p>
+            <div class="admin-note" style="margin-top:13px"><span>↕</span><div>Whatever you keep here becomes <b>both</b> the “What we built for you this month” block on their Overview <b>and</b> the “What we did” list in this recap. Written once, shown in both places — they can't drift apart.</div></div>
+          </div>
+
+          <div class="q-block">
+            <label>1 · What's the single biggest thing that happened this month?</label>
+            <textarea placeholder="One sentence. This becomes the headline on their Overview and the top of the recap."></textarea>
+            <p class="q-hint">If nothing dramatic happened, say what's quietly compounding — e.g. "four more pages started ranking."</p>
+          </div>
+          <div class="q-block">
+            <label>2 · Anything you did this month that isn't in the list above?</label>
+            <textarea placeholder="One-off builds, fixes, things you handled that never got logged."></textarea>
+            <p class="q-hint">These get added to the same shared list — so they show on the Overview too.</p>
+          </div>
+          <div class="q-block">
+            <label>3 · What are the 3–4 things happening next month?</label>
+            <textarea placeholder="Which towns, what fixes, what you're chasing."></textarea>
+          </div>
+          <div class="q-block">
+            <label>4 · What do you need from Bryan &amp; Desiree?</label>
+            <textarea placeholder="This also populates the 'What I need from you' page."></textarea>
+          </div>
+          <div class="q-block">
+            <label>5 · Your note to them — anything worth explaining or setting expectations on?</label>
+            <textarea placeholder="Where things stand honestly, what to expect, what you're watching."></textarea>
+          </div>
+          <div class="btn-row" style="margin-top:14px">
+            <button class="btn admin">Generate draft recap</button>
+            <button class="btn ghost" id="recapClose">Close</button>
+          </div>
+        </div>
+
+        <div class="recap-head">
+          <div class="eyebrow" style="color:var(--gold-200)">The headline</div>
+          <h2>Your town pages started showing up on Google on July 17.</h2>
+          <p>After three months of building them, Google has begun putting those pages in front of people. You went from being seen 452 times a month to 1,842. This is the engine starting up.</p>
+        </div>
+        <div class="recap-body">
+          <div class="recap-grid">
+            <div class="recap-cell"><div class="kpi-label">Real customers</div><div class="v">6</div></div>
+            <div class="recap-cell"><div class="kpi-label">Jobs won</div><div class="v">2</div></div>
+            <div class="recap-cell"><div class="kpi-label">Work value</div><div class="v">$11.9K</div></div>
+            <div class="recap-cell"><div class="kpi-label">Ad spend</div><div class="v">$22</div></div>
+            <div class="recap-cell"><div class="kpi-label">Junk blocked</div><div class="v">41</div></div>
+            <div class="recap-cell"><div class="kpi-label">New reviews</div><div class="v">2</div></div>
+          </div>
+
+          <h3 style="margin-bottom:10px">What we did in July</h3>
+          <ul class="recap-list" id="recapDidList"></ul>
+
+          <h3 style="margin:22px 0 10px">What's coming in August</h3>
+          <ul class="recap-list">
+            <li>6 more town pages — Waimanalo, Hawaii Kai, Wahiawa, Haleiwa, Kahala, Manoa</li>
+            <li>Push the remaining 7 pages through Google's review process</li>
+            <li>Link the town pages to each other so the weaker ones get pulled up</li>
+            <li>Focus on the windward side — Kailua and Kaneohe are where you're weakest on the map</li>
+          </ul>
+
+          <div class="recap-note" style="margin-top:22px">
+            <div class="kpi-label">A note from Alan</div>
+            The paid ads are doing everything they possibly can — you're the first painter shown almost every time, and each lead is costing you less than half the national average. The limit there is just how many people on Oahu search for a painter each month, which is around 300. That's exactly why the 18 town pages matter: they reach people the ads never will. Now that Google has started showing them, the next 60 days are the ones to watch. Down the track we can look at adding Facebook or another channel — but I'd rather see what these pages do first before spending money there.
+          </div>
+        </div>
+      </section>
+
+
+      <!-- ============ DOCUMENTS ============ -->
+      <section class="page" id="docs">
+        <div class="page-head">
+          <div><div class="eyebrow">Documents</div><h1>Everything in one place</h1>
+            <p>Plans, reports, and anything else worth keeping.</p></div>
+        </div>
+        <div class="card">
+          <table>
+            <thead><tr><th>Document</th><th>Type</th><th>Added</th><th></th></tr></thead>
+            <tbody>
+              <tr><td><b>Growth Plan — what we agreed in April</b></td><td>PDF</td><td>Apr 14, 2026</td><td><a href="#" style="text-decoration:none">Open →</a></td></tr>
+              <tr><td><b>July map ranking check</b></td><td>PDF</td><td>Jul 28, 2026</td><td><a href="#" style="text-decoration:none">Open →</a></td></tr>
+              <tr><td><b>List of town pages &amp; dates published</b></td><td>Sheet</td><td>Jul 30, 2026</td><td><a href="#" style="text-decoration:none">Open →</a></td></tr>
+              <tr><td><b>June monthly recap</b></td><td>PDF</td><td>Jul 1, 2026</td><td><a href="#" style="text-decoration:none">Open →</a></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+    </div>
+  </div>
+</div>
+
+
+<!-- SAVE CONFIRM -->
+<div class="modal-bg" id="saveModal">
+  <div class="modal">
+    <div class="modal-h"><h2>Review before saving</h2>
+      <p>Nothing goes live until you confirm. This is exactly what Bryan and Desiree will see.</p></div>
+    <div class="modal-b" id="saveBody"></div>
+    <div class="modal-f">
+      <button class="btn ghost" data-close-modal>Back</button>
+      <button class="btn admin" id="saveConfirm">Publish changes</button>
+    </div>
+  </div>
+</div>
+
+<!-- UNLOCK DATA -->
+<div class="modal-bg" id="unlockModal">
+  <div class="modal">
+    <div class="modal-h"><h2>Change a reported number?</h2>
+      <p>This figure is pulled automatically from Google, CallRail or Local Falcon.</p></div>
+    <div class="modal-b">
+      <div class="warn">
+        <b>Only override this if you know the live source is wrong or out of date.</b><br>
+        Once you edit it by hand, it stops updating automatically until you reset it — and the client sees your number, not the real one.
+      </div>
+      <div class="io-stat"><span>Field</span><b id="ulField">—</b></div>
+      <div class="io-stat"><span>Current value from source</span><b id="ulValue">—</b></div>
+      <div class="io-stat"><span>Last pulled</span><b>Today, 6:00 AM</b></div>
+      <label class="confirm-line"><input type="checkbox" id="ulAgree" style="width:auto"> I understand this replaces the live number</label>
+    </div>
+    <div class="modal-f">
+      <button class="btn ghost" data-close-modal>Cancel</button>
+      <button class="btn admin" id="ulConfirm" disabled>Unlock for editing</button>
+    </div>
+  </div>
+</div>
+
+<!-- EXPORT / IMPORT -->
+<div class="modal-bg" id="ioModal">
+  <div class="modal">
+    <div class="modal-h"><h2>Export &amp; import</h2>
+      <p>A full copy of everything on this client's portal.</p></div>
+    <div class="modal-b">
+      <div class="io-tab">
+        <button class="active" data-io="ex">Export</button>
+        <button data-io="im">Import</button>
+      </div>
+      <div class="io-pane active" id="ioEx">
+        <div class="io-stat"><span>Client</span><b>Canencia Painting</b></div>
+        <div class="io-stat"><span>Editable text fields</span><b id="ioCopy">—</b></div>
+        <div class="io-stat"><span>Reported numbers</span><b id="ioData">—</b></div>
+        <div class="io-stat"><span>Leads on the board</span><b id="ioLeads">—</b></div>
+        <div class="io-stat"><span>Client submissions</span><b id="ioSubs">—</b></div>
+        <p style="font-size:12.5px;color:var(--navy-500);margin-top:14px">
+          Downloads a single JSON file. Keep one before any big change — it restores everything exactly as it is right now.</p>
+        <div class="btn-row" style="margin-top:15px">
+          <button class="btn admin" id="ioDownload">Download backup</button>
+          <button class="btn ghost" id="ioCopyJson">Copy to clipboard</button>
+        </div>
+      </div>
+      <div class="io-pane" id="ioIm">
+        <div class="warn"><b>Importing replaces everything currently on this portal.</b><br>
+          Export a backup first if you might want to come back to what's here now.</div>
+        <label>Choose a backup file</label>
+        <input type="file" id="ioFile" accept="application/json">
+        <div id="ioPreview" style="margin-top:14px"></div>
+        <label class="confirm-line"><input type="checkbox" id="ioAgree" style="width:auto"> I understand this overwrites the current portal</label>
+        <div class="btn-row" style="margin-top:15px">
+          <button class="btn admin" id="ioRestore" disabled>Restore from backup</button>
+        </div>
+      </div>
+    </div>
+    <div class="modal-f"><button class="btn ghost" data-close-modal>Close</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+  const nav=[...document.querySelectorAll('.nav-item')];
+  const pages=[...document.querySelectorAll('.page')];
+  nav.forEach(b=>b.addEventListener('click',()=>{
+    nav.forEach(n=>n.classList.remove('active'));
+    b.classList.add('active');
+    pages.forEach(p=>p.classList.toggle('active',p.id===b.dataset.page));
+    window.scrollTo({top:0,behavior:'smooth'});
+    document.getElementById('sidebar').classList.remove('open');
+  }));
+  document.getElementById('menuBtn').addEventListener('click',()=>
+    document.getElementById('sidebar').classList.toggle('open'));
+
+  function toast(msg){
+    const t=document.getElementById('toast');
+    t.textContent=msg; t.classList.add('show');
+    clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2400);
+  }
+
+  /* hero override */
+  const AUTO={t:"Your new town pages have started showing up on Google.",
+    s:"We've now built 18 pages on your website, one for each town we want you found in. Google began showing them in search results two weeks ago. This is the part that takes the longest — and it's finally starting."};
+  const hForm=document.getElementById('heroForm');
+  document.getElementById('heroEdit').addEventListener('click',()=>{
+    hForm.style.display = hForm.style.display==='none' ? 'block' : 'none';
+  });
+  document.getElementById('hSave').addEventListener('click',()=>{
+    document.getElementById('heroTitle').textContent=document.getElementById('hIn').value;
+    document.getElementById('heroSub').textContent=document.getElementById('sIn').value;
+    document.getElementById('heroSrc').textContent='Written by you';
+    hForm.style.display='none'; toast('Headline saved.');
+  });
+  document.getElementById('hReset').addEventListener('click',()=>{
+    document.getElementById('heroTitle').textContent=AUTO.t;
+    document.getElementById('heroSub').textContent=AUTO.s;
+    document.getElementById('hIn').value=AUTO.t;
+    document.getElementById('sIn').value=AUTO.s;
+    document.getElementById('heroSrc').textContent='Auto-written';
+    hForm.style.display='none'; toast('Back to the auto-written version.');
+  });
+
+  /* ---- ONE input, two surfaces ----
+     You write this once in the recap builder. It renders on the Overview
+     ("What we built for you this month") and in the Monthly Recap
+     ("What we did in July"). They can never drift apart. */
+  const MONTHLY_WORK={
+    month:'July',
+    pill:'6 new pages built',
+    items:[
+      {title:'6 new town pages written & published',
+       detail:'Honolulu, Kailua, Kaneohe, Aiea, Makakilo, Waianae — 18 total now live',
+       recap:'Wrote and published 6 more town pages — Honolulu, Kailua, Kaneohe, Aiea, Makakilo, Waianae'},
+      {title:'All 18 pages submitted to Google',
+       detail:'11 are already showing in search. The other 7 are still being processed.',
+       recap:'Submitted all 18 pages to Google; 11 are now showing in search results'},
+      {title:'Monthly map ranking check run',
+       detail:'You moved up an average of 1.8 spots across Oahu since June',
+       recap:'Ran the monthly map ranking check; you moved up 1.8 spots on average'},
+      {title:'3 review requests sent',
+       detail:'2 new 5-star reviews came back',
+       recap:'Sent 3 review requests and got 2 new 5-star reviews back'},
+      {title:'Website form spam filter added',
+       detail:'One-off build · 12 fake inquiries caught in the first month',
+       recap:'Built and switched on the website form spam filter — 12 fake inquiries caught'},
+      {title:'This portal built for you',
+       detail:'One-off build · every lead, ranking and number in one place',
+       recap:'Built this portal so everything lives in one place'}
+    ]
+  };
+  (function renderWork(){
+    const wl=document.getElementById('workList');
+    if(wl) wl.innerHTML=MONTHLY_WORK.items.map(i=>
+      `<div class="work-item"><span class="work-tick">\u2713</span><div><b>${i.title}</b><span>${i.detail}</span></div></div>`).join('');
+    const pill=document.getElementById('workPill');
+    if(pill) pill.textContent=MONTHLY_WORK.pill;
+    const rl=document.getElementById('recapDidList');
+    if(rl) rl.innerHTML=MONTHLY_WORK.items.map(i=>`<li>${i.recap||i.title}</li>`).join('');
+    document.querySelectorAll('[data-work-month]').forEach(el=>el.textContent=MONTHLY_WORK.month);
+  })();
+
+  /* date range — always 1st of this month through today */
+  (function(){
+    const d=new Date();
+    const M=['January','February','March','April','May','June','July','August','September','October','November','December'];
+    document.getElementById('dateRange').textContent=
+      M[d.getMonth()]+' 1 – '+M[d.getMonth()]+' '+d.getDate();
+  })();
+
+  /* ---- persistence ---- */
+  const mem={};
+  async function save(key,val){
+    try{ await window.storage.set(key,JSON.stringify(val)); }
+    catch(e){ mem[key]=val; }
+  }
+  async function load(key){
+    try{ const r=await window.storage.get(key); return r?JSON.parse(r.value):null; }
+    catch(e){ return mem[key]??null; }
+  }
+  function setState(key,state,label){
+    document.querySelectorAll(`.save-state[data-for="${key}"]`).forEach(el=>{
+      el.className='save-state '+state;
+      el.innerHTML='<i></i>'+label;
+    });
+  }
+
+  /* text autosave */
+  document.querySelectorAll('.ask-input textarea[data-key]').forEach(async ta=>{
+    const key=ta.dataset.key;
+    const saved=await load(key);
+    if(saved){ ta.value=saved; setState(key,'saved','Saved · Alan has been notified'); }
+    let t;
+    ta.addEventListener('input',()=>{
+      setState(key,'saving','Saving…');
+      clearTimeout(t);
+      t=setTimeout(async()=>{
+        await save(key,ta.value);
+        if(ta.value.trim()){
+          setState(key,'saved','Saved · Alan has been notified');
+          toast('Saved. Alan gets a notification.');
+        } else setState(key,'','Saves as you type');
+      },700);
+    });
+  });
+
+  /* photo upload */
+  document.querySelectorAll('.dropzone').forEach(async dz=>{
+    const key=dz.dataset.key;
+    const input=dz.querySelector('input[type=file]');
+    const wrap=document.querySelector(`[data-thumbs="${key}"]`);
+    let photos=(await load(key))||[];
+    function render(){
+      wrap.innerHTML=photos.map((src,i)=>
+        `<div class="thumb"><img src="${src}" alt=""><button class="x" data-i="${i}">×</button></div>`).join('');
+      wrap.querySelectorAll('.x').forEach(b=>b.addEventListener('click',async()=>{
+        photos.splice(+b.dataset.i,1); await save(key,photos); render();
+        setState(key,photos.length?'saved':'', photos.length?photos.length+' saved · Alan notified':'Saved automatically');
+      }));
+    }
+    if(photos.length){ render(); setState(key,'saved',photos.length+' saved · Alan notified'); }
+
+    function ingest(files){
+      const list=[...files].filter(f=>f.type.startsWith('image/'));
+      if(!list.length) return;
+      setState(key,'saving','Uploading…');
+      let done=0;
+      list.forEach(f=>{
+        const r=new FileReader();
+        r.onload=async()=>{
+          photos.push(r.result); done++;
+          if(done===list.length){
+            await save(key,photos); render();
+            setState(key,'saved',photos.length+' saved · Alan notified');
+            toast(list.length+(list.length>1?' photos':' photo')+' saved. Alan gets a notification.');
+          }
+        };
+        r.readAsDataURL(f);
+      });
+    }
+    dz.addEventListener('click',()=>input.click());
+    input.addEventListener('change',()=>ingest(input.files));
+    dz.addEventListener('dragover',e=>{e.preventDefault();dz.classList.add('over')});
+    dz.addEventListener('dragleave',()=>dz.classList.remove('over'));
+    dz.addEventListener('drop',e=>{e.preventDefault();dz.classList.remove('over');ingest(e.dataTransfer.files)});
+  });
+
+  /* ask editor */
+  const ae=document.getElementById('askEditor');
+  document.getElementById('askEdit').addEventListener('click',()=>{
+    ae.style.display = ae.style.display==='none' ? 'block' : 'none';
+    if(ae.style.display==='block') ae.scrollIntoView({behavior:'smooth',block:'nearest'});
+  });
+  document.getElementById('askEditorClose').addEventListener('click',()=>ae.style.display='none');
+
+  /* recap builder */
+  const rb=document.getElementById('recapBuilder');
+  document.getElementById('recapToggle').addEventListener('click',()=>{
+    rb.style.display = rb.style.display==='none' ? 'block' : 'none';
+    if(rb.style.display==='block') rb.scrollIntoView({behavior:'smooth',block:'nearest'});
+  });
+  document.getElementById('recapClose').addEventListener('click',()=>rb.style.display='none');
+
+  /* ask items collapse/expand */
+  document.querySelectorAll('.ask-item').forEach(item=>{
+    item.addEventListener('click',e=>{
+      if(e.target.closest('.ask-check')) return;
+      if(e.target.closest('.ask-input')) return;
+      item.classList.toggle('open');
+    });
+  });
+
+  /* ask checkboxes */
+  document.querySelectorAll('.ask-check').forEach(c=>{
+    const flip=()=>{
+      c.classList.toggle('done');
+      c.closest('.ask-item').classList.toggle('done');
+      const open=document.querySelectorAll('.ask-check:not(.done)').length;
+      const badge=document.querySelector('.nav-badge');
+      if(open===0){badge.style.display='none'} else {badge.style.display='';badge.textContent=open}
+      document.querySelector('#ask .day-pill').textContent=open===0?'All caught up':open+' open right now';
+    };
+    c.addEventListener('click',flip);
+    c.addEventListener('keydown',e=>{if(e.key===' '||e.key==='Enter'){e.preventDefault();flip()}});
+  });
+
+  /* geogrid */
+  const GRIDS={
+    a:{avg:'10.4',avgD:'↑ 1.8 better than June',top:'14%',topD:'↑ from 8% in June',
+       best:'Ewa Beach &amp; Kapolei',worst:'Windward side',
+       cells:[20,18,14,11,17,20,20, 16,12,8,6,10,15,19, 13,9,5,3,6,11,16,
+              10,6,2,1,2,7,13, 14,8,3,2,4,9,15, 18,13,8,7,10,16,20, 20,19,15,13,17,20,20]},
+    b:{avg:'8.9',avgD:'↑ 2.4 better than June',top:'22%',topD:'↑ from 12% in June',
+       best:'Ewa Beach, Kapolei &amp; Waipahu',worst:'North Shore',
+       cells:[20,17,12,9,15,20,20, 14,10,6,4,8,13,18, 11,7,3,2,4,9,14,
+              8,4,1,1,1,5,11, 12,6,2,1,3,7,13, 16,11,6,5,8,14,19, 20,18,13,11,15,20,20]},
+    c:{avg:'12.7',avgD:'↑ 0.9 better than June',top:'8%',topD:'↑ from 4% in June',
+       best:'Ewa Beach',worst:'Honolulu &amp; windward',
+       cells:[20,20,17,14,19,20,20, 19,15,11,9,13,18,20, 16,12,7,5,9,14,19,
+              13,9,4,2,5,10,16, 17,11,6,3,7,12,18, 20,16,11,9,13,19,20, 20,20,18,16,20,20,20]}
+  };
+  function rankClass(n){
+    if(n<=1)return'r1'; if(n<=2)return'r2'; if(n<=3)return'r3';
+    if(n<=4)return'r4'; if(n<=6)return'r5'; if(n<=8)return'r6';
+    if(n<=11)return'r7'; if(n<=14)return'r8'; return'rx';
+  }
+  function drawGrid(key){
+    const g=GRIDS[key], el=document.getElementById('geogrid');
+    el.innerHTML=g.cells.map(n=>`<div class="geo-cell ${rankClass(n)}">${n>=20?'20+':n}</div>`).join('');
+    document.getElementById('gAvg').textContent=g.avg;
+    document.getElementById('gAvgD').textContent=g.avgD;
+    document.getElementById('gTop').textContent=g.top;
+    document.getElementById('gTopD').textContent=g.topD;
+    document.getElementById('gBest').innerHTML=g.best;
+    document.getElementById('gWorst').innerHTML=g.worst;
+  }
+  drawGrid('a');
+  document.querySelectorAll('.kw-tab').forEach(t=>t.addEventListener('click',()=>{
+    document.querySelectorAll('.kw-tab').forEach(x=>x.classList.remove('active'));
+    t.classList.add('active'); drawGrid(t.dataset.kw);
+  }));
+
+  /* drag + drop */
+  let dragged=null;
+  document.querySelectorAll('.lead-card').forEach(c=>{
+    c.addEventListener('dragstart',()=>{dragged=c;c.style.opacity='.45'});
+    c.addEventListener('dragend',()=>{dragged=null;c.style.opacity=''});
+  });
+  document.querySelectorAll('.klist').forEach(list=>{
+    list.addEventListener('dragover',e=>{e.preventDefault();list.classList.add('drag-over')});
+    list.addEventListener('dragleave',()=>list.classList.remove('drag-over'));
+    list.addEventListener('drop',e=>{
+      e.preventDefault(); list.classList.remove('drag-over');
+      if(!dragged) return;
+      const stage=list.closest('.kcol').dataset.stage;
+      list.appendChild(dragged); updateCounts();
+      if(stage==='won') toast('Moved to Job Won — add the final price.');
+      else if(stage==='review-req') toast('Review request lined up.');
+      else toast('Lead moved.');
+    });
+  });
+  function updateCounts(){
+    let open=0;
+    document.querySelectorAll('.kcol').forEach(col=>{
+      const n=col.querySelectorAll('.lead-card').length;
+      col.querySelector('.kcount').textContent=n;
+      if(['new','contacted','quote','scheduled'].includes(col.dataset.stage)) open+=n;
+    });
+    document.getElementById('openCount').innerHTML=open+' <small>leads</small>';
+  }
+
+  document.getElementById('addLeadBtn').addEventListener('click',()=>toast('Add-lead form opens here.'));
+  document.querySelectorAll('.kadd').forEach(b=>b.addEventListener('click',()=>toast('Add-lead form opens here.')));
+
+  document.getElementById('revAdd').addEventListener('click',()=>{
+    const n=document.getElementById('revName').value.trim();
+    if(!n){toast('Add a name first.');return}
+    const row=document.createElement('div');
+    row.className='queue-item';
+    row.innerHTML='<div><b>'+n+'</b> <span style="color:var(--navy-500);font-size:12px">· just added</span></div><span class="pill wait">Asking today</span>';
+    document.getElementById('revQueue').prepend(row);
+    document.getElementById('revName').value='';
+    document.getElementById('revPhone').value='';
+    toast(n+' added — we\'ll send the request.');
+  });
+
+  /* ================= ADMIN EDIT MODE =================
+     Two tiers:
+       COPY  — titles, labels, explanations. Edit freely.
+       DATA  — numbers pulled from Google / CallRail / Local Falcon.
+               Locked by default; unlocking takes an explicit confirmation.
+     Nothing saves until you press Save. No autosave anywhere in here. */
+
+  const COPY_SEL = [
+    'h1','h2','h3','h4','.eyebrow','.kpi-label','.plain','.healthy-range',
+    '.improvement-title','.improvement-list li','.hero-sub','.kpi-support',
+    '.metric-support','.chart-note','.kcol-help','.kcol-title','.pstat-label',
+    '.pstat-sub','.sys-card p','.sys-flow','.factor p','.factor .you','.factor h4',
+    '.factor-rank','.thesis-body p','.thesis-body .three li','.note-strip',
+    '.work-item b','.work-item span','.ask-text b','.ask-text span','.habit b',
+    '.habit p','.habit .why','.recap-list li','.recap-head p','.geo-stat-delta',
+    '.month-name','.month-delta','.src-name','.ask-head p','.page-head > div > p',
+    '.rev-item p','.day-pill','.column-help','.status','.pill'
+  ].join(',');
+
+  const DATA_SEL = [
+    '.kpi-value','.metric-value','.geo-stat-value','.month-rank','.pstat-value',
+    '.recap-cell .v','.src-num','.rev-score','.lead-value','.kcount','.geo-cell'
+  ].join(',');
+
+  const SOURCE_OF = {
+    'kpi-value':'Google Ads / CallRail','metric-value':'Google Ads / Search Console',
+    'geo-stat-value':'Local Falcon','month-rank':'Local Falcon','geo-cell':'Local Falcon',
+    'pstat-value':'Your leads board','recap-cell':'Monthly totals','src-num':'Lead sources',
+    'rev-score':'Google Business Profile','lead-value':'Entered on the lead','kcount':'Leads board'
+  };
+
+  let EDITING=false, SNAP={}, DIRTY={};
+
+  function keyFor(el,i){
+    const page=el.closest('.page')?.id||'global';
+    return page+':'+i;
+  }
+  function tagAll(){
+    let i=0;
+    document.querySelectorAll(COPY_SEL).forEach(el=>{
+      if(el.closest('.admin-box,.editbar,.modal,.topbar,.sidebar')) return;
+      if(el.dataset.ek) return;
+      if(el.children.length && !el.matches('h1,h2,h3,h4,.day-pill,.pill,.status')) return;
+      el.dataset.ek=keyFor(el,i++); el.dataset.tier='copy';
+    });
+    document.querySelectorAll(DATA_SEL).forEach(el=>{
+      if(el.closest('.admin-box,.editbar,.modal')) return;
+      if(el.dataset.ek) return;
+      el.dataset.ek=keyFor(el,i++); el.dataset.tier='data'; el.dataset.locked='1';
+    });
+  }
+
+  function clean(t){ return t.replace(/\s+/g,' ').trim(); }
+  function labelFor(el){
+    const card=el.closest('.card,.metric-card,.geo-stat,.month-cell,.recap-cell,.work-item,.ask-item,.habit,.sys-card,.factor');
+    const lab=card?.querySelector('.kpi-label,h3,h4,b,.month-name');
+    const page=el.closest('.page')?.id||'';
+    const pname={overview:'Overview',ask:'What I Need From You',leads:'Leads',
+      rankings:'Where You Rank',metrics:'The Numbers',recap:'Monthly Recap',docs:'Documents'}[page]||page;
+    return pname+(lab&&lab!==el?' · '+clean(lab.textContent).slice(0,40):'');
+  }
+
+  function markDirty(el){
+    const k=el.dataset.ek, now=clean(el.textContent);
+    if(now===SNAP[k]){ delete DIRTY[k]; el.classList.remove('changed'); }
+    else { DIRTY[k]={el,from:SNAP[k],to:now}; el.classList.add('changed'); }
+    const n=Object.keys(DIRTY).length;
+    const c=document.getElementById('ebCount');
+    c.textContent = n? n+' change'+(n>1?'s':'')+' not yet saved' : 'No changes yet';
+    c.classList.toggle('dirty',n>0);
+    document.getElementById('ebSave').disabled = n===0;
+  }
+
+  function enterEdit(){
+    EDITING=true; document.body.classList.add('editing');
+    document.getElementById('editToggle').classList.add('on');
+    document.getElementById('editToggle').lastChild.textContent='Editing';
+    tagAll(); SNAP={}; DIRTY={};
+    document.querySelectorAll('[data-ek]').forEach(el=>{
+      SNAP[el.dataset.ek]=clean(el.textContent);
+      if(el.dataset.tier==='copy') el.setAttribute('contenteditable','true');
+      el.addEventListener('input',el._h=()=>markDirty(el));
+      el.addEventListener('paste',e=>{
+        e.preventDefault();
+        document.execCommand('insertText',false,(e.clipboardData||window.clipboardData).getData('text'));
+      });
+      el.addEventListener('keydown',e=>{ if(e.key==='Enter'){e.preventDefault();el.blur()} });
+    });
+    markDirty(document.querySelector('[data-ek]'));
+    toast('Edit mode on. Nothing goes live until you save.');
+  }
+  function exitEdit(revert){
+    if(revert) Object.values(DIRTY).forEach(d=>{ d.el.textContent=d.from; });
+    EDITING=false; document.body.classList.remove('editing');
+    const t=document.getElementById('editToggle');
+    t.classList.remove('on'); t.lastChild.textContent='Edit page';
+    document.querySelectorAll('[data-ek]').forEach(el=>{
+      el.removeAttribute('contenteditable'); el.classList.remove('changed','unlocked');
+      if(el.dataset.tier==='data') el.dataset.locked='1';
+    });
+    DIRTY={};
+    document.getElementById('ebCount').textContent='No changes yet';
+    document.getElementById('ebCount').classList.remove('dirty');
+    document.getElementById('ebSave').disabled=true;
+  }
+
+  document.getElementById('editToggle').addEventListener('click',()=>{
+    if(!EDITING) return enterEdit();
+    if(Object.keys(DIRTY).length && !confirm('You have unsaved changes. Discard them?')) return;
+    exitEdit(true);
+  });
+  document.getElementById('ebDiscard').addEventListener('click',()=>{
+    if(Object.keys(DIRTY).length && !confirm('Discard all unsaved changes?')) return;
+    exitEdit(true); toast('Changes discarded.');
+  });
+
+  /* ---- unlocking a reported number ---- */
+  let pendingEl=null;
+  document.addEventListener('click',e=>{
+    if(!EDITING) return;
+    const el=e.target.closest('[data-tier="data"]');
+    if(!el || el.classList.contains('unlocked')) return;
+    e.preventDefault();
+    pendingEl=el;
+    const cls=[...el.classList].find(c=>SOURCE_OF[c]) || (el.closest('.recap-cell')?'recap-cell':'');
+    document.getElementById('ulField').textContent=labelFor(el);
+    document.getElementById('ulValue').textContent=clean(el.textContent)+' · '+(SOURCE_OF[cls]||'auto-pulled');
+    document.getElementById('ulAgree').checked=false;
+    document.getElementById('ulConfirm').disabled=true;
+    show('unlockModal');
+  },true);
+  document.getElementById('ulAgree').addEventListener('change',e=>{
+    document.getElementById('ulConfirm').disabled=!e.target.checked;
+  });
+  document.getElementById('ulConfirm').addEventListener('click',()=>{
+    if(!pendingEl) return;
+    pendingEl.classList.add('unlocked');
+    pendingEl.setAttribute('contenteditable','true');
+    hide('unlockModal'); pendingEl.focus();
+    toast('Unlocked. This number will stop updating automatically.');
+  });
+
+  /* ---- save ---- */
+  document.getElementById('ebSave').addEventListener('click',()=>{
+    const rows=Object.values(DIRTY);
+    const dataRows=rows.filter(r=>r.el.dataset.tier==='data');
+    let html='';
+    if(dataRows.length) html+='<div class="warn"><b>'+dataRows.length+
+      ' reported number'+(dataRows.length>1?'s':'')+' overridden by hand.</b><br>These will show your value instead of the live one until reset.</div>';
+    html+='<div class="diff"><div class="diff-h">'+rows.length+' change'+(rows.length>1?'s':'')+'</div>'+
+      rows.map(r=>'<div class="diff-r"><div class="where">'+labelFor(r.el)+
+        (r.el.dataset.tier==='data'?' · reported number':'')+'</div><span class="old">'+
+        esc(r.from)+'</span><span class="new">'+esc(r.to)+'</span></div>').join('')+'</div>';
+    document.getElementById('saveBody').innerHTML=html;
+    show('saveModal');
+  });
+  document.getElementById('saveConfirm').addEventListener('click',()=>{
+    const n=Object.keys(DIRTY).length;
+    Object.values(DIRTY).forEach(d=>{ SNAP[d.el.dataset.ek]=d.to; });
+    hide('saveModal'); exitEdit(false);
+    toast(n+' change'+(n>1?'s':'')+' published. Bryan and Desiree see this now.');
+  });
+
+  function esc(t){ return String(t).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c])); }
+  function show(id){ document.getElementById(id).classList.add('show'); }
+  function hide(id){ document.getElementById(id).classList.remove('show'); }
+  document.querySelectorAll('[data-close-modal]').forEach(b=>
+    b.addEventListener('click',()=>b.closest('.modal-bg').classList.remove('show')));
+  document.querySelectorAll('.modal-bg').forEach(m=>
+    m.addEventListener('click',e=>{ if(e.target===m) m.classList.remove('show') }));
+  document.addEventListener('keydown',e=>{
+    if(e.key==='Escape') document.querySelectorAll('.modal-bg.show').forEach(m=>m.classList.remove('show'));
+  });
+
+  /* ---- export / import ---- */
+  function snapshot(){
+    if(!Object.keys(SNAP).length) tagAll();
+    const copy={},data={};
+    document.querySelectorAll('[data-ek]').forEach(el=>{
+      (el.dataset.tier==='data'?data:copy)[el.dataset.ek]=clean(el.textContent);
+    });
+    const leads=[...document.querySelectorAll('.lead-card')].map(c=>({
+      name:clean(c.querySelector('.lead-name')?.textContent||''),
+      stage:c.closest('.kcol')?.dataset.stage,
+      context:clean(c.querySelector('.lead-context')?.textContent||''),
+      value:clean(c.querySelector('.lead-value')?.textContent||'')
+    }));
+    const subs={};
+    document.querySelectorAll('.ask-input textarea[data-key]').forEach(t=>{ if(t.value) subs[t.dataset.key]=t.value; });
+    return {client:'Canencia Painting',exportedAt:new Date().toISOString(),version:1,
+      copy,data,leads,submissions:subs,monthlyWork:MONTHLY_WORK};
+  }
+  document.getElementById('ioBtn').addEventListener('click',()=>{
+    const s=snapshot();
+    document.getElementById('ioCopy').textContent=Object.keys(s.copy).length;
+    document.getElementById('ioData').textContent=Object.keys(s.data).length;
+    document.getElementById('ioLeads').textContent=s.leads.length;
+    document.getElementById('ioSubs').textContent=Object.keys(s.submissions).length;
+    show('ioModal');
+  });
+  document.querySelectorAll('.io-tab button').forEach(b=>b.addEventListener('click',()=>{
+    document.querySelectorAll('.io-tab button').forEach(x=>x.classList.remove('active'));
+    b.classList.add('active');
+    document.getElementById('ioEx').classList.toggle('active',b.dataset.io==='ex');
+    document.getElementById('ioIm').classList.toggle('active',b.dataset.io==='im');
+  }));
+  document.getElementById('ioDownload').addEventListener('click',()=>{
+    const blob=new Blob([JSON.stringify(snapshot(),null,2)],{type:'application/json'});
+    const a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);
+    a.download='canencia-portal-'+new Date().toISOString().slice(0,10)+'.json';
+    a.click(); URL.revokeObjectURL(a.href);
+    toast('Backup downloaded.');
+  });
+  document.getElementById('ioCopyJson').addEventListener('click',async()=>{
+    try{ await navigator.clipboard.writeText(JSON.stringify(snapshot(),null,2)); toast('Copied to clipboard.'); }
+    catch(e){ toast('Copy blocked — use Download instead.'); }
+  });
+  let incoming=null;
+  document.getElementById('ioFile').addEventListener('change',e=>{
+    const f=e.target.files[0]; if(!f) return;
+    const r=new FileReader();
+    r.onload=()=>{
+      try{
+        incoming=JSON.parse(r.result);
+        if(!incoming.copy||!incoming.version) throw new Error('not a portal backup');
+        document.getElementById('ioPreview').innerHTML=
+          '<div class="io-stat"><span>Client</span><b>'+esc(incoming.client)+'</b></div>'+
+          '<div class="io-stat"><span>Taken</span><b>'+new Date(incoming.exportedAt).toLocaleString()+'</b></div>'+
+          '<div class="io-stat"><span>Text fields</span><b>'+Object.keys(incoming.copy).length+'</b></div>'+
+          '<div class="io-stat"><span>Leads</span><b>'+(incoming.leads||[]).length+'</b></div>';
+        document.getElementById('ioRestore').disabled=!document.getElementById('ioAgree').checked;
+      }catch(err){
+        incoming=null;
+        document.getElementById('ioPreview').innerHTML='<div class="warn">That file isn\'t a portal backup.</div>';
+        document.getElementById('ioRestore').disabled=true;
+      }
+    };
+    r.readAsText(f);
+  });
+  document.getElementById('ioAgree').addEventListener('change',e=>{
+    document.getElementById('ioRestore').disabled=!(e.target.checked&&incoming);
+  });
+  document.getElementById('ioRestore').addEventListener('click',()=>{
+    if(!incoming) return;
+    tagAll();
+    document.querySelectorAll('[data-ek]').forEach(el=>{
+      const k=el.dataset.ek;
+      const v=(el.dataset.tier==='data'?incoming.data:incoming.copy)?.[k];
+      if(v!==undefined) el.textContent=v;
+    });
+    Object.entries(incoming.submissions||{}).forEach(([k,v])=>{
+      const t=document.querySelector(`textarea[data-key="${k}"]`); if(t) t.value=v;
+    });
+    hide('ioModal'); toast('Portal restored from backup.');
+  });
+
+</script>
+</body>
+</html>
