@@ -14,3 +14,23 @@ export function dateKeyInTimezone(date: Date, timezone: string): string {
 export function dateKeyToUtcMidnight(dateKey: string): Date {
   return new Date(`${dateKey}T00:00:00.000Z`);
 }
+
+// "YYYY-MM" in the given IANA timezone — the month-key convention used by
+// LsaMonthlyStat, GeogridScan, KeywordRank, MonthlyWork, etc.
+export function monthKeyInTimezone(date: Date, timezone: string): string {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: timezone,
+    year: "numeric",
+    month: "2-digit",
+  }).format(date);
+}
+
+// Human label for a "YYYY-MM" month key, e.g. "2026-08" -> "August 2026".
+export function formatMonthKey(monthKey: string): string {
+  const [year, month] = monthKey.split("-").map(Number);
+  return new Date(Date.UTC(year, month - 1, 1)).toLocaleDateString("en-US", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}

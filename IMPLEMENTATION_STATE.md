@@ -526,3 +526,14 @@ Rules settled:
 
 Outstanding items to collect from Alan (not blockers for starting):
 - Pushover app token + user keys (Phase 3), Google Cloud OAuth credentials (Phase 3/4), CallRail API key (Phase 3), R2 bucket credentials (Phase 5). Ask for each at the START of its phase, plainly, one at a time.
+
+## 6. Noted for later (Alan, 2026-08-02 — do not build yet, raise again once Phases 1-6 are mostly done)
+
+Two admin-only tracking pages, requested while Phase 2 was in progress:
+
+1. **Full Ahrefs + GSC CSV import, admin-only, perpetually tracked.** Alan wants to upload the complete raw CSV exports (not just what's client-visible on Where You Rank / The Numbers) so HE can see month-over-month movement across every client and judge what's working. This is bigger than the `KeywordRank`/`GscDailyStat` tables already in the schema (Phase 1) — those hold only what renders to the client; this new page/table is for Alan's own cross-client analysis and should keep the full CSV data, not a client-visible subset.
+2. **A fully admin-only Changelog page** for LOCAL_SERVICES clients (separate concept from the existing `ChangelogEntry` model, which is COLD_EMAIL's client-VISIBLE changelog).
+
+**Visibility rule for both, stated explicitly by Alan:** visible when he's ADMIN in "preview as client" mode (so he's reminded they exist while doing his normal workflow, which is mostly through preview) — but NEVER visible to the actual client's own login. This is a new visibility tier: today `isPreview` only distinguishes "banner and edit controls show" — these two pages need a third state (admin/preview-only, hidden from real CLIENT-role sessions entirely, not just guarded like everything else). Route guards for these will need to check `ctx.role === "ADMIN"` specifically, not just resolve scope.
+
+Revisit once Phases 1-6 are mostly done, per Alan's explicit instruction not to build this now.
