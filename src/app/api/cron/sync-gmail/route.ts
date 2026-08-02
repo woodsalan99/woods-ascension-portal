@@ -110,10 +110,15 @@ export async function GET(req: Request) {
                 stage: "NEW",
                 gmailMessageId: meta.id,
                 name: outcome.data.name,
+                phone: outcome.data.phone,
                 location: outcome.data.location,
                 serviceType: outcome.data.serviceType,
                 message: outcome.data.message,
-                needsDetails: true, // LSA: name/phone hidden until Alan replies in Google
+                // Google withholds the customer's name/number on a new
+                // request until you reply. On the customer-message variant
+                // they've often just given a number — so only flag
+                // needs-details when we genuinely don't have one.
+                needsDetails: !outcome.data.phone,
                 receivedAt: outcome.data.receivedAt,
               },
             });

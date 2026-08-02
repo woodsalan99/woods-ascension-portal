@@ -2,17 +2,28 @@
 // lead types (handoff §3.2). Kept pure so they're testable against fixture
 // email bodies without a live Gmail connection.
 //
-// HONEST LIMITATION on the LSA parser: the handoff describes the LSA
-// notification email's CONTENT (name/location/service/message fields) but
-// not a byte-exact sample. This parser is a best-effort labeled-field
-// reader matching the described shape and common real-world Google LSA
-// notification wording. It should be checked against one real forwarded
-// LSA email before this goes live — the poison-message policy in the sync
-// route means a mismatch never loses the email (it's stored with the raw
-// body + a parse error for review), but the lead also won't parse
-// correctly until this is validated. The website-form parser, by
-// contrast, is built to the handoff's exact labeled-field spec and is
-// verified against a fixture matching that spec.
+// BOTH PARSERS ARE NOW VERIFIED AGAINST REAL EMAILS from Alan's inbox
+// (2026-08-02), replacing the earlier best-effort guesses. What the real
+// mail actually looks like:
+//
+// LSA (all from `...@awexpress.google.com`, subject is always
+// "Potential Customer's new request" — NOT the longer body phrase the
+// first version of this matcher wrongly keyed on, which is why zero LSA
+// leads were being captured). Two body shapes:
+//   A) New request — dash-prefixed labels, value on the following line:
+//        - Name          -> always the literal "Potential Customer"
+//        - Location      -> city
+//        - Service type  -> e.g. "Paint Indoors", "Cabinet Painting"
+//        - Message       -> free text, may wrap across lines
+//   B) Customer message — "Potential Customer sent you a message" followed
+//      by free text. This is the customer REPLYING, and in practice it is
+//      where their phone number arrives ("Thanks! It's 727-465-6542"), so
+//      we pull any phone number out of it.
+//
+// Website form (from the site's noreply address): labels on their own line
+// with the value below, a "----" rule before "What they need", and a
+// "Phone" value that carries a duplicated `tel:` link Google/the form
+// builder appends — both handled below.
 
 export type GmailMeta = { id: string; internalDate: number; from: string; subject: string };
 export type ParseOutcome<T> = { ok: true; data: T } | { ok: false; reason: string };
@@ -23,6 +34,8 @@ export type LsaParsed = {
   location: string | null; // city
   serviceType: string | null;
   message: string | null;
+  phone: string | null; // only ever present on the customer-message variant
+  variant: "REQUEST" | "MESSAGE";
 };
 
 export type FormParsed = {
@@ -71,20 +84,72 @@ function field(body: string, label: string, allLabels: string): string | null {
 }
 
 // ---- A. LSA notification emails ----
+
+// Google strips tracking links into `<https://c.gle/...>` blocks all through
+// the body; removing them first makes the real structure legible.
+function stripLsaNoise(text: string): string {
+  return text
+    .replace(/<https?:\/\/[^>]*>/g, "")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n");
+}
+
+// LSA labels are dash-prefixed on their own line, value on the following
+// line(s): "- Location\nKailua". Stops at the next known label or the
+// "To connect with this customer" footer.
+function lsaField(body: string, label: string): string | null {
+  const re = new RegExp(
+    `^[ \\t]*-[ \\t]*(?:${label})[ \\t]*$\\n+([\\s\\S]*?)(?=^[ \\t]*-[ \\t]*(?:Name|Location|Service type|Message)[ \\t]*$|^[ \\t]*To connect with this customer|$(?![\\s\\S]))`,
+    "im",
+  );
+  const value = re.exec(body)?.[1]?.trim();
+  if (!value) return null;
+  // Re-join lines Google wrapped mid-sentence.
+  return value.replace(/\s*\n\s*/g, " ").trim();
+}
+
+const PHONE_RE = /(\+?1[-.\s]?)?\(?\d{3}\)?[-.\s]?\d{3}[-.\s]?\d{4}/;
+
 export const lsaMatcher: Matcher<LsaParsed> = {
   provider: "LSA",
   matches(meta) {
-    return /Potential Customer.?s sent you a new request/i.test(meta.subject);
+    // Sender domain is the stable signal; subject is a secondary check for
+    // any future variant Google sends from a different address.
+    return /awexpress\.google\.com/i.test(meta.from) || /potential customer/i.test(meta.subject);
   },
   parse(body, meta) {
-    const text = clean(body.text);
-    const ALL = "Name|Location|Service(?: requested| type)?|Message|Details|Phone";
+    const text = stripLsaNoise(clean(body.text));
+    // Gmail's own receipt time is authoritative. The body's "You received
+    // this request on 07/31/2026 at 7:56 AM" is in the LSA account's
+    // timezone, which isn't stated in the mail — not worth guessing at.
+    const receivedAt = new Date(meta.internalDate);
 
-    const rawName = field(text, "Name", ALL);
-    const name = !rawName || /^potential customer$/i.test(rawName) ? null : rawName;
-    const location = field(text, "Location", ALL);
-    const serviceType = field(text, "Service(?: requested| type)?", ALL);
-    const message = field(text, "Message|Details", ALL);
+    // Variant B — the customer replying, usually with their phone number.
+    if (/sent you a message/i.test(text)) {
+      const after = text.split(/sent you a message/i)[1] ?? "";
+      const messageText = after
+        .split(/To connect with this customer|Need help\?/i)[0]
+        .replace(/\s*\n\s*/g, " ")
+        .trim();
+      return {
+        ok: true,
+        data: {
+          receivedAt,
+          name: null,
+          location: null,
+          serviceType: null,
+          message: messageText || null,
+          phone: PHONE_RE.exec(messageText)?.[0]?.trim() ?? null,
+          variant: "MESSAGE",
+        },
+      };
+    }
+
+    // Variant A — a new structured request.
+    const rawName = lsaField(text, "Name");
+    const location = lsaField(text, "Location");
+    const serviceType = lsaField(text, "Service type");
+    const message = lsaField(text, "Message");
 
     if (!location && !serviceType && !message && !rawName) {
       return { ok: false, reason: "no recognizable LSA fields found in body" };
@@ -92,7 +157,16 @@ export const lsaMatcher: Matcher<LsaParsed> = {
 
     return {
       ok: true,
-      data: { receivedAt: new Date(meta.internalDate), name, location, serviceType, message },
+      data: {
+        receivedAt,
+        // Google hides the real name behind this literal until you reply.
+        name: !rawName || /^potential customer$/i.test(rawName) ? null : rawName,
+        location,
+        serviceType,
+        message,
+        phone: null,
+        variant: "REQUEST",
+      },
     };
   },
 };
@@ -110,13 +184,17 @@ export const formMatcher: Matcher<FormParsed> = {
   },
   parse(body) {
     const text = clean(body.text);
-    // "Submitted:" is a boundary marker too (not a field itself) so the
-    // WHAT THEY NEED/message capture stops before the footer instead of
-    // swallowing "Submitted:.../Page:.../Site:..." into the message text.
-    const ALL = "NAME|PHONE|EMAIL|PROJECT ADDRESS|WHAT THEY NEED|M[AE]SSAGE|Submitted:";
+    // Boundary markers, not all of them fields: "Submitted:" stops the
+    // message capture before the footer, and the real mail puts a "-----"
+    // rule between the address and "What they need" — without it as a
+    // boundary the rule ends up glued onto the end of the address.
+    const ALL = "NAME|PHONE|EMAIL|PROJECT ADDRESS|WHAT THEY NEED|M[AE]SSAGE|Submitted:|-{5,}";
 
     const name = field(text, "NAME", ALL);
-    const phone = field(text, "PHONE", ALL);
+    // Real mail renders the phone as "925-202-4922 tel:9252024922" — the
+    // form builder appends a tel: link. Keep only the human-readable part,
+    // otherwise it shows up mangled on the lead card and breaks tap-to-call.
+    const phone = field(text, "PHONE", ALL)?.replace(/\s*tel:\S*/i, "").trim() ?? null;
     const email = field(text, "EMAIL", ALL);
     const addressBlock = field(text, "PROJECT ADDRESS", ALL);
     const message = field(text, "WHAT THEY NEED|M[AE]SSAGE", ALL);
