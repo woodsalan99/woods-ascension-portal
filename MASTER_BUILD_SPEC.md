@@ -762,7 +762,7 @@ Second, structurally different client type (local home-services businesses, firs
 | Phase | What "done" means | Status |
 |---|---|---|
 | **1 — Schema + gating** | MetricKey→String + ClientType + 23 new tables migrated; nav/route gating per ClientType; Canencia client row + Clerk invites | ✅ DONE (08-02) — Migrations A (D22) and B (D23) applied and verified against production data (all 5 existing clients unchanged, correctly COLD_EMAIL); per-ClientType nav + `requireClientType()` route guards on every page; Overview forked (D-A); Canencia Painting created as the first LOCAL_SERVICES client with a primary location; Clerk invitations sent to Bryan and Desiree |
-| **2 — Content system + edit mode** | Registry/`<Editable>`/diff-save + resolver/`MetricOverride` layer, proven on Overview | ☐ NOT STARTED |
+| **2 — Content system + edit mode** | Registry/`<Editable>`/diff-save + resolver/`MetricOverride` layer, proven on Overview | ✅ DONE (08-02) — every Overview string (incl. every thesis paragraph/bullet) editable via the content registry; every number resolver-driven with admin-override support; publish/discard/reset all verified against the live database, no autosave anywhere. Editing UI only ever renders for an admin in preview mode |
 | **3 — Leads vertical** | CallRail + Gmail ingestion + spam classification + Pushover + kanban | ☐ NOT STARTED |
 | **4 — Rankings + Numbers** | GSC + Places syncs; manual admin entry forms (LSA/geogrid/Ahrefs/SitePage) | ☐ NOT STARTED |
 | **5 — What I Need From You + Recap** | Tasks/submissions/R2 uploads; WorkLog; recap builder; MonthlyWork | ☐ NOT STARTED |
