@@ -46,12 +46,15 @@ export async function GET(req: Request) {
   // Self-heal: a prior run can be left stuck in RUNNING if its request was
   // killed mid-flight (e.g. a deploy rolled out during the ~50s sync). Mark
   // any RUNNING row older than 10 minutes as FAILED so the log stays honest.
+  // Scoped to source: "SMARTLEAD" so a fast-cycling local-services cron
+  // (e.g. sync-gmail, every 5 min) can never mark this sync's still-running
+  // row as FAILED — see IMPLEMENTATION_STATE.md D-E.
   await prisma.syncRun.updateMany({
-    where: { status: "RUNNING", startedAt: { lt: new Date(Date.now() - 10 * 60_000) } },
+    where: { status: "RUNNING", source: "SMARTLEAD", startedAt: { lt: new Date(Date.now() - 10 * 60_000) } },
     data: { status: "FAILED", finishedAt: new Date(), detail: "Interrupted (likely a deploy during sync)" },
   });
 
-  const syncRun = await prisma.syncRun.create({ data: { status: "RUNNING" } });
+  const syncRun = await prisma.syncRun.create({ data: { status: "RUNNING", source: "SMARTLEAD" } });
 
   try {
     const categories = await fetchLeadCategories();
@@ -60,7 +63,7 @@ export async function GET(req: Request) {
     );
 
     const clients = await prisma.client.findMany({
-      where: { status: "ACTIVE" },
+      where: { status: "ACTIVE", type: "COLD_EMAIL" },
       include: { campaigns: { where: { active: true } } },
     });
 
