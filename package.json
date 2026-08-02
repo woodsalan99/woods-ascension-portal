@@ -9,7 +9,6 @@
     "lint": "eslint"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.115.0",
     "@clerk/nextjs": "^7.5.14",
     "@prisma/client": "^6.19.3",
     "googleapis": "^173.0.0",

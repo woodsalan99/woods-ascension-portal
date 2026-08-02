@@ -1,12 +1,18 @@
-import Anthropic from "@anthropic-ai/sdk";
-
 // Server-side spam classification for parsed website-form submissions
-// (handoff §3.3). Haiku-class model, strict JSON out. The classifier only
-// judges and explains — the THRESHOLD decision (definite spam vs. flagged
-// for Alan's manual review) lives in the caller (sync-gmail route), per
-// the handoff: "Low-confidence -> flag for Alan's review, don't silently
-// bin." Spam is always logged, never deleted, regardless of verdict.
-const MODEL = "claude-haiku-4-5-20251001";
+// (handoff §3.3). Uses DeepSeek (Alan's explicit choice over Claude) via
+// its OpenAI-compatible chat completions API — plain fetch, no SDK needed,
+// matching this codebase's existing integration style. deepseek-chat (the
+// fast/cheap general model) is the right fit for a short structured
+// classification task; deepseek-reasoner (chain-of-thought) would be
+// slower and costlier for no real quality gain here.
+//
+// The classifier only judges and explains — the THRESHOLD decision
+// (definite spam vs. flagged for Alan's manual review) lives in the
+// caller, per the handoff: "Low-confidence -> flag for Alan's review,
+// don't silently bin." Spam is always logged, never deleted, regardless
+// of verdict.
+const DEEPSEEK_BASE = "https://api.deepseek.com";
+const MODEL = "deepseek-chat";
 
 const SYSTEM_PROMPT = `You classify inbound website-contact-form messages for a home painting contractor in Hawaii. Decide whether this is a REAL homeowner asking about a painting job, or SPAM/junk that should never reach the business owner.
 
@@ -32,18 +38,33 @@ export type SpamClassifyInput = {
 export type SpamVerdict = { qualified: boolean; confidence: number; reason: string };
 
 export async function classifySpam(input: SpamClassifyInput): Promise<SpamVerdict> {
-  const apiKey = process.env.ANTHROPIC_API_KEY;
-  if (!apiKey) throw new Error("ANTHROPIC_API_KEY not configured");
-  const client = new Anthropic({ apiKey });
+  const apiKey = process.env.DEEPSEEK_API_KEY;
+  if (!apiKey) throw new Error("DEEPSEEK_API_KEY not configured");
 
-  const res = await client.messages.create({
-    model: MODEL,
-    max_tokens: 300,
-    system: SYSTEM_PROMPT,
-    messages: [{ role: "user", content: JSON.stringify(input) }],
+  const res = await fetch(`${DEEPSEEK_BASE}/chat/completions`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
+    },
+    body: JSON.stringify({
+      model: MODEL,
+      max_tokens: 300,
+      response_format: { type: "json_object" },
+      messages: [
+        { role: "system", content: SYSTEM_PROMPT },
+        { role: "user", content: JSON.stringify(input) },
+      ],
+    }),
   });
 
-  const text = res.content.find((b) => b.type === "text")?.text ?? "";
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new Error(`DeepSeek classifySpam failed: ${res.status} ${body}`);
+  }
+
+  const json = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+  const text = json.choices?.[0]?.message?.content ?? "";
 
   let parsed: unknown;
   try {
