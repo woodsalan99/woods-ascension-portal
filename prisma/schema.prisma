@@ -800,7 +800,10 @@ model NotificationChannel {
   client   Client? @relation(fields: [clientId], references: [id])
   userId   String?
   channel  String // PUSHOVER | EMAIL | SMS
-  address  String
+  address  String // user key (Pushover) / email / phone
+  token    String? // per-channel Pushover app token — real setups can have more
+  // than one Pushover "application" (Alan's own vs. a client's shared one);
+  // falls back to the global PUSHOVER_APP_TOKEN env var when unset (D-U)
   active   Boolean @default(true)
 }
 

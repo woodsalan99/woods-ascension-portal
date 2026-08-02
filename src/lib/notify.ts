@@ -6,9 +6,17 @@ import { prisma } from "@/lib/prisma";
 // delivery result, whether or not any channel was configured yet.
 export type NotificationKind = "NEW_LEAD" | "TASK_SUBMISSION" | "WATCHDOG" | "SYNC_FAILURE" | "REVIEW_REQUEST";
 
-async function sendPushover(userKey: string, title: string, message: string): Promise<{ ok: boolean; error?: string }> {
-  const token = process.env.PUSHOVER_APP_TOKEN;
-  if (!token) return { ok: false, error: "PUSHOVER_APP_TOKEN not configured" };
+async function sendPushover(
+  userKey: string,
+  channelToken: string | null,
+  title: string,
+  message: string,
+): Promise<{ ok: boolean; error?: string }> {
+  // Real setups can have more than one Pushover "application" (Alan's own
+  // vs. a client's shared one) — a channel's own token wins, falling back
+  // to the global default for a channel that doesn't specify one.
+  const token = channelToken ?? process.env.PUSHOVER_APP_TOKEN;
+  if (!token) return { ok: false, error: "No Pushover app token configured (neither channel-specific nor PUSHOVER_APP_TOKEN)" };
   try {
     const res = await fetch("https://api.pushover.net/1/messages.json", {
       method: "POST",
@@ -59,7 +67,7 @@ export async function notify(params: {
   }
 
   for (const ch of channels) {
-    const result = await sendPushover(ch.address, title, message);
+    const result = await sendPushover(ch.address, ch.token, title, message);
     await prisma.notification.create({
       data: {
         clientId,
