@@ -55,7 +55,7 @@ export async function GET(req: Request) {
 
       let calls;
       try {
-        calls = await fetchCalls({ apiKey, accountId: config.accountId, sinceIso: since });
+        calls = await fetchCalls({ apiKey, accountId: config.accountId, companyId: config.companyId, sinceIso: since });
       } catch (err) {
         await prisma.clientIntegration.update({
           where: { id: integ.id },
@@ -106,6 +106,7 @@ export async function GET(req: Request) {
                 clientId: integ.clientId,
                 source,
                 stage: "NEW",
+                name: call.callerName,
                 callRecordId: record.id,
                 callRailUrl: `https://app.callrail.com/calls/${call.id}`,
                 recordingUrl: call.recordingUrl,
