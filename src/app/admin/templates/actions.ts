@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
-import type { MetricCadence, MetricKey, StepState } from "@prisma/client";
+import type { MetricCadence, StepState } from "@prisma/client";
 
 function str(fd: FormData, key: string): string {
   return String(fd.get(key) ?? "").trim();
@@ -79,7 +79,7 @@ export async function deleteTemplateStep(templateId: string, stepId: string) {
 
 // ---------- metric configs ----------
 
-export async function upsertTemplateMetric(templateId: string, metricKey: MetricKey, formData: FormData) {
+export async function upsertTemplateMetric(templateId: string, metricKey: string, formData: FormData) {
   await requireAdmin();
   const tips = [str(formData, "tip1"), str(formData, "tip2")].filter((t) => t.length > 0);
   const data = {

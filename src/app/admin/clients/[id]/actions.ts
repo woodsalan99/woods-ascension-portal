@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
 import { inviteUser } from "@/lib/clerk-invite";
-import type { MetricCadence, MetricKey, MilestoneState, Role, StepState } from "@prisma/client";
+import type { MetricCadence, MilestoneState, Role, StepState } from "@prisma/client";
 
 function str(fd: FormData, key: string): string {
   return String(fd.get(key) ?? "").trim();
@@ -419,7 +419,7 @@ function optFloat(fd: FormData, key: string): number | null {
   return v.length > 0 ? parseFloat(v) : null;
 }
 
-export async function upsertMetricConfig(clientId: string, metricKey: MetricKey, formData: FormData) {
+export async function upsertMetricConfig(clientId: string, metricKey: string, formData: FormData) {
   await requireAdmin();
   const tips = [str(formData, "tip1"), str(formData, "tip2")].filter((t) => t.length > 0);
   const data = {

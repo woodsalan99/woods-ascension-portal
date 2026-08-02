@@ -14,7 +14,19 @@ import { ActivityChart } from "@/components/dashboard/ActivityChart";
 import { AudienceFilter } from "@/components/dashboard/AudienceFilter";
 import { PeriodFilter } from "@/components/dashboard/PeriodFilter";
 import { MetricCard, type MetricCardVM } from "@/components/dashboard/MetricCard";
-import type { MetricKey } from "@prisma/client";
+
+// metricKey is a plain String column in the database (not a fixed enum) —
+// this is the closed set of keys the COLD_EMAIL metrics page knows how to
+// render; other client types define their own.
+const COLD_EMAIL_METRIC_KEYS = [
+  "EMAILS_SENT",
+  "POSITIVE_REPLIES",
+  "QUALIFIED_APPTS",
+  "POSITIVE_REPLY_RATE",
+  "EMAILS_PER_BOOKED",
+  "EMAILS_PER_QUALIFIED",
+] as const;
+type MetricKey = (typeof COLD_EMAIL_METRIC_KEYS)[number];
 
 const METRIC_LABELS: Record<MetricKey, string> = {
   EMAILS_SENT: "Emails Sent",

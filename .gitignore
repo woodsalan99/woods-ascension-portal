@@ -46,3 +46,6 @@ next-env.d.ts
 # claude code local settings
 .claude/settings.local.json
 .claude/scheduled_tasks.lock
+
+# database backups (real client data — never commit)
+/backups/

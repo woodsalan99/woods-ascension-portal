@@ -8,7 +8,6 @@ import {
   updateTemplateStep,
   upsertTemplateMetric,
 } from "../actions";
-import type { MetricKey } from "@prisma/client";
 
 const METRIC_KEYS = [
   "EMAILS_SENT",
@@ -114,12 +113,12 @@ export default async function TemplateDetail({ params }: { params: Promise<{ id:
           <span>Tip 2</span>
         </div>
         {METRIC_KEYS.map((key) => {
-          const config = metricByKey.get(key as MetricKey);
+          const config = metricByKey.get(key);
           const tips = (config?.tips as string[] | undefined) ?? [];
           return (
             <form
               key={`${key}-${config?.cadence ?? ""}-${config?.targetMin ?? ""}-${config?.targetMax ?? ""}-${tips.join("|")}`}
-              action={upsertTemplateMetric.bind(null, template.id, key as MetricKey)}
+              action={upsertTemplateMetric.bind(null, template.id, key)}
               className="grid grid-cols-6 gap-2 py-2 border-t items-center"
             >
               <span className="font-medium">{METRIC_LABELS[key]}</span>

@@ -43,15 +43,6 @@ enum CallType {
   SALES
 }
 
-enum MetricKey {
-  EMAILS_SENT
-  POSITIVE_REPLIES
-  QUALIFIED_APPTS
-  POSITIVE_REPLY_RATE
-  EMAILS_PER_BOOKED
-  EMAILS_PER_QUALIFIED
-}
-
 // How a metric's target scales with the selected time window.
 // WEEKLY/DAILY targets are multiplied by the number of weeks/days in the
 // window; PERPETUAL targets (rates, efficiency ratios) stay constant.
@@ -300,7 +291,7 @@ model TemplateMetricConfig {
   id         String        @id @default(cuid())
   templateId String
   template   Template      @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  metricKey  MetricKey
+  metricKey  String
   cadence    MetricCadence @default(PERPETUAL)
   targetMin  Float?
   targetMax  Float?
@@ -341,7 +332,7 @@ model MetricConfig {
   id        String        @id @default(cuid())
   clientId  String
   client    Client        @relation(fields: [clientId], references: [id])
-  metricKey MetricKey
+  metricKey String
   cadence   MetricCadence @default(PERPETUAL) // how the target scales with the time window
   targetMin Float? // "healthy" lower bound, at the cadence's base unit (per week for WEEKLY, etc.)
   targetMax Float? // "healthy" upper bound, at the cadence's base unit
