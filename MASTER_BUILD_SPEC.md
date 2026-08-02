@@ -1,5 +1,5 @@
 # WOODS ASCENSION CLIENT PORTAL — MASTER BUILD SPEC
-**Version 1.1 · Created 2026-07-09 · Last updated 2026-07-10 · Owner: Alan Woods**
+**Version 1.2 · Created 2026-07-09 · Last updated 2026-08-02 · Owner: Alan Woods**
 
 ---
 
@@ -44,7 +44,7 @@ This is the single source of truth for the Woods Ascension Client Portal build. 
 | D1 | Stack: Next.js (App Router, TypeScript) + Prisma + PostgreSQL + Tailwind + Recharts | Same stack as Alan's health dashboard; known failure modes | 07-09 |
 | D2 | Hosting: Railway — NEW isolated project + NEW Postgres instance (not shared with health dashboard) | Product isolation; a bad migration in one product can't kill the other | 07-09 |
 | D3 | Auth: Clerk, magic-link (email link) sign-in, invite-only. No public signup. No custom auth ever. | Zero password-support burden; Clerk free tier covers ~10K MAU | 07-09 |
-| D4 | Roles: ADMIN (Alan only) and CLIENT (scoped to one clientId). One client-side user per client for v1. | Simplicity; contract contact is single (Jim) | 07-09 |
+| D4 | ~~Roles: ADMIN (Alan only) and CLIENT (scoped to one clientId). One client-side user per client for v1.~~ → **Multiple client-side users per client is IN SCOPE as of the local-services build.** ADMIN/CLIENT role split and clientId scoping are unchanged — `User.clientId` was never unique, so this needed no schema change, only the §3 OUT-list line struck below. | Canencia Painting has two point-of-contact users, Bryan and Desiree, both needing independent logins — Alan's explicit call | 08-02 |
 | D5 | Sync: cron pull every 1–2 hours into `DailyStat`. NO webhooks in v1 (v2 backlog). | Sidesteps rate limits; hourly freshness exceeds client expectations | 07-09 |
 | D6 | Positive replies: auto-derived from Smartlead lead categories (Alan categorizes daily). Admin override exists per entry. | Matches Alan's real daily habit | 07-09 |
 | D7 | Day boundary: timestamps stored UTC; daily aggregates bucketed by CLIENT's timezone, stored on Client record. Zoom Business Brokers = `America/Los_Angeles` (Pacific — NOT Eastern). | California client; timezone drift is the classic daily-chart bug | 07-09 |
@@ -62,6 +62,8 @@ This is the single source of truth for the Woods Ascension Client Portal build. 
 | D19 | **v1.1 REDESIGN INITIATED.** v1 (Modules A–G) is complete and locked; Module H (launch ritual / inviting Jim) is deliberately paused until the redesign below lands. Client-facing portal moves from a single-scroll page to a sidebar-nav, multi-page shell: Overview · Metrics · Appointments · Roadmap · Infrastructure. This supersedes §9's "the approved demo artifact is the sole visual spec" framing — the artifact remains the *component-level* design system (colors/type/cards), but page structure/nav now follows Alan's new mockups instead of the single-page layout. | Alan wants a more "wow," SaaS-product-grade feel before Jim ever sees it; the single-scroll layout undersells the depth of data now that pipeline/milestones/appointments are real | 07-10 |
 | D20 | ~~Billing math stays OUT of v1~~ → **IN SCOPE as of v1.1**: Infrastructure page shows a per-item cost breakdown (domains, inboxes, warmup tool, lead data, verification, tracking — quantity, status, monthly cost, notes) and a monthly total. Admin-editable, same pattern as other manual fields. | Alan's explicit call — supersedes D11's billing restriction now that v1 is proven out | 07-10 |
 | D21 | ~~Client-side editing~~ → **IN SCOPE as of v1.1**: CLIENT-role users can mark appointment outcomes (qualified/not qualified/no-show) and complete/approve specific roadmap action items, scoped to their own `clientId` via `getScopedContext()` — same tenancy guarantee as all other reads, now extended to a narrow set of writes. | Alan's explicit call — supersedes the §3 OUT-of-scope "client-side editing" line; keeps the model narrow (specific fields only, not open-ended editing) to preserve the tenancy guarantee | 07-10 |
+| D22 | **LOCAL_SERVICES BUILD INITIATED.** `MetricConfig.metricKey` / `TemplateMetricConfig.metricKey` converted from a fixed Postgres enum (`MetricKey`) to a plain `String`, via a hand-written migration (`ALTER COLUMN ... TYPE TEXT`, not a drop/recreate) so no existing metric data was lost. | Adding a second, structurally different client type (local home-services businesses — LSA ads, SEO rankings, review counts, call/text leads) means new metric types on an ongoing basis; a closed enum would require a schema migration for every one. Full technical audit + build plan preceded this decision — see `IMPLEMENTATION_STATE.md` | 08-02 |
+| D23 | Added `Client.type` (`ClientType`: `COLD_EMAIL` \| `LOCAL_SERVICES`, defaults every existing client to `COLD_EMAIL`) and 23 new client-scoped tables for the LOCAL_SERVICES client type: `ServiceLead`/`LeadNote`/`LeadActivity` (leads + kanban), `CallRecord` (CallRail), `FormSubmission` (parsed website-form emails), `ClientIntegration` (per-client external-account credentials, AES-256-GCM sealed), `LsaMonthlyStat`/`GscDailyStat`/`SitePage`/`ClientLocation`/`GeogridScan`/`KeywordRank`/`ReviewSnapshot`/`ReviewItem`/`ReviewRequest` (rankings/reviews), `ClientTask`/`TaskSubmission` ("What I Need From You"), `WorkLog`/`MonthlyWork` (monthly recap), `PortalContent` (editable-copy registry), `MetricOverride` (manual override of a computed number), `NotificationChannel`/`Notification` (Pushover delivery). Also added `SyncRun.source` (defaults `"SMARTLEAD"`) so the new CallRail/Gmail/GSC/Places cron jobs each track their own runs independently. Full plan: `IMPLEMENTATION_STATE.md`. | New business type needs structurally different data (ad/SEO/review/call metrics instead of email-campaign metrics) that doesn't fit the existing `DailyStat`/`Campaign` shape — built as sibling tables per the audit's recommendation rather than forcing local-services data into cold-email-shaped columns | 08-02 |
 
 ---
 
@@ -77,9 +79,11 @@ This is the single source of truth for the Woods Ascension Client Portal build. 
 - Deployed at portal.woodsascension.com
 
 **OUT (v2 backlog — do not build, do not discuss in-session):**
-Webhooks · Pushover/failure alerting · client notifications/emails · ~~billing & invoicing math~~ (moved IN SCOPE per D20) · PDF exports · ~~client-side editing~~ (moved IN SCOPE per D21, narrowly — see D21) · multi-user clients · white-labeling · deliverability views · analytics on portal usage · Slack integration · anything else new.
+Webhooks · ~~Pushover/failure alerting~~ (moved IN SCOPE for LOCAL_SERVICES clients per D23) · client notifications/emails · ~~billing & invoicing math~~ (moved IN SCOPE per D20) · PDF exports · ~~client-side editing~~ (moved IN SCOPE per D21, narrowly — see D21) · ~~multi-user clients~~ (moved IN SCOPE per D4's supersession) · white-labeling · deliverability views · analytics on portal usage · Slack integration · anything else new.
 
 **v1.1 SCOPE (§3a) — see D19/D20/D21, tracked in §6a below.**
+
+**LOCAL_SERVICES SCOPE — see D22/D23, full build plan in `IMPLEMENTATION_STATE.md` at repo root (not duplicated here — that file is the authoritative phase-by-phase plan; this section just records that the client type exists and why).**
 
 ---
 
@@ -106,82 +110,204 @@ Smartlead REST API  ←– cron pull only (analytics + lead categories per linke
 
 ## §5 — DATA MODEL (Prisma schema, authoritative)
 
+**Full text lives in `prisma/schema.prisma` — this is a summary for orientation, kept in sync at each Change Protocol step. As of 08-02 (D22/D23), the schema has two halves: the original COLD_EMAIL model (below, unchanged since v1.1 except the MetricKey enum→String conversion) and the new LOCAL_SERVICES model (all client-scoped, none of it read by any COLD_EMAIL code path). See `IMPLEMENTATION_STATE.md` for the LOCAL_SERVICES build plan in full detail.**
+
 ```prisma
 enum Role { ADMIN CLIENT }
 enum StageKey { STAGE_1 STAGE_2 STAGE_3 STAGE_4 }
 enum StepState { DONE CURRENT ACTIVE NEXT }
 enum MilestoneState { DONE CURRENT NEXT }
+enum CallType { DISCOVERY SALES }
+enum MetricCadence { DAILY WEEKLY PERPETUAL }
+enum ClientType { COLD_EMAIL LOCAL_SERVICES }        // D23
+enum LeadSource { LSA GBP_CALL WEBSITE_FORM REFERRAL OTHER }        // D23
+enum LeadStage { NEW CONTACTED QUOTE_SENT JOB_SCHEDULED JOB_WON REVIEW_REQUESTED REVIEW_COMPLETE LOST }  // D23
 
 model Client {
-  id            String   @id @default(cuid())
-  name          String
-  slug          String   @unique
-  timezone      String   // IANA, e.g. "America/Los_Angeles"
-  status        String   @default("ACTIVE") // ACTIVE | PAUSED | ARCHIVED
-  stageLabels   Json     // { STAGE_1: "Positive Reply", STAGE_2: "Appointment Booked", ... }
-  calendarLink  String?
+  id             String     @id @default(cuid())
+  name           String
+  slug           String     @unique
+  timezone       String     // IANA, e.g. "America/Los_Angeles"
+  status         String     @default("ACTIVE") // ACTIVE | PAUSED | ARCHIVED
+  type           ClientType @default(COLD_EMAIL) // D23 — drives nav/pages/sync gating
+  stageLabels    Json       // { STAGE_1: "Positive Reply", STAGE_2: "Appointment Booked", ... }
+  calendarLink   String?
   intakeFormLink String?
-  launchDate    DateTime?
-  heroName      String?  // display name in portal header
-  domainsLive   Int?     // pre-launch KPI row (§8) — admin-editable, null hides the KPI (D17)
+  onboardingDate DateTime?  // Day 1 of the "Day N" counter — distinct from launchDate
+  launchDate     DateTime?
+  heroName       String?    // display name in portal header
+  domainsLive    Int?       // pre-launch KPI row (§8), admin-editable, null hides it (D17)
   inboxesWarming Int?
-  warmupSends   Int?
-  createdAt     DateTime @default(now())
-  users         User[]
-  campaigns     Campaign[]
-  dailyStats    DailyStat[]
-  pipeline      PipelineEntry[]
-  milestones    Milestone[]
-  onboarding    OnboardingStep[]
-  notes         WeeklyNote[]
+  warmupSends    Int?
+  welcomeTitle   String?    // admin-authored onboarding welcome banner
+  welcomeMessage String?
+  createdAt      DateTime   @default(now())
+  users          User[]
+  campaigns      Campaign[]
+  dailyStats     DailyStat[]
+  pipeline       PipelineEntry[]
+  milestones     Milestone[]
+  onboarding     OnboardingStep[]
+  notes          WeeklyNote[]
+  audiences      Audience[]
+  infrastructure InfrastructureItem[]
+  metricConfigs  MetricConfig[]
+  changelog      ChangelogEntry[]
+  documents      Document[]
+  domains        Domain[]
+  internalNotes  InternalNote[]
+  // LOCAL_SERVICES (D23) — see full field list below
+  integrations ClientIntegration[]
+  serviceLeads ServiceLead[]
+  callRecords  CallRecord[]
+  formSubmissions FormSubmission[]
+  lsaMonthlyStats LsaMonthlyStat[]
+  gscDailyStats   GscDailyStat[]
+  sitePages    SitePage[]
+  locations    ClientLocation[]
+  geogridScans GeogridScan[]
+  keywordRanks KeywordRank[]
+  reviewSnapshots ReviewSnapshot[]
+  reviewItems  ReviewItem[]
+  reviewRequests ReviewRequest[]
+  tasks        ClientTask[]
+  workLogs     WorkLog[]
+  monthlyWork  MonthlyWork[]
+  content      PortalContent[]
+  metricOverrides MetricOverride[]
+  notificationChannels NotificationChannel[]
+  notifications Notification[]
+}
+
+model InternalNote {           // admin-only dated scratchpad per client, never client-visible
+  id String @id @default(cuid())
+  clientId String
+  client Client @relation(fields: [clientId], references: [id])
+  date DateTime
+  title String?
+  body String
+  createdAt DateTime @default(now())
+}
+
+model Domain {                 // deliverability tracking for sending domains (admin-only)
+  id String @id @default(cuid())
+  domain String @unique
+  clientId String?
+  client Client? @relation(fields: [clientId], references: [id])
+  coldStartDate DateTime?
+  burnedAt DateTime?
+  note String?
+  createdAt DateTime @default(now())
+}
+
+model Document {               // client-visible files (invoices, contracts); bytes stored inline
+  id String @id @default(cuid())
+  clientId String
+  client Client @relation(fields: [clientId], references: [id])
+  name String
+  fileName String
+  contentType String
+  data Bytes
+  note String?
+  docDate DateTime
+  createdAt DateTime @default(now())
+}
+
+model Audience {               // v1.1 — sub-segment of a client's campaigns (e.g. "Limos", "Towing")
+  id String @id @default(cuid())
+  clientId String
+  client Client @relation(fields: [clientId], references: [id])
+  name String
+  sortOrder Int
+  campaigns Campaign[]
+  pipeline PipelineEntry[]
+  dailyStats AudienceDailyStat[]
 }
 
 model User {
-  id        String  @id @default(cuid())
-  clerkId   String  @unique
-  email     String  @unique
-  role      Role
-  clientId  String?
-  client    Client? @relation(fields: [clientId], references: [id])
+  id       String  @id @default(cuid())
+  clerkId  String  @unique
+  email    String  @unique
+  role     Role
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id])
+  // D4 (superseded 08-02): multiple CLIENT-role users per clientId is supported —
+  // clientId was never unique, so no schema change was needed for this.
 }
 
 model Campaign {
-  id                  String  @id @default(cuid())
+  id                  String    @id @default(cuid())
   clientId            String
-  client              Client  @relation(fields: [clientId], references: [id])
-  smartleadCampaignId String  @unique
+  client              Client    @relation(fields: [clientId], references: [id])
+  smartleadCampaignId String    @unique
   name                String
-  active              Boolean @default(true)
+  active              Boolean   @default(true)
+  audienceId          String?
+  audience            Audience? @relation(fields: [audienceId], references: [id])
 }
 
 model DailyStat {
-  id              String   @id @default(cuid())
-  clientId        String
-  client          Client   @relation(fields: [clientId], references: [id])
-  date            DateTime // date-only, client-TZ bucket, stored as UTC midnight
-  sends           Int      @default(0)
-  totalReplies    Int      @default(0)
-  positiveReplies Int      @default(0)
-  bounces         Int      @default(0)
-  apptsBooked     Int      @default(0) // manual, derived from PipelineEntry counts by admin action or nightly rollup
+  id                  String   @id @default(cuid())
+  clientId            String
+  client              Client   @relation(fields: [clientId], references: [id])
+  date                DateTime // date-only, client-TZ bucket, stored as UTC midnight
+  sends               Int      @default(0) // by SEND date
+  totalReplies        Int      @default(0) // by REPLY date
+  positiveReplies     Int      @default(0) // by REPLY date
+  bounces             Int      @default(0) // by SEND date
+  apptsBooked         Int      @default(0)
+  positiveReplyEmails Json?
   @@unique([clientId, date])
+}
+
+model AudienceDailyStat {      // parallel to DailyStat, broken down by Audience (v1.1)
+  id String @id @default(cuid())
+  audienceId String
+  audience Audience @relation(fields: [audienceId], references: [id])
+  date DateTime
+  sends Int @default(0)
+  totalReplies Int @default(0)
+  positiveReplies Int @default(0)
+  bounces Int @default(0)
+  apptsBooked Int @default(0)
+  positiveReplyEmails Json?
+  @@unique([audienceId, date])
 }
 
 model PipelineEntry {
   id                 String    @id @default(cuid())
   clientId           String
   client             Client    @relation(fields: [clientId], references: [id])
+  audienceId         String?
+  audience           Audience? @relation(fields: [audienceId], references: [id])
   stage              StageKey
   contactName        String
+  email              String?   // dedup key for auto-added positive replies (v1.1)
   company            String
   dealValue          Int?      // whole dollars; null allowed
   notes              String?
-  callDateTime       DateTime?
+  positiveReplyDate  DateTime?
+  discoveryCallDate  DateTime? // legacy single date (superseded by calls[])
+  salesCallDate      DateTime?
+  closeDate          DateTime?
+  callDateTime       DateTime? // primary appointment = next-upcoming discovery call
   callStatus         String?   // CONFIRMED | PENDING | HELD | NO_SHOW
   qualified          Boolean   @default(true)
   disqualifiedReason String?
+  nextActionStep     String?
+  calls              PipelineCall[]
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
+}
+
+model PipelineCall {           // a lead can have several discovery/sales calls
+  id String @id @default(cuid())
+  pipelineEntryId String
+  entry PipelineEntry @relation(fields: [pipelineEntryId], references: [id], onDelete: Cascade)
+  type CallType
+  date DateTime
+  note String?
+  createdAt DateTime @default(now())
 }
 
 model Milestone {
@@ -197,15 +323,94 @@ model Milestone {
 }
 
 model OnboardingStep {
-  id        String    @id @default(cuid())
-  clientId  String
-  client    Client    @relation(fields: [clientId], references: [id])
-  label     String
-  dayLabel  String    // "Day 0", "Days 1–3"
-  state     StepState
-  ctaLabel  String?
-  ctaUrl    String?
+  id               String    @id @default(cuid())
+  clientId         String
+  client           Client    @relation(fields: [clientId], references: [id])
+  label            String
+  description      String?
+  dayLabel         String    // "Day 0", "Days 1–3"
+  state            StepState
+  ctaLabel         String?
+  ctaUrl           String?
+  sortOrder        Int
+  clientActionable Boolean   @default(false) // D21 — CLIENT can mark DONE when true + CURRENT
+}
+
+model Template {               // reusable defaults an admin applies to a new client in one click
+  id String @id @default(cuid())
+  name String
+  createdAt DateTime @default(now())
+  steps TemplateOnboardingStep[]
+  metrics TemplateMetricConfig[]
+  milestones TemplateMilestone[]
+}
+model TemplateOnboardingStep {
+  id String @id @default(cuid())
+  templateId String
+  template Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  label String
+  description String?
+  dayLabel String
+  ctaLabel String?
+  ctaUrl String?
+  clientActionable Boolean @default(false)
   sortOrder Int
+}
+model TemplateMetricConfig {
+  id String @id @default(cuid())
+  templateId String
+  template Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  metricKey String        // D22 — was a fixed MetricKey enum, now any string
+  cadence MetricCadence @default(PERPETUAL)
+  targetMin Float?
+  targetMax Float?
+  tips Json
+  sortOrder Int
+  @@unique([templateId, metricKey])
+}
+model TemplateMilestone {
+  id String @id @default(cuid())
+  templateId String
+  template Template @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  label String
+  subLabel String?
+  targetValue Int?
+  sortOrder Int
+}
+
+model InfrastructureItem {     // D20 — per-item cost breakdown, admin-editable
+  id String @id @default(cuid())
+  clientId String
+  client Client @relation(fields: [clientId], references: [id])
+  label String
+  quantity Int
+  status String    // ACTIVE | LOADED | COMPLETE | PENDING
+  monthlyCost Int  // whole dollars
+  notes String?
+  sortOrder Int
+}
+
+model MetricConfig {           // admin-authored "coaching" layer on top of live-computed values
+  id        String        @id @default(cuid())
+  clientId  String
+  client    Client        @relation(fields: [clientId], references: [id])
+  metricKey String        // D22 — was a fixed MetricKey enum, now any string
+  cadence   MetricCadence @default(PERPETUAL)
+  targetMin Float?
+  targetMax Float?
+  tips      Json
+  sortOrder Int
+  @@unique([clientId, metricKey])
+}
+
+model ChangelogEntry {         // v1.1 — client-visible "mostly ignore this" internal log
+  id String @id @default(cuid())
+  clientId String
+  client Client @relation(fields: [clientId], references: [id])
+  date DateTime
+  title String
+  body String?
+  createdAt DateTime @default(now())
 }
 
 model WeeklyNote {
@@ -221,11 +426,313 @@ model WeeklyNote {
 }
 
 model SyncRun {
-  id         String   @id @default(cuid())
-  startedAt  DateTime @default(now())
+  id         String    @id @default(cuid())
+  startedAt  DateTime  @default(now())
   finishedAt DateTime?
-  status     String   // SUCCESS | FAILED
-  detail     String?  // error text or counts summary
+  status     String    // SUCCESS | FAILED
+  detail     String?
+  source     String    @default("SMARTLEAD") // D23 — SMARTLEAD | CALLRAIL | GMAIL | GSC | PLACES;
+  // each cron route's self-heal + own-row queries are scoped to its own source
+}
+
+// ===================== LOCAL_SERVICES (D23) =====================
+// Every model below is client-scoped and only read by LOCAL_SERVICES
+// code paths. Nothing here changes behavior for COLD_EMAIL clients.
+
+model ClientIntegration {      // one row per connected external account (CallRail/Gmail/GSC/Places)
+  id String @id @default(cuid())
+  clientId String
+  client Client @relation(fields: [clientId], references: [id])
+  provider String    // CALLRAIL | GMAIL | GSC | GOOGLE_PLACES
+  config Json        // matcher/config: form from-address, GSC property, place_id, cursor, ...
+  credentials Bytes   // AES-256-GCM sealed refresh token / API key — never plaintext
+  status String @default("ACTIVE") // ACTIVE | ERROR | DISABLED
+  lastSyncAt DateTime?
+  lastError String?
+  createdAt DateTime @default(now())
+  @@unique([clientId, provider])
+}
+
+model ServiceLead {            // the 8-column kanban entity
+  id String @id @default(cuid())
+  clientId String
+  client Client @relation(fields: [clientId], references: [id])
+  source LeadSource
+  stage LeadStage @default(NEW)
+  name String?         // null = LSA's "Potential Customer" (name hidden by Google)
+  phone String?
+  email String?
+  location String?     // city
+  address String?       // full project address (form leads only)
+  serviceType String?
+  message String?
+  qualified Boolean?    // null = unreviewed
+  needsDetails Boolean @default(false)
+  jobValue Int?         // whole dollars; set ONLY at JOB_WON, nowhere else
+  callRecordId String? @unique
+  callRecord CallRecord? @relation(fields: [callRecordId], references: [id], onDelete: SetNull)
+  formSubmissionId String? @unique
+  formSubmission FormSubmission? @relation(fields: [formSubmissionId], references: [id], onDelete: SetNull)
+  gmailMessageId String? @unique  // idempotency for LSA-sourced leads
+  callRailUrl String?
+  recordingUrl String?
+  nextActionLabel String?
+  nextActionAt DateTime?
+  receivedAt DateTime
+  stageChangedAt DateTime @default(now())
+  createdAt DateTime @default(now())
+  notes LeadNote[]
+  activity LeadActivity[]
+  reviewRequests ReviewRequest[]
+  @@index([clientId, stage])
+  @@index([clientId, receivedAt])
+}
+model LeadNote {
+  id String @id @default(cuid())
+  leadId String
+  lead ServiceLead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  authorUserId String
+  body String
+  createdAt DateTime @default(now())
+}
+model LeadActivity {           // stage moves, notes, touches — powers "followed up this week"
+  id String @id @default(cuid())
+  leadId String
+  lead ServiceLead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  type String    // STAGE_MOVE | NOTE | QUALIFIED_TOGGLE | VALUE_SET | TOUCH
+  meta Json?
+  createdAt DateTime @default(now())
+  @@index([leadId, createdAt])
+}
+
+model CallRecord {             // classification per handoff §3.1: keypress→QUALIFIED,
+  id String @id @default(cuid())   // no keypress on IVR→ROBOCALL, LSA line bypasses IVR→QUALIFIED,
+  clientId String                  // <20s→needsReview (flagged, never auto-deleted)
+  client Client @relation(fields: [clientId], references: [id])
+  callRailId String @unique
+  occurredAt DateTime
+  durationSec Int
+  callerNumber String
+  trackingNumber String
+  keypress String?
+  classification String   // QUALIFIED | ROBOCALL | SPAM | WRONG_AREA | UNKNOWN
+  needsReview Boolean @default(false)
+  forwarded Boolean
+  recordingUrl String?
+  raw Json
+  lead ServiceLead?
+  @@index([clientId, occurredAt])
+}
+
+model FormSubmission {         // parsed website estimate-request email; spam always logged, never deleted
+  id String @id @default(cuid())
+  clientId String
+  client Client @relation(fields: [clientId], references: [id])
+  gmailMessageId String @unique
+  receivedAt DateTime
+  name String?
+  phone String?
+  email String?
+  address String?
+  message String?
+  spamVerdict Boolean?    // null = low-confidence, awaiting Alan's review
+  spamConfidence Float?
+  spamReason String?
+  passedOn Boolean @default(false)
+  raw Json
+  lead ServiceLead?
+  @@index([clientId, receivedAt])
+}
+
+model LsaMonthlyStat {         // manual monthly entry — no public LSA API
+  id String @id @default(cuid())
+  clientId String
+  client Client @relation(fields: [clientId], references: [id])
+  month String   // "2026-07", client-TZ month
+  impressions Int
+  topRatePct Float
+  absTopRatePct Float
+  spendCents Int
+  chargedLeads Int
+  updatedAt DateTime @updatedAt
+  @@unique([clientId, month])
+}
+model GscDailyStat {
+  id String @id @default(cuid())
+  clientId String
+  client Client @relation(fields: [clientId], references: [id])
+  date DateTime   // UTC-midnight date-only, same convention as DailyStat
+  clicks Int
+  impressions Int
+  @@unique([clientId, date])
+}
+model SitePage {               // a town/service page; added manually by Alan when one ships
+  id String @id @default(cuid())
+  clientId String
+  client Client @relation(fields: [clientId], references: [id])
+  url String
+  town String
+  publishedAt DateTime
+  indexed Boolean @default(false)
+  indexedAt DateTime?
+  lastCheckedAt DateTime?
+  @@unique([clientId, url])
+}
+model ClientLocation {         // for clients with more than one Google Business Profile
+  id String @id @default(cuid())
+  clientId String
+  client Client @relation(fields: [clientId], references: [id])
+  name String
+  isPrimary Boolean @default(false)
+  geogridScans GeogridScan[]
+}
+model GeogridScan {            // monthly Local Falcon export; gridJson normalized at upload
+  id String @id @default(cuid())          // to { rows, cols, cells: number[] } — any grid size, not just 7x7
+  clientId String
+  client Client @relation(fields: [clientId], references: [id])
+  locationId String
+  location ClientLocation @relation(fields: [locationId], references: [id])
+  keyword String
+  month String
+  gridJson Json
+  avgRank Float    // computed server-side on upload
+  top3Pct Float
+  takenAt DateTime
+  @@unique([clientId, locationId, keyword, month])
+}
+model KeywordRank {            // monthly Ahrefs CSV import
+  id String @id @default(cuid())
+  clientId String
+  client Client @relation(fields: [clientId], references: [id])
+  month String
+  keyword String
+  volume Int?
+  position Int
+  prevPosition Int?
+  url String
+  @@unique([clientId, month, keyword])
+}
+model ReviewSnapshot {         // daily Google Places count/rating
+  id String @id @default(cuid())
+  clientId String
+  client Client @relation(fields: [clientId], references: [id])
+  date DateTime
+  count Int
+  rating Float
+  @@unique([clientId, date])
+}
+model ReviewItem {             // most recent reviews; Places has no stable review id, dedup on (author, reviewedAt)
+  id String @id @default(cuid())
+  clientId String
+  client Client @relation(fields: [clientId], references: [id])
+  author String
+  rating Int
+  text String
+  reviewedAt DateTime
+  @@unique([clientId, author, reviewedAt])
+}
+model ReviewRequest {          // v1 workflow: portal queues + notifies Alan; Alan sends the text himself
+  id String @id @default(cuid())
+  clientId String
+  client Client @relation(fields: [clientId], references: [id])
+  leadId String?
+  lead ServiceLead? @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  customerName String
+  phone String
+  jobFinishedAt DateTime
+  status String @default("QUEUED")   // QUEUED | SENT | REMINDED | REVIEWED | DEAD
+  sentAt DateTime?
+  remindAt DateTime?
+  createdAt DateTime @default(now())
+}
+
+model ClientTask {             // "What I Need From You"
+  id String @id @default(cuid())
+  clientId String
+  client Client @relation(fields: [clientId], references: [id])
+  title String
+  explanation String
+  urgency String
+  responseType String   // CHECK | TEXT | PHOTO | BOTH
+  status String @default("OPEN")   // OPEN | DONE
+  sortOrder Int
+  completedAt DateTime?
+  submissions TaskSubmission[]
+}
+model TaskSubmission {         // THE ONE THING THAT AUTOSAVES — client's own input, not an admin edit
+  id String @id @default(cuid())
+  taskId String
+  task ClientTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  kind String   // TEXT | PHOTO
+  textValue String?
+  fileUrl String?    // R2 object KEY, not a full URL — public base URL comes from env
+  submittedByUserId String
+  createdAt DateTime @default(now())
+  notifiedAt DateTime?   // debounces the "first meaningful save" Pushover ping
+}
+
+model WorkLog {                // Alan's during-month quick log — autofill source for the recap builder
+  id String @id @default(cuid())
+  clientId String
+  client Client @relation(fields: [clientId], references: [id])
+  body String
+  source String @default("ADMIN_NOTE")   // ADMIN_NOTE | SYSTEM
+  createdAt DateTime @default(now())
+}
+model MonthlyWork {            // single source: renders on BOTH Overview and Monthly Recap — cannot drift
+  id String @id @default(cuid())
+  clientId String
+  client Client @relation(fields: [clientId], references: [id])
+  month String
+  heroTitleAuto String?    // Claude-generated from the month's data
+  heroSubAuto String?
+  heroTitleManual String?  // wins over the auto version when set
+  heroSubManual String?
+  items Json    // [{ title, detail, recap }]
+  noteFromAlan String?
+  nextMonth Json    // string[]
+  @@unique([clientId, month])
+}
+
+model PortalContent {          // every client-facing string on local-services pages, once overridden
+  id String @id @default(cuid())     // resolution is always `override ?? registry default`
+  clientId String
+  client Client @relation(fields: [clientId], references: [id])
+  key String
+  value String
+  updatedAt DateTime @updatedAt
+  @@unique([clientId, key])
+}
+model MetricOverride {         // manual override of a normally-computed number; reset = delete the row
+  id String @id @default(cuid())
+  clientId String
+  client Client @relation(fields: [clientId], references: [id])
+  scopeKey String   // e.g. "lsa.cpl:2026-07"
+  value String
+  originalValue String   // the live value at the moment of override — powers the "live value is X" badge
+  createdAt DateTime @default(now())
+  @@unique([clientId, scopeKey])
+}
+
+model NotificationChannel {    // SMS is a stubbed channel type only — not implemented this build
+  id String @id @default(cuid())
+  clientId String?
+  client Client? @relation(fields: [clientId], references: [id])
+  userId String?
+  channel String   // PUSHOVER | EMAIL | SMS
+  address String
+  active Boolean @default(true)
+}
+model Notification {           // delivery log for every notification the app has ever tried to send
+  id String @id @default(cuid())
+  clientId String
+  client Client @relation(fields: [clientId], references: [id])
+  kind String   // NEW_LEAD | TASK_SUBMISSION | WATCHDOG | SYNC_FAILURE | REVIEW_REQUEST
+  payload Json
+  createdAt DateTime @default(now())
+  deliveredAt DateTime?
+  error String?
+  @@index([clientId, kind, createdAt])
 }
 ```
 
@@ -245,6 +752,21 @@ model SyncRun {
 | **H — Launch ritual** | Jim's user invited; Alan recorded welcome video; first weekly note published; 10-min live walkthrough call scheduled; recurring 15-min weekly portal-update block on Alan's calendar | ☐ NOT STARTED |
 
 **Build order: A → B → C → D → E → F → G → H.** B's leak test gates everything after it. If time runs short on day one, the acceptable cut line is after D (dashboard visible with synced data; admin edits via Prisma Studio as stopgap).
+
+---
+
+## §6a — LOCAL_SERVICES BUILD TRACKER (started 08-02, D22/D23)
+
+Second, structurally different client type (local home-services businesses, first client Canencia Painting). Full plan, decisions, and architecture skeletons live in `IMPLEMENTATION_STATE.md` at repo root — that file is authoritative for this build; this row is just the pointer §0's session protocol expects.
+
+| Phase | What "done" means | Status |
+|---|---|---|
+| **1 — Schema + gating** | MetricKey→String + ClientType + 23 new tables migrated; nav/route gating per ClientType; Canencia client row + Clerk invites | 🔶 IN PROGRESS — Migrations A (D22) and B (D23) applied and verified against production data; nav/route gating and the Canencia client row not yet done |
+| **2 — Content system + edit mode** | Registry/`<Editable>`/diff-save + resolver/`MetricOverride` layer, proven on Overview | ☐ NOT STARTED |
+| **3 — Leads vertical** | CallRail + Gmail ingestion + spam classification + Pushover + kanban | ☐ NOT STARTED |
+| **4 — Rankings + Numbers** | GSC + Places syncs; manual admin entry forms (LSA/geogrid/Ahrefs/SitePage) | ☐ NOT STARTED |
+| **5 — What I Need From You + Recap** | Tasks/submissions/R2 uploads; WorkLog; recap builder; MonthlyWork | ☐ NOT STARTED |
+| **6 — Export/Import + launch** | Backup/restore; July backfill; watchdog armed; copy + mobile pass | ☐ NOT STARTED |
 
 ---
 
