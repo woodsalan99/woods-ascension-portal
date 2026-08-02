@@ -43,6 +43,35 @@ enum CallType {
   SALES
 }
 
+// What kind of business a client is — drives which nav/pages/sync jobs
+// apply. COLD_EMAIL clients are untouched by everything LOCAL_SERVICES
+// adds (see IMPLEMENTATION_STATE.md D-A through D-F).
+enum ClientType {
+  COLD_EMAIL
+  LOCAL_SERVICES
+}
+
+// Where a LOCAL_SERVICES lead came from.
+enum LeadSource {
+  LSA
+  GBP_CALL
+  WEBSITE_FORM
+  REFERRAL
+  OTHER
+}
+
+// The 8-column kanban stages for a LOCAL_SERVICES lead (Canencia handoff §2/§4.3).
+enum LeadStage {
+  NEW
+  CONTACTED
+  QUOTE_SENT
+  JOB_SCHEDULED
+  JOB_WON
+  REVIEW_REQUESTED
+  REVIEW_COMPLETE
+  LOST
+}
+
 // How a metric's target scales with the selected time window.
 // WEEKLY/DAILY targets are multiplied by the number of weeks/days in the
 // window; PERPETUAL targets (rates, efficiency ratios) stay constant.
@@ -58,6 +87,7 @@ model Client {
   slug           String               @unique
   timezone       String // IANA, e.g. "America/Los_Angeles"
   status         String               @default("ACTIVE") // ACTIVE | PAUSED | ARCHIVED
+  type           ClientType           @default(COLD_EMAIL) // drives nav/pages/sync gating — see IMPLEMENTATION_STATE.md D-A..D-F
   stageLabels    Json // { STAGE_1: "Positive Reply", STAGE_2: "Appointment Booked", ... }
   calendarLink   String?
   intakeFormLink String?
@@ -84,6 +114,28 @@ model Client {
   documents      Document[]
   domains        Domain[]
   internalNotes  InternalNote[]
+
+  // LOCAL_SERVICES — see IMPLEMENTATION_STATE.md §2 Migration B
+  integrations         ClientIntegration[]
+  serviceLeads         ServiceLead[]
+  callRecords          CallRecord[]
+  formSubmissions      FormSubmission[]
+  lsaMonthlyStats      LsaMonthlyStat[]
+  gscDailyStats        GscDailyStat[]
+  sitePages            SitePage[]
+  locations            ClientLocation[]
+  geogridScans         GeogridScan[]
+  keywordRanks         KeywordRank[]
+  reviewSnapshots      ReviewSnapshot[]
+  reviewItems          ReviewItem[]
+  reviewRequests       ReviewRequest[]
+  tasks                ClientTask[]
+  workLogs             WorkLog[]
+  monthlyWork          MonthlyWork[]
+  content              PortalContent[]
+  metricOverrides      MetricOverride[]
+  notificationChannels NotificationChannel[]
+  notifications        Notification[]
 }
 
 // Admin-only internal notes log per client — never shown to the client.
@@ -373,4 +425,395 @@ model SyncRun {
   finishedAt DateTime?
   status     String // SUCCESS | FAILED
   detail     String? // error text or counts summary
+  source     String    @default("SMARTLEAD") // SMARTLEAD | CALLRAIL | GMAIL | GSC | PLACES — each cron route's
+  // self-heal and own-row queries are scoped to its own source, so a fast-cycling
+  // route (e.g. Gmail every 5 min) can never mark a slower route's still-running
+  // sync as FAILED. See IMPLEMENTATION_STATE.md D-E.
+}
+
+// ============================================================
+// LOCAL_SERVICES — see IMPLEMENTATION_STATE.md §2 Migration B.
+// Every model below is scoped to Client.type == LOCAL_SERVICES.
+// Nothing here is read by any COLD_EMAIL code path.
+// ============================================================
+
+// One row per connected external account for a client (CallRail, Gmail,
+// Google Search Console, Google Places). Credentials are sealed with
+// AES-256-GCM using the ENCRYPTION_KEY env var — never stored in plaintext.
+// No self-serve OAuth UI: Alan completes the one-time consent per client.
+model ClientIntegration {
+  id          String    @id @default(cuid())
+  clientId    String
+  client      Client    @relation(fields: [clientId], references: [id])
+  provider    String // CALLRAIL | GMAIL | GSC | GOOGLE_PLACES
+  config      Json // per-provider matcher/config (form from-address, GSC property, place_id, cursor, ...)
+  credentials Bytes // AES-256-GCM sealed refresh token / API key (Uint8Array on read — Prisma 6)
+  status      String    @default("ACTIVE") // ACTIVE | ERROR | DISABLED
+  lastSyncAt  DateTime?
+  lastError   String?
+  createdAt   DateTime  @default(now())
+
+  @@unique([clientId, provider])
+}
+
+// A local-services lead, wherever it came from (LSA email, Google Maps
+// call, website form, referral). The 8-column kanban entity.
+model ServiceLead {
+  id               String          @id @default(cuid())
+  clientId         String
+  client           Client          @relation(fields: [clientId], references: [id])
+  source           LeadSource
+  stage            LeadStage       @default(NEW)
+  name             String? // null = LSA's "Potential Customer" (name hidden by Google)
+  phone            String?
+  email            String?
+  location         String? // city
+  address          String? // full project address (form leads only)
+  serviceType      String?
+  message          String?
+  qualified        Boolean? // null = unreviewed
+  needsDetails     Boolean         @default(false) // LSA: name/phone hidden until Alan replies in Google
+  jobValue         Int? // whole dollars; set ONLY when dropped into JOB_WON — never asked anywhere else
+  callRecordId     String?         @unique
+  callRecord       CallRecord?     @relation(fields: [callRecordId], references: [id], onDelete: SetNull)
+  formSubmissionId String?         @unique
+  formSubmission   FormSubmission? @relation(fields: [formSubmissionId], references: [id], onDelete: SetNull)
+  gmailMessageId   String?         @unique // idempotency for LSA-sourced leads (no FormSubmission row to dedupe through)
+  callRailUrl      String?
+  recordingUrl     String?
+  nextActionLabel  String?
+  nextActionAt     DateTime?
+  receivedAt       DateTime
+  stageChangedAt   DateTime        @default(now())
+  createdAt        DateTime        @default(now())
+  notes            LeadNote[]
+  activity         LeadActivity[]
+  reviewRequests   ReviewRequest[]
+
+  @@index([clientId, stage])
+  @@index([clientId, receivedAt])
+}
+
+model LeadNote {
+  id           String      @id @default(cuid())
+  leadId       String
+  lead         ServiceLead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  authorUserId String
+  body         String
+  createdAt    DateTime    @default(now())
+}
+
+// Powers "followed up this week" and the drag/stage-move history.
+model LeadActivity {
+  id        String      @id @default(cuid())
+  leadId    String
+  lead      ServiceLead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  type      String // STAGE_MOVE | NOTE | QUALIFIED_TOGGLE | VALUE_SET | TOUCH
+  meta      Json?
+  createdAt DateTime    @default(now())
+
+  @@index([leadId, createdAt])
+}
+
+// One row per CallRail call. Classification rules are handoff §3.1 verbatim:
+// keypress present -> QUALIFIED; no keypress on the IVR line -> ROBOCALL;
+// the LSA line bypasses the IVR entirely -> QUALIFIED; under 20s is flagged
+// for review (needsReview), never auto-deleted.
+model CallRecord {
+  id             String       @id @default(cuid())
+  clientId       String
+  client         Client       @relation(fields: [clientId], references: [id])
+  callRailId     String       @unique
+  occurredAt     DateTime
+  durationSec    Int
+  callerNumber   String
+  trackingNumber String
+  keypress       String?
+  classification String // QUALIFIED | ROBOCALL | SPAM | WRONG_AREA | UNKNOWN
+  needsReview    Boolean      @default(false)
+  forwarded      Boolean
+  recordingUrl   String?
+  raw            Json
+  lead           ServiceLead?
+
+  @@index([clientId, occurredAt])
+}
+
+// One row per parsed website estimate-request email (Gmail ingestion,
+// handoff §3.2B). Spam is always logged here, even when never shown to
+// the client ("junk blocked" counts on Overview come from this table).
+model FormSubmission {
+  id             String       @id @default(cuid())
+  clientId       String
+  client         Client       @relation(fields: [clientId], references: [id])
+  gmailMessageId String       @unique
+  receivedAt     DateTime
+  name           String?
+  phone          String?
+  email          String?
+  address        String?
+  message        String?
+  spamVerdict    Boolean? // null = low-confidence classification, awaiting Alan's manual review
+  spamConfidence Float?
+  spamReason     String?
+  passedOn       Boolean      @default(false)
+  raw            Json // parsed body + parse error detail, if any — never lose the source email
+  lead           ServiceLead?
+
+  @@index([clientId, receivedAt])
+}
+
+// Manual monthly entry (no public LSA API) — Google Local Services Ads
+// performance. month is a client-timezone "YYYY-MM" string.
+model LsaMonthlyStat {
+  id            String   @id @default(cuid())
+  clientId      String
+  client        Client   @relation(fields: [clientId], references: [id])
+  month         String
+  impressions   Int
+  topRatePct    Float
+  absTopRatePct Float
+  spendCents    Int
+  chargedLeads  Int
+  updatedAt     DateTime @updatedAt
+
+  @@unique([clientId, month])
+}
+
+// Google Search Console daily clicks/impressions (date-only, UTC midnight —
+// same convention as DailyStat).
+model GscDailyStat {
+  id          String   @id @default(cuid())
+  clientId    String
+  client      Client   @relation(fields: [clientId], references: [id])
+  date        DateTime
+  clicks      Int
+  impressions Int
+
+  @@unique([clientId, date])
+}
+
+// A town/service page on the client's site — tracked for whether Google
+// has indexed it yet. Added manually by Alan when a page ships.
+model SitePage {
+  id            String    @id @default(cuid())
+  clientId      String
+  client        Client    @relation(fields: [clientId], references: [id])
+  url           String
+  town          String
+  publishedAt   DateTime
+  indexed       Boolean   @default(false)
+  indexedAt     DateTime?
+  lastCheckedAt DateTime?
+
+  @@unique([clientId, url])
+}
+
+// A physical business location for clients with more than one Google
+// Business Profile (multi-GBP from day one for some clients).
+model ClientLocation {
+  id           String        @id @default(cuid())
+  clientId     String
+  client       Client        @relation(fields: [clientId], references: [id])
+  name         String
+  isPrimary    Boolean       @default(false)
+  geogridScans GeogridScan[]
+}
+
+// One monthly Local Falcon geogrid export for one keyword at one location.
+// gridJson is normalized to { rows, cols, cells: number[] } at upload so
+// the renderer can draw any grid size, not just the mock's 7x7.
+model GeogridScan {
+  id         String         @id @default(cuid())
+  clientId   String
+  client     Client         @relation(fields: [clientId], references: [id])
+  locationId String
+  location   ClientLocation @relation(fields: [locationId], references: [id])
+  keyword    String
+  month      String
+  gridJson   Json
+  avgRank    Float // computed server-side on upload
+  top3Pct    Float
+  takenAt    DateTime
+
+  @@unique([clientId, locationId, keyword, month])
+}
+
+// Monthly Ahrefs CSV import — organic keyword rankings.
+model KeywordRank {
+  id           String @id @default(cuid())
+  clientId     String
+  client       Client @relation(fields: [clientId], references: [id])
+  month        String
+  keyword      String
+  volume       Int?
+  position     Int
+  prevPosition Int?
+  url          String
+
+  @@unique([clientId, month, keyword])
+}
+
+// Daily Google Places review count/rating snapshot.
+model ReviewSnapshot {
+  id       String   @id @default(cuid())
+  clientId String
+  client   Client   @relation(fields: [clientId], references: [id])
+  date     DateTime
+  count    Int
+  rating   Float
+
+  @@unique([clientId, date])
+}
+
+// The five most recent reviews, refreshed daily from Google Places.
+// Places gives no stable per-review id, so dedup on (author, reviewedAt).
+model ReviewItem {
+  id         String   @id @default(cuid())
+  clientId   String
+  client     Client   @relation(fields: [clientId], references: [id])
+  author     String
+  rating     Int
+  text       String
+  reviewedAt DateTime
+
+  @@unique([clientId, author, reviewedAt])
+}
+
+// A queued/sent review-text request for a finished job. v1 workflow: the
+// portal queues it and notifies Alan; Alan sends the actual text himself.
+model ReviewRequest {
+  id            String       @id @default(cuid())
+  clientId      String
+  client        Client       @relation(fields: [clientId], references: [id])
+  leadId        String?
+  lead          ServiceLead? @relation(fields: [leadId], references: [id], onDelete: SetNull)
+  customerName  String
+  phone         String
+  jobFinishedAt DateTime
+  status        String       @default("QUEUED") // QUEUED | SENT | REMINDED | REVIEWED | DEAD
+  sentAt        DateTime?
+  remindAt      DateTime?
+  createdAt     DateTime     @default(now())
+}
+
+// "What I Need From You" — an admin-authored task for the client to act on.
+model ClientTask {
+  id           String           @id @default(cuid())
+  clientId     String
+  client       Client           @relation(fields: [clientId], references: [id])
+  title        String
+  explanation  String
+  urgency      String
+  responseType String // CHECK | TEXT | PHOTO | BOTH
+  status       String           @default("OPEN") // OPEN | DONE
+  sortOrder    Int
+  completedAt  DateTime?
+  submissions  TaskSubmission[]
+}
+
+// A client's text/photo answer to a ClientTask. Unlike everything else in
+// admin edit mode, THIS autosaves — it's the client's own input, not a
+// copy/data edit Alan is publishing. Photos: full resolution kept (they
+// feed the Google Business Profile), stored in R2, fileUrl holds the
+// object KEY (not a full URL — the public base URL comes from env).
+model TaskSubmission {
+  id                String     @id @default(cuid())
+  taskId            String
+  task              ClientTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  kind              String // TEXT | PHOTO
+  textValue         String?
+  fileUrl           String?
+  submittedByUserId String
+  createdAt         DateTime   @default(now())
+  notifiedAt        DateTime? // debounces the "first meaningful save" Pushover ping
+}
+
+// Alan's during-the-month quick log ("fixed sitemap so Google crawls town
+// pages faster") — autofill source for the Monthly Recap builder.
+model WorkLog {
+  id        String   @id @default(cuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id])
+  body      String
+  source    String   @default("ADMIN_NOTE") // ADMIN_NOTE | SYSTEM
+  createdAt DateTime @default(now())
+}
+
+// Single source of truth for "what we built this month" — renders on BOTH
+// the Overview work block and the Monthly Recap "what we did" list, so the
+// two surfaces can never drift apart (handoff §3.7).
+model MonthlyWork {
+  id              String  @id @default(cuid())
+  clientId        String
+  client          Client  @relation(fields: [clientId], references: [id])
+  month           String
+  heroTitleAuto   String? // Claude-generated from the month's data
+  heroSubAuto     String?
+  heroTitleManual String? // wins over the auto version when set
+  heroSubManual   String?
+  items           Json // [{ title, detail, recap }]
+  noteFromAlan    String?
+  nextMonth       Json // string[]
+
+  @@unique([clientId, month])
+}
+
+// Every client-facing string on local-services pages, once a client has an
+// admin override. Resolution is always `override ?? registry default` — see
+// src/content/local-services.ts (Phase 2). Nothing renders as a hardcoded
+// string on a local-services page; it goes through this table or it's a
+// bug.
+model PortalContent {
+  id        String   @id @default(cuid())
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id])
+  key       String
+  value     String
+  updatedAt DateTime @updatedAt
+
+  @@unique([clientId, key])
+}
+
+// A manual override of a normally-computed ("data tier") number. One row
+// per overridden figure; resetting deletes the row so the live resolver
+// takes over again on the next render. originalValue captures the live
+// value at the moment of the override, for the "live value is X" badge.
+model MetricOverride {
+  id            String   @id @default(cuid())
+  clientId      String
+  client        Client   @relation(fields: [clientId], references: [id])
+  scopeKey      String // e.g. "lsa.cpl:2026-07"
+  value         String
+  originalValue String
+  createdAt     DateTime @default(now())
+
+  @@unique([clientId, scopeKey])
+}
+
+// Where a Pushover/email/SMS notification for a client (or a specific
+// person on that client, e.g. Bryan vs. Desiree) should go. SMS is a
+// stubbed channel type only — not implemented this build (handoff §5/§8).
+model NotificationChannel {
+  id       String  @id @default(cuid())
+  clientId String?
+  client   Client? @relation(fields: [clientId], references: [id])
+  userId   String?
+  channel  String // PUSHOVER | EMAIL | SMS
+  address  String
+  active   Boolean @default(true)
+}
+
+// Delivery log for every notification the app has ever tried to send.
+model Notification {
+  id          String    @id @default(cuid())
+  clientId    String
+  client      Client    @relation(fields: [clientId], references: [id])
+  kind        String // NEW_LEAD | TASK_SUBMISSION | WATCHDOG | SYNC_FAILURE | REVIEW_REQUEST
+  payload     Json
+  createdAt   DateTime  @default(now())
+  deliveredAt DateTime?
+  error       String?
+
+  @@index([clientId, kind, createdAt])
 }
