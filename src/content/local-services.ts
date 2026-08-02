@@ -69,6 +69,22 @@ export const LS_CONTENT = {
   "overview.needsYou.sub": { def: "Leads waiting on a next step", max: 100 },
   "overview.needsYou.empty": { def: "Nothing needs your attention right now.", max: 200 },
 
+  // ---- What I Need From You / your accounts ----
+  // NOTE: passwords are never stored or shown here, by design — account
+  // name, the sign-in email, and a link only.
+  "ask.accounts.label": { def: "Your accounts", max: 60 },
+  "ask.accounts.title": { def: "Where to check things yourself", max: 120 },
+  "ask.accounts.lsa.name": { def: "Google Local Services Ads", max: 80 },
+  "ask.accounts.lsa.what": { def: "Every lead Google sent you, and their messages", max: 200 },
+  "ask.accounts.lsa.why": {
+    def: "When Google hides a customer's name and number, this is where you reply to unlock them.",
+    max: 300,
+  },
+  "ask.accounts.passwordNote": {
+    def: "Passwords live in your own password manager, not in here.",
+    max: 200,
+  },
+
   // ---- Overview / junk-blocked card ----
   "overview.junk.title": { def: "Junk we kept off your phone", max: 80 },
   "overview.junk.sub": { def: "Robocalls and fake website inquiries that never reached you.", max: 200 },

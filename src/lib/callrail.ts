@@ -97,23 +97,36 @@ export function isLsaLine(call: CallRailCall, config: CallRailConfig): boolean {
   return (config.lsaTrackingNumbers ?? []).includes(call.trackingNumber);
 }
 
-// Classification — Canencia's real setup (Alan, 2026-08-02). Timeline
-// matters here: BEFORE today, Canencia had no call-screening menu at all —
-// every call was forwarded straight to TalkRoute regardless of whether it
-// was spam, so historical calls (all 7 in the account as of this writing)
-// carry no reliable "was this real" signal. Alan added a press-a-key menu
-// on the CallRail side TODAY — going forward, a caller must press a key to
-// be forwarded on to TalkRoute at all, so keypad_entries being populated
-// is the real signal once calls start flowing through the new menu (none
-// have yet — it was just switched on). This restores the original
-// keypress-based design; `answered` was a wrong turn based on a
-// misreading of pre-menu historical data. Calls on a configured LSA line
-// (none for Canencia — LSA bypasses CallRail entirely for this client) are
-// always QUALIFIED regardless. Duration under 20s is flagged for review
-// but never changes the classification and never auto-deletes.
+// Classification — settled by a real end-to-end test on 2026-08-02, after
+// two wrong guesses. Alan called the tracked number, pressed 1, and was
+// connected. What CallRail actually recorded:
+//
+//   pressed 1, connected  -> answered: true,  recording present
+//   did not complete menu -> answered: false, recording absent
+//   keypad_entries        -> null on BOTH, and on all 9 calls in the
+//                            account. CallRail simply does not expose the
+//                            keypress here.
+//
+// So keypad_entries is unusable (the earlier design keyed on it and would
+// have filed Alan's successful test as a robocall). `answered` is the real
+// signal, and it means exactly what the setup needs it to: the caller got
+// through the menu AND the forwarded call was picked up at TalkRoute —
+// "only calls that make it to TalkRoute get logged".
+//
+// Known gap, deliberately conservative: someone who presses 1 but is not
+// picked up shows answered:false and is filed MISSED rather than becoming
+// a lead. It is still stored and flagged for review, so nothing is lost
+// from the record — but it will not raise a notification. Better than
+// manufacturing lead cards for robocalls that hung up at the menu.
+//
+// Calls on a configured LSA line (none for Canencia — LSA bypasses
+// CallRail entirely there) are always QUALIFIED regardless.
 export function classifyCall(call: CallRailCall, config: CallRailConfig): { classification: string; needsReview: boolean } {
-  const classification = isLsaLine(call, config) ? "QUALIFIED" : call.keypress ? "QUALIFIED" : "ROBOCALL";
-  return { classification, needsReview: call.durationSec < 20 };
+  if (isLsaLine(call, config)) return { classification: "QUALIFIED", needsReview: call.durationSec < 20 };
+  if (call.answered) return { classification: "QUALIFIED", needsReview: call.durationSec < 20 };
+  // Never answered: either a robot that hung up at the menu, or a real
+  // person nobody picked up for. Flagged so it is reviewable either way.
+  return { classification: "MISSED", needsReview: true };
 }
 
 // Fetches recording audio bytes server-side for the in-portal playback
