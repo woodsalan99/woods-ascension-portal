@@ -19,6 +19,7 @@ import {
   Users,
   MapPin,
   Bookmark,
+  Mail,
 } from "lucide-react";
 import type { ClientType } from "@prisma/client";
 
@@ -126,12 +127,19 @@ export function Sidebar({
             {showSignOut && <ChevronDown size={14} style={{ marginLeft: "auto" }} />}
           </button>
           {showSignOut && menuOpen && (
-            <button
-              className="wa-sidebar-signout"
-              onClick={() => signOut({ redirectUrl: "/sign-in" })}
-            >
-              <LogOut size={14} /> Sign out
-            </button>
+            <div className="wa-sidebar-menu">
+              {/* Also lives in the help card above, but that card is hidden
+                  on phones — this keeps "Message Alan" reachable there. */}
+              <a className="wa-sidebar-signout" href="mailto:alan@woodsascension.com">
+                <Mail size={14} /> Message Alan
+              </a>
+              <button
+                className="wa-sidebar-signout"
+                onClick={() => signOut({ redirectUrl: "/sign-in" })}
+              >
+                <LogOut size={14} /> Sign out
+              </button>
+            </div>
           )}
         </div>
       </div>

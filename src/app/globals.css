@@ -84,6 +84,7 @@
   font-weight: 500; border-radius: 8px;
 }
 .wa-sidebar-signout:hover { background: var(--sidebar-bg-soft); color: #fff; }
+a.wa-sidebar-signout { text-decoration: none; }
 
 .wa-preview-banner {
   display: flex; align-items: center; justify-content: space-between; gap: 12px;
@@ -154,11 +155,37 @@
 
 @media (max-width: 900px) {
   .wa-shell-v2 { flex-direction: column; }
-  .wa-sidebar { width: 100%; flex-direction: row; align-items: center; padding: 12px 16px; overflow-x: auto; }
-  .wa-sidebar-nav { flex-direction: row; }
-  .wa-sidebar-bottom { display: none; }
+  .wa-sidebar {
+    width: 100%; flex-direction: row; align-items: center; gap: 10px;
+    padding: 10px 12px; overflow-x: auto;
+  }
+  .wa-sidebar-top { padding: 0; flex-shrink: 0; }
+  .wa-sidebar-collapse { display: none; } /* nothing to collapse in a top bar */
+  .wa-sidebar-nav { flex-direction: row; flex: 1; }
+  .wa-sidebar-link { white-space: nowrap; }
+  /* Was `display: none`, which hid BOTH sign-out and "Message Alan" on
+     phones — leaving a phone-first user with no way to do either. Keep the
+     account/sign-out control; drop only the bulky help card. */
+  .wa-sidebar-bottom { display: flex; margin-top: 0; flex-shrink: 0; }
+  .wa-sidebar-help { display: none; }
+  .wa-sidebar-client-wrap { border-top: 0; position: relative; }
+  .wa-sidebar-menu {
+    position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; min-width: 180px;
+    background: var(--sidebar-bg-soft); border: 1px solid var(--sidebar-line); border-radius: 10px;
+    padding: 4px; box-shadow: 0 10px 28px rgba(0,0,0,.35);
+  }
+  .wa-sidebar-menu .wa-sidebar-signout { white-space: nowrap; }
   .wa-main-inner { padding: 20px 16px 40px; }
 }
+
+/* Phone: narrower lead columns so more of the board is reachable per
+   sideways scroll, and a visible hint that it scrolls at all. */
+@media (max-width: 700px) {
+  .wa-kanban-wrap { padding: 12px; }
+  .wa-kcol { flex: 0 0 210px; }
+  .wa-scroll-hint { display: block; }
+}
+.wa-scroll-hint { display: none; font-size: 12px; color: var(--muted); margin-bottom: 8px; }
 
 * { box-sizing: border-box; }
 
@@ -530,7 +557,24 @@ span.wa-ob-active { font-size: 12px; font-weight: 600; color: var(--green); }
 }
 .wa-needs-detail a { color: #8A6520; font-weight: 600; }
 .wa-lead-qualified-toggle {
-  display: flex; align-items: center; gap: 6px; margin-top: 9px; font-size: 11px; color: #6F6555; cursor: pointer;
+  display: flex; align-items: center; gap: 8px; margin-top: 9px; font-size: 13px; color: var(--ink-soft); cursor: pointer;
+}
+.wa-lead-qualified-toggle input { width: 18px; height: 18px; }
+
+/* Stage picker in the lead detail sheet — the touch-friendly way to move a
+   lead, since HTML5 drag-and-drop never fires on a phone. */
+.wa-stage-picker { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }
+.wa-stage-btn {
+  border: 1px solid var(--line); background: var(--card); border-radius: 10px; padding: 12px 14px;
+  font: inherit; font-size: 13px; font-weight: 600; color: var(--ink-soft); cursor: pointer; text-align: left;
+  min-height: 46px; /* comfortable tap target */
+}
+.wa-stage-btn:hover { background: #FBFBF7; border-color: var(--border-strong, #D8D6CB); }
+.wa-stage-btn.is-current { background: var(--green-soft); border-color: var(--green); color: var(--green); }
+.wa-stage-btn-tick { font-weight: 700; }
+.wa-lead-call-link {
+  display: inline-block; background: var(--green); color: #fff; text-decoration: none;
+  padding: 12px 18px; border-radius: 10px; font-size: 14px; font-weight: 600;
 }
 
 /* ---------- local-services: admin edit mode ---------- */

@@ -22,6 +22,7 @@ export default async function LeadsPage() {
     stage: l.stage,
     source: l.source,
     name: l.name,
+    phone: l.phone,
     location: l.location,
     serviceType: l.serviceType,
     message: l.message,
@@ -74,10 +75,16 @@ export default async function LeadsPage() {
         <div>
           <div className="wa-eyebrow">Your leads</div>
           <h1 className="wa-page-title">Leads</h1>
-          <div className="wa-page-sub">Drag a card across as things move along. Tap any card to add notes.</div>
+          <div className="wa-page-sub">
+            Tap any lead to call them, move them along, or add a note. On a computer you can also drag cards
+            between columns.
+          </div>
         </div>
       </div>
 
+      {/* With no leads at all these are four zeroes stacked on top of an
+          empty state that already explains the situation — just noise. */}
+      {leads.length > 0 && (
       <div className="wa-pipeline-stats">
         <div className="wa-pstat">
           <div className="wa-pstat-label">Still open</div>
@@ -104,6 +111,7 @@ export default async function LeadsPage() {
           </div>
         </div>
       </div>
+      )}
 
       <KanbanBoard leads={cards} />
     </>

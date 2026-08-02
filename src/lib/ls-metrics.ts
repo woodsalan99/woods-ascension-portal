@@ -83,7 +83,14 @@ const RESOLVERS: Record<string, Resolver> = {
   "lsa.cpl.support": async ({ clientId }, period) => {
     if (!period) throw new Error('"lsa.cpl.support" requires a :YYYY-MM period');
     const stat = await prisma.lsaMonthlyStat.findUnique({ where: { clientId_month: { clientId, month: period } } });
-    if (!stat || stat.chargedLeads === 0) return { display: "", source: "Google Ads (manual entry)", asOf: null };
+    // A bare "—" with nothing under it reads as "broken" to a
+    // non-technical reader. Say plainly why it's empty instead.
+    if (!stat) {
+      return { display: "This month's ad figures haven't been added yet", source: "Google Ads (manual entry)", asOf: null };
+    }
+    if (stat.chargedLeads === 0) {
+      return { display: "No charged leads from Google ads this month", source: "Google Ads (manual entry)", asOf: stat.updatedAt };
+    }
     const leadWord = stat.chargedLeads === 1 ? "lead" : "leads";
     return {
       display: `${fmtMoney(stat.spendCents)} paid to Google in ${formatMonthKey(period)} for ${stat.chargedLeads} ${leadWord}`,
@@ -105,7 +112,9 @@ const RESOLVERS: Record<string, Resolver> = {
 
   "gsc.pagesShowing.support": async ({ clientId }) => {
     const pages = await prisma.sitePage.findMany({ where: { clientId }, select: { indexed: true } });
-    if (pages.length === 0) return { display: "", source: "Search Console / manual entry", asOf: null };
+    if (pages.length === 0) {
+      return { display: "Your town pages will be listed here as they go live", source: "Search Console / manual entry", asOf: null };
+    }
     const waiting = pages.filter((p) => !p.indexed).length;
     const display = waiting > 0 ? `${waiting} still processing` : "All pages showing";
     return { display, source: "Search Console / manual entry", asOf: null };
@@ -119,7 +128,9 @@ const RESOLVERS: Record<string, Resolver> = {
 
   "reviews.support": async ({ clientId, tz }) => {
     const latest = await prisma.reviewSnapshot.findFirst({ where: { clientId }, orderBy: { date: "desc" } });
-    if (!latest) return { display: "", source: "Google Business Profile", asOf: null };
+    if (!latest) {
+      return { display: "We're still hooking up your Google reviews", source: "Google Business Profile", asOf: null };
+    }
     const monthStart = monthRangeUtc(monthKeyInTimezone(new Date(), tz)).start;
     const beforeThisMonth = await prisma.reviewSnapshot.findFirst({
       where: { clientId, date: { lt: monthStart } },

@@ -57,7 +57,9 @@ export const LS_CONTENT = {
   "overview.work.empty": { def: "Nothing logged yet this month — check back soon.", max: 200 },
 
   // ---- Overview / KPI card labels ----
-  "overview.kpi.leads.label": { def: "Real customers who reached out / Leads", max: 100 },
+  // The v8 mock rendered this as "Real customers who reached out / Leads" —
+  // that slash was two candidate labels, not copy. Picked the plain one.
+  "overview.kpi.leads.label": { def: "Real customers who reached out", max: 100 },
   "overview.kpi.cpl.label": { def: "Cost per lead from Google Local Service Ads", max: 100 },
   "overview.kpi.pages.label": { def: "Pages showing on Google", max: 100 },
   "overview.kpi.reviews.label": { def: "Your Google reviews", max: 100 },
