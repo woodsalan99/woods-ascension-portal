@@ -15,6 +15,10 @@ export default async function LeadsPage() {
   const leads = await prisma.serviceLead.findMany({
     where: { clientId: scope.clientId },
     orderBy: { receivedAt: "desc" },
+    include: {
+      activity: { orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }], take: 25 },
+      notes: { orderBy: { createdAt: "desc" }, take: 25 },
+    },
   });
 
   const cards: LeadCardVM[] = leads.map((l) => ({
@@ -34,6 +38,26 @@ export default async function LeadsPage() {
     nextActionLabel: l.nextActionLabel,
     nextActionAt: l.nextActionAt,
     receivedAt: l.receivedAt,
+    // One timeline per person: synced contacts (calls, texts, forms) plus
+    // notes anyone has typed, newest first.
+    history: [
+      ...l.activity.map((a) => ({
+        id: a.id,
+        type: a.type,
+        summary:
+          (a.meta as { summary?: string } | null)?.summary ??
+          (a.type === "STAGE_MOVE"
+            ? `Moved to ${(a.meta as { to?: string } | null)?.to ?? "a new stage"}`
+            : a.type.toLowerCase().replace(/_/g, " ")),
+        occurredAt: a.occurredAt ?? a.createdAt,
+      })),
+      ...l.notes.map((n) => ({
+        id: n.id,
+        type: "NOTE",
+        summary: n.body,
+        occurredAt: n.createdAt,
+      })),
+    ].sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime()),
   }));
 
   // ---- Stats strip ----

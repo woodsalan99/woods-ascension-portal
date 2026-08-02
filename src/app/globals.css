@@ -573,6 +573,16 @@ span.wa-ob-active { font-size: 12px; font-weight: 600; color: var(--green); }
 }
 .wa-lead-qualified-toggle input { width: 18px; height: 18px; }
 
+/* Lead timeline — every call, text, form and stage move for one person. */
+.wa-history { display: flex; flex-direction: column; gap: 2px; max-height: 260px; overflow-y: auto; }
+.wa-history-item {
+  display: flex; gap: 10px; align-items: flex-start; padding: 9px 10px;
+  border-radius: 8px; background: #FBFBF7; border: 1px solid #F0EFE6;
+}
+.wa-history-icon { flex: 0 0 18px; font-size: 13px; line-height: 1.4; }
+.wa-history-summary { font-size: 12.5px; color: var(--ink); line-height: 1.5; }
+.wa-history-when { font-size: 11px; color: var(--muted); margin-top: 2px; font-variant-numeric: tabular-nums; }
+
 /* Stage picker in the lead detail sheet — the touch-friendly way to move a
    lead, since HTML5 drag-and-drop never fires on a phone. */
 .wa-stage-picker { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 8px; }

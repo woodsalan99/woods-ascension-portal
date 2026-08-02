@@ -21,6 +21,26 @@ export type LeadCardVM = {
   nextActionLabel: string | null;
   nextActionAt: Date | null;
   receivedAt: Date;
+  history: LeadHistoryItem[];
+};
+
+export type LeadHistoryItem = {
+  id: string;
+  type: string; // CALL | MISSED_CALL | TEXT | FORM | LSA_REQUEST | STAGE_MOVE | NOTE | ...
+  summary: string;
+  occurredAt: Date;
+};
+
+const HISTORY_ICON: Record<string, string> = {
+  CALL: "📞",
+  MISSED_CALL: "📵",
+  TEXT: "💬",
+  FORM: "📝",
+  LSA_REQUEST: "🅖",
+  STAGE_MOVE: "→",
+  NOTE: "🗒",
+  VALUE_SET: "💵",
+  QUALIFIED_TOGGLE: "✓",
 };
 
 const COLUMNS: { stage: LeadStage; title: string; help: string }[] = [
@@ -360,6 +380,32 @@ export function KanbanBoard({ leads: initialLeads }: { leads: LeadCardVM[] }) {
                   <div className="wa-kpi-label" style={{ marginBottom: 6 }}>Listen to the call</div>
                   {/* eslint-disable-next-line jsx-a11y/media-has-caption */}
                   <audio controls src={`/api/callrail-recording/${openLead.callRecordId}`} style={{ width: "100%" }} />
+                </div>
+              )}
+
+              {openLead.history.length > 0 && (
+                <div style={{ marginBottom: 20 }}>
+                  <div className="wa-kpi-label" style={{ marginBottom: 8 }}>
+                    Everything that&apos;s happened with this lead
+                  </div>
+                  <div className="wa-history">
+                    {openLead.history.map((h) => (
+                      <div key={h.id} className="wa-history-item">
+                        <span className="wa-history-icon">{HISTORY_ICON[h.type] ?? "•"}</span>
+                        <div>
+                          <div className="wa-history-summary">{h.summary}</div>
+                          <div className="wa-history-when">
+                            {h.occurredAt.toLocaleString("en-US", {
+                              month: "short",
+                              day: "numeric",
+                              hour: "numeric",
+                              minute: "2-digit",
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               )}
 

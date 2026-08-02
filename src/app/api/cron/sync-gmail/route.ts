@@ -5,6 +5,7 @@ import { listNewMessages, getMessage, type GmailCursor } from "@/lib/gmail";
 import { lsaMatcher, formMatcher, type GmailMatcherConfig } from "@/lib/gmail-parsers";
 import { classifySpam } from "@/lib/spam-classify";
 import { notify } from "@/lib/notify";
+import { recordContact } from "@/lib/lead-identity";
 
 const SPAM_CONFIDENCE_THRESHOLD = 0.75;
 const WATCHDOG_GRACE_MS = 7 * 24 * 60 * 60_000;
@@ -102,44 +103,52 @@ export async function GET(req: Request) {
           if (existing) continue;
 
           const outcome = lsaMatcher.parse({ text }, meta);
-          if (outcome.ok) {
-            await prisma.serviceLead.create({
-              data: {
-                clientId: integ.clientId,
-                source: "LSA",
-                stage: "NEW",
-                gmailMessageId: meta.id,
-                name: outcome.data.name,
-                phone: outcome.data.phone,
-                location: outcome.data.location,
-                serviceType: outcome.data.serviceType,
-                message: outcome.data.message,
-                // Google withholds the customer's name/number on a new
-                // request until you reply. On the customer-message variant
-                // they've often just given a number — so only flag
-                // needs-details when we genuinely don't have one.
-                needsDetails: !outcome.data.phone,
-                receivedAt: outcome.data.receivedAt,
-              },
-            });
-          } else {
-            // Never lose the email even if it didn't parse as expected —
-            // create a bare lead so it's visible on the board for manual
-            // follow-up, and flag the parse failure for review.
-            parseFailures++;
-            await prisma.serviceLead.create({
-              data: {
-                clientId: integ.clientId,
-                source: "LSA",
-                stage: "NEW",
-                gmailMessageId: meta.id,
-                needsDetails: true,
-                message: `(Could not parse this LSA email automatically — check Gmail directly. Reason: ${outcome.reason})`,
-                receivedAt: new Date(meta.internalDate),
-              },
-            });
-          }
-          leadsCreated++;
+          if (!outcome.ok) parseFailures++;
+          const d = outcome.ok ? outcome.data : null;
+
+          // Google's "customer sent you a message" variant usually carries
+          // the phone number, and arrives AFTER the original request from
+          // the same person — so merge on it rather than creating a second
+          // card for the same customer.
+          const lsaResult = await recordContact({
+            clientId: integ.clientId,
+            identity: { phone: d?.phone ?? null, name: d?.name ?? null },
+            event: {
+              type: "LSA_REQUEST",
+              dedupeKey: `gmail:${meta.id}`,
+              occurredAt: d?.receivedAt ?? new Date(meta.internalDate),
+              summary: d
+                ? d.variant === "MESSAGE"
+                  ? `Google Ads customer replied: ${d.message ?? "(no text)"}`.slice(0, 200)
+                  : `Google Ads request — ${[d.serviceType, d.location].filter(Boolean).join(" · ") || "no details given"}`
+                : "Google Ads lead that couldn't be read automatically — check Gmail",
+              meta: { gmailMessageId: meta.id, variant: d?.variant ?? "UNPARSED" },
+            },
+            create: {
+              source: "LSA",
+              stage: "NEW",
+              gmailMessageId: meta.id,
+              name: d?.name ?? null,
+              phone: d?.phone ?? null,
+              location: d?.location ?? null,
+              serviceType: d?.serviceType ?? null,
+              message:
+                d?.message ??
+                (outcome.ok
+                  ? null
+                  : `(Could not parse this LSA email automatically — check Gmail directly. Reason: ${outcome.reason})`),
+              // Google withholds the customer's name/number on a new
+              // request until you reply. On the customer-message variant
+              // they've often just given a number — so only flag
+              // needs-details when we genuinely don't have one.
+              needsDetails: !d?.phone,
+              receivedAt: d?.receivedAt ?? new Date(meta.internalDate),
+            },
+            // A later message from the same person can fill in what the
+            // original hidden-details request couldn't.
+            enrich: { phone: d?.phone ?? null, name: d?.name ?? null, location: d?.location ?? null, serviceType: d?.serviceType ?? null },
+          });
+          if (lsaResult.isNewLead) leadsCreated++;
 
           const lsa = outcome.ok ? outcome.data : null;
           const lsaWhere = [lsa?.serviceType, lsa?.location].filter(Boolean).join(" · ");
@@ -248,10 +257,19 @@ export async function GET(req: Request) {
             continue;
           }
 
-          // Confident real lead.
-          await prisma.serviceLead.create({
-            data: {
-              clientId: integ.clientId,
+          // Confident real lead. Merges onto an existing card when this
+          // person has already called or submitted before.
+          const formResult = await recordContact({
+            clientId: integ.clientId,
+            identity: { phone: outcome.data.phone, name: outcome.data.name },
+            event: {
+              type: "FORM",
+              dedupeKey: `gmail:${meta.id}`,
+              occurredAt: outcome.data.receivedAt,
+              summary: `Website form: ${outcome.data.message || "(nothing written)"}`.slice(0, 200),
+              meta: { gmailMessageId: meta.id, formSubmissionId: submission.id, page: outcome.data.page },
+            },
+            create: {
               source: "WEBSITE_FORM",
               stage: "NEW",
               formSubmissionId: submission.id,
@@ -264,8 +282,14 @@ export async function GET(req: Request) {
               message: outcome.data.message,
               receivedAt: outcome.data.receivedAt,
             },
+            enrich: {
+              name: outcome.data.name,
+              phone: outcome.data.phone,
+              email: outcome.data.email,
+              location: outcome.data.city,
+            },
           });
-          leadsCreated++;
+          if (formResult.isNewLead) leadsCreated++;
           await notify({
             clientId: integ.clientId,
             kind: "NEW_LEAD",

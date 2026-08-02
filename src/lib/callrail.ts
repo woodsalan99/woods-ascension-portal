@@ -14,6 +14,11 @@ export type CallRailCall = {
   keypress: string | null;
   answered: boolean;
   recordingUrl: string | null;
+  // CallRail's own cross-contact identity for this caller — the same value
+  // appears on every call AND text from that person, which makes it the
+  // most reliable key for merging repeat contacts onto one lead.
+  personId: string | null;
+  priorCalls: number;
   raw: Record<string, unknown>;
 };
 
@@ -56,7 +61,7 @@ export async function fetchCalls(params: {
     url.searchParams.set("start_date", sinceIso.slice(0, 10));
     url.searchParams.set(
       "fields",
-      "id,answered,business_phone_number,customer_phone_number,customer_name,duration,start_time,recording,tracking_phone_number,keypad_entries",
+      "id,answered,business_phone_number,customer_phone_number,customer_name,duration,start_time,recording,tracking_phone_number,keypad_entries,person_id,prior_calls,call_disposition",
     );
     url.searchParams.set("page", String(page));
     url.searchParams.set("per_page", String(perPage));
@@ -81,6 +86,8 @@ export async function fetchCalls(params: {
         keypress: c.keypad_entries ? String(c.keypad_entries) : null,
         answered: !!c.answered,
         recordingUrl: c.recording ? String(c.recording) : null,
+        personId: c.person_id ? String(c.person_id) : null,
+        priorCalls: Number(c.prior_calls ?? 0),
         raw: c,
       });
     }
@@ -91,6 +98,64 @@ export async function fetchCalls(params: {
   }
 
   return all;
+}
+
+export type CallRailTextMessage = {
+  conversationId: string;
+  threadId: string;
+  customerName: string | null;
+  customerPhone: string;
+  direction: "incoming" | "outgoing";
+  content: string;
+  createdAt: string; // ISO
+};
+
+// Texts live at /text-messages.json (NOT /texts.json, which 404s), grouped
+// into conversations each carrying its recent messages inline.
+export async function fetchTextMessages(params: {
+  apiKey: string;
+  accountId: string;
+  companyId: string;
+}): Promise<CallRailTextMessage[]> {
+  const { apiKey, accountId, companyId } = params;
+  const out: CallRailTextMessage[] = [];
+  let page = 1;
+
+  while (true) {
+    const url = new URL(`${CALLRAIL_BASE}/a/${accountId}/text-messages.json`);
+    url.searchParams.set("company_id", companyId);
+    url.searchParams.set("page", String(page));
+    url.searchParams.set("per_page", "100");
+
+    const res = await fetch(url, { headers: authHeader(apiKey) });
+    if (!res.ok) throw new Error(`CallRail fetchTextMessages failed: ${res.status}`);
+    const json = (await res.json()) as {
+      conversations: Array<Record<string, unknown>>;
+      total_pages?: number;
+    };
+
+    for (const c of json.conversations ?? []) {
+      const messages = (c.recent_messages ?? []) as Array<Record<string, unknown>>;
+      for (const m of messages) {
+        const thread = (m.sms_thread ?? {}) as Record<string, unknown>;
+        out.push({
+          conversationId: String(c.id),
+          threadId: String(thread.id ?? c.id),
+          customerName: c.formatted_customer_name ? String(c.formatted_customer_name) : null,
+          customerPhone: String(c.customer_phone_number ?? ""),
+          direction: m.direction === "outgoing" ? "outgoing" : "incoming",
+          content: String(m.content ?? ""),
+          createdAt: String(m.created_at ?? ""),
+        });
+      }
+    }
+
+    if (page >= (json.total_pages ?? 1)) break;
+    page++;
+    await new Promise((r) => setTimeout(r, 250));
+  }
+
+  return out;
 }
 
 export function isLsaLine(call: CallRailCall, config: CallRailConfig): boolean {

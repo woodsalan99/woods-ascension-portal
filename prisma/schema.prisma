@@ -479,6 +479,13 @@ model ServiceLead {
   formSubmissionId String?         @unique
   formSubmission   FormSubmission? @relation(fields: [formSubmissionId], references: [id], onDelete: SetNull)
   gmailMessageId   String?         @unique // idempotency for LSA-sourced leads (no FormSubmission row to dedupe through)
+  // Identity keys, so a repeat contact lands on the SAME lead card instead
+  // of creating a new one each time. personId is CallRail's own
+  // cross-contact person id (most reliable — same value across a person's
+  // calls and texts); phoneNormalized is digits-only so numbers formatted
+  // differently by different sources still match.
+  personId         String?
+  phoneNormalized  String?
   callRailUrl      String?
   recordingUrl     String?
   nextActionLabel  String?
@@ -492,6 +499,8 @@ model ServiceLead {
 
   @@index([clientId, stage])
   @@index([clientId, receivedAt])
+  @@index([clientId, phoneNormalized])
+  @@index([clientId, personId])
 }
 
 model LeadNote {
@@ -504,13 +513,21 @@ model LeadNote {
 }
 
 // Powers "followed up this week" and the drag/stage-move history.
+// The lead's running history: every call, text, form submission and stage
+// move against one person, in one timeline.
 model LeadActivity {
-  id        String      @id @default(cuid())
-  leadId    String
-  lead      ServiceLead @relation(fields: [leadId], references: [id], onDelete: Cascade)
-  type      String // STAGE_MOVE | NOTE | QUALIFIED_TOGGLE | VALUE_SET | TOUCH
-  meta      Json?
-  createdAt DateTime    @default(now())
+  id         String      @id @default(cuid())
+  // When the real-world event happened (a call's start time, a text's send
+  // time) — distinct from createdAt, which is when we recorded it.
+  occurredAt DateTime?
+  // Stable key of the source event ("call:CAL019...", "text:SMT019...") so
+  // re-syncing the same call or text never duplicates a history entry.
+  dedupeKey  String?     @unique
+  leadId     String
+  lead       ServiceLead @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  type       String // STAGE_MOVE | NOTE | QUALIFIED_TOGGLE | VALUE_SET | TOUCH
+  meta       Json?
+  createdAt  DateTime    @default(now())
 
   @@index([leadId, createdAt])
 }
