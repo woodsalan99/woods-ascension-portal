@@ -2,7 +2,9 @@ import { requireClientType } from "@/lib/dashboard-scope";
 import { prisma } from "@/lib/prisma";
 import { getContent } from "@/lib/content";
 import { resolveMetrics } from "@/lib/ls-metrics";
-import { monthKeyInTimezone, formatMonthKey } from "@/lib/timezone";
+import { formatMonthKey } from "@/lib/timezone";
+import { periodOptions, periodRangeLabel, resolvePeriod } from "@/lib/ls-periods";
+import { PeriodSwitch } from "@/components/ls/PeriodSwitch";
 import { EditProvider } from "@/components/ls/EditProvider";
 import { E } from "@/components/ls/Editable";
 import { Num } from "@/components/ls/Num";
@@ -21,8 +23,9 @@ function bullets(text: string) {
   );
 }
 
-export default async function NumbersPage() {
+export default async function NumbersPage({ searchParams }: { searchParams: Promise<{ p?: string }> }) {
   const scope = await requireClientType("LOCAL_SERVICES");
+  const { p } = await searchParams;
   const client = await prisma.client.findUniqueOrThrow({
     where: { id: scope.clientId },
     select: { id: true, timezone: true },
@@ -30,7 +33,11 @@ export default async function NumbersPage() {
   const content = await getContent(client.id);
   const c = (k: ContentKey) => content.text(k);
 
-  const month = monthKeyInTimezone(new Date(), client.timezone);
+  // Every period-scoped card on this page follows the chosen window. The
+  // month-by-month chart below deliberately does not — it's the "since we
+  // started" view, and a window would defeat the point of it.
+  const chosen = resolvePeriod(p, client.timezone);
+  const month = chosen.period;
 
   const keys = [
     `lsa.chargedLeads:${month}`, `lsa.chargedLeads.trend`,
@@ -79,7 +86,12 @@ export default async function NumbersPage() {
             <E k="numbers.sub" v={c("numbers.sub")} label="Numbers subtitle" multiline />
           </div>
         </div>
-        <span className="wa-weekbadge">{formatMonthKey(month)}</span>
+        <PeriodSwitch
+          basePath="/numbers"
+          options={periodOptions(client.timezone)}
+          current={chosen.value}
+          rangeLabel={periodRangeLabel(month, client.timezone)}
+        />
       </div>
 
       <div className="wa-section-head" style={{ marginTop: 0 }}>
@@ -140,16 +152,16 @@ export default async function NumbersPage() {
 
       <div className="wa-section-head">
         <h2 className="wa-h2">
-          <E k="numbers.customers.title" v={c("numbers.customers.title")} label="Customers section title" />
+          <E k="numbers.customers.title" v={c("numbers.customers.title")} label="Leads section title" />
         </h2>
         <span className="wa-page-sub">
-          <E k="numbers.customers.sub" v={c("numbers.customers.sub")} label="Customers section subtitle" />
+          <E k="numbers.customers.sub" v={c("numbers.customers.sub")} label="Leads section subtitle" />
         </span>
       </div>
       <div className="wa-number-grid">
         <NumberCard
           label={<E k="numbers.leads.label" v={c("numbers.leads.label")} label="Leads label" />}
-          value={<Num m={m(`leads.real:${month}`)} clientId={client.id} label="Real customers this month" />}
+          value={<Num m={m(`leads.real:${month}`)} clientId={client.id} label="Real leads this period" />}
           support={<Num m={m(`leads.split:${month}`)} clientId={client.id} label="Free vs paid split" />}
           plain={<E k="numbers.leads.plain" v={c("numbers.leads.plain")} label="Leads explanation" multiline />}
           status="Normal"
@@ -213,7 +225,7 @@ export default async function NumbersPage() {
           <div className="wa-bar-marks">
             {leadsByMonth.map((n, i) => (
               <div key={i} className="wa-bar-mark">
-                {n} customer{n === 1 ? "" : "s"}
+                {n} lead{n === 1 ? "" : "s"}
               </div>
             ))}
           </div>

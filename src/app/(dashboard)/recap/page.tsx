@@ -2,7 +2,7 @@ import Link from "next/link";
 import { requireClientType } from "@/lib/dashboard-scope";
 import { prisma } from "@/lib/prisma";
 import { getContent } from "@/lib/content";
-import { resolveMetrics } from "@/lib/ls-metrics";
+import { periodRange, resolveMetrics } from "@/lib/ls-metrics";
 import { formatMonthKey } from "@/lib/timezone";
 import { EditProvider } from "@/components/ls/EditProvider";
 import { E } from "@/components/ls/Editable";
@@ -12,6 +12,15 @@ import type { ContentKey } from "@/content/local-services";
 // feeds the Overview's "what we built for you this month" block — written
 // once, shown in both places, so the two can never drift apart.
 type WorkItem = { title: string; detail?: string; recap?: string };
+
+// Same wording as the leads board, so a client reading both sees one vocabulary.
+const SOURCE_LABEL: Record<string, string> = {
+  LSA: "Google Ads",
+  GBP_CALL: "Google Maps call",
+  WEBSITE_FORM: "Website form",
+  REFERRAL: "Referral",
+  OTHER: "Other",
+};
 
 export default async function RecapPage({ searchParams }: { searchParams: Promise<{ m?: string }> }) {
   const scope = await requireClientType("LOCAL_SERVICES");
@@ -85,7 +94,7 @@ export default async function RecapPage({ searchParams }: { searchParams: Promis
   const isEmpty = (v: string) => v === "" || v === "—" || v === "0" || v === "$0";
   const cells = (
     [
-      { key: "recap.kpi.leads", label: "Recap KPI — customers", value: val(`leads.real:${selected}`) },
+      { key: "recap.kpi.leads", label: "Recap KPI — leads", value: val(`leads.real:${selected}`) },
       { key: "recap.kpi.jobs", label: "Recap KPI — jobs won", value: val(`jobs.won:${selected}`) },
       { key: "recap.kpi.value", label: "Recap KPI — work value", value: val(`jobs.wonValue:${selected}`) },
       { key: "recap.kpi.spend", label: "Recap KPI — ad spend", value: val(`lsa.spend:${selected}`), keepZero: true },
@@ -93,6 +102,31 @@ export default async function RecapPage({ searchParams }: { searchParams: Promis
       { key: "recap.kpi.reviews", label: "Recap KPI — reviews", value: val("reviews.count") },
     ] satisfies { key: ContentKey; label: string; value: string; keepZero?: boolean }[]
   ).filter((c) => ("keepZero" in c && c.keepZero ? c.value !== "" && c.value !== "—" : !isEmpty(c.value)));
+
+  // "6 leads" on its own asks the client to trust a number. Listing exactly
+  // who those six were — name where we have one, where they came from, what
+  // they wanted — makes it checkable against their own memory of the month.
+  // See D35.
+  const { start, end } = periodRange(selected);
+  const periodLeads = await prisma.serviceLead.findMany({
+    where: {
+      clientId: client.id,
+      deletedAt: null,
+      OR: [{ qualified: null }, { qualified: true }],
+      receivedAt: { gte: start, lt: end },
+    },
+    orderBy: { receivedAt: "asc" },
+    select: {
+      id: true,
+      name: true,
+      source: true,
+      stage: true,
+      serviceType: true,
+      location: true,
+      jobValue: true,
+      receivedAt: true,
+    },
+  });
 
   const items = (work.items as unknown as WorkItem[]) ?? [];
   const nextMonth = (work.nextMonth as unknown as string[]) ?? [];
@@ -156,9 +190,42 @@ export default async function RecapPage({ searchParams }: { searchParams: Promis
           ))}
         </div>
 
+        {periodLeads.length > 0 && (
+          <div className="wa-lead-breakdown">
+            <h3 className="wa-recap-h3">
+              <E k="recap.leads.title" v={content.text("recap.leads.title")} label="Lead breakdown heading" />
+            </h3>
+            <p className="wa-page-sub" style={{ marginBottom: 12 }}>
+              <E k="recap.leads.sub" v={content.text("recap.leads.sub")} label="Lead breakdown subtitle" multiline />
+            </p>
+            <ul className="wa-recap-list wa-lead-lines">
+              {periodLeads.map((l) => (
+                <li key={l.id}>
+                  <b>{l.name ?? "Unknown Name"}</b>
+                  {" — "}
+                  {[
+                    SOURCE_LABEL[l.source],
+                    l.serviceType,
+                    l.location,
+                    l.receivedAt.toLocaleDateString("en-US", { month: "short", day: "numeric" }),
+                  ]
+                    .filter(Boolean)
+                    .join(" · ")}
+                  {l.stage === "JOB_WON" && (
+                    <span className="wa-lead-line-won">
+                      {" "}
+                      · won{l.jobValue ? ` · $${l.jobValue.toLocaleString("en-US")}` : ""}
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {items.length > 0 && (
           <>
-            <h3 className="wa-recap-h3">
+            <h3 className="wa-recap-h3" style={{ marginTop: 24 }}>
               <E k="recap.did.title" v={content.text("recap.did.title")} label="What we did — heading" /> in{" "}
               {formatMonthKey(selected).split(" ")[0]}
             </h3>

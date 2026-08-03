@@ -1,3 +1,4 @@
+import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { monthKeyInTimezone, formatMonthKey } from "@/lib/timezone";
 
@@ -26,6 +27,11 @@ function splitKey(scopeKey: string): [string, string | null] {
 // month, month-to-date shows almost nothing and reads as though the work
 // stopped, when in fact the previous four weeks were busy. See D33.
 export const LAST_30 = "last30";
+export const LAST_90 = "last90";
+const ROLLING_DAYS: Record<string, number> = { [LAST_30]: 30, [LAST_90]: 90 };
+export function isRolling(period: string) {
+  return period in ROLLING_DAYS;
+}
 
 // Month-key range as plain UTC calendar boundaries — the same simplification
 // dashboard-compute.ts's periodRange() already uses for COLD_EMAIL (dates are
@@ -40,9 +46,10 @@ function monthRangeUtc(monthKey: string): { start: Date; end: Date } {
 }
 
 export function periodRange(period: string): { start: Date; end: Date } {
-  if (period === LAST_30) {
+  const days = ROLLING_DAYS[period];
+  if (days) {
     const end = new Date();
-    return { start: new Date(end.getTime() - 30 * 86_400_000), end };
+    return { start: new Date(end.getTime() - days * 86_400_000), end };
   }
   return monthRangeUtc(period);
 }
@@ -55,20 +62,63 @@ const fmtMoney = (cents: number) => `$${Math.round(cents / 100).toLocaleString("
 const fmtMoneyExact = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 const monthName = (monthKey: string) => formatMonthKey(monthKey).split(" ")[0];
 
-// Google reports Local Services figures monthly only. On a rolling window
-// there is nothing to sum, so use the newest month on file.
-async function latestOrMonthStat(clientId: string, period: string) {
-  if (period === LAST_30) {
-    return prisma.lsaMonthlyStat.findFirst({ where: { clientId }, orderBy: { month: "desc" } });
-  }
-  return prisma.lsaMonthlyStat.findUnique({ where: { clientId_month: { clientId, month: period } } });
+// Google reports Local Services figures a month at a time, so a rolling
+// window has nothing daily to slice. We take the whole months the window
+// covers — one for 30 days, three for 90 — sum what's summable and average
+// the rates, then name the months used in the support line. Pro-rating was
+// rejected: it would invent a number Google never published. See D33/D35.
+type LsaAgg = {
+  months: string[];
+  impressions: number;
+  spendCents: number;
+  chargedLeads: number;
+  topRatePct: number;
+  absTopRatePct: number;
+  updatedAt: Date;
+};
+
+async function lsaForPeriod(clientId: string, period: string): Promise<LsaAgg | null> {
+  const take = period === LAST_90 ? 3 : 1;
+  const rows = isRolling(period)
+    ? (await prisma.lsaMonthlyStat.findMany({ where: { clientId }, orderBy: { month: "desc" }, take })).reverse()
+    : await prisma.lsaMonthlyStat.findMany({ where: { clientId, month: period } });
+  if (rows.length === 0) return null;
+
+  const weight = rows.reduce((sum, r) => sum + r.impressions, 0) || rows.length;
+  const wavg = (pick: (r: (typeof rows)[number]) => number) =>
+    rows.reduce((sum, r) => sum + pick(r) * (r.impressions || 1), 0) / weight;
+
+  return {
+    months: rows.map((r) => r.month),
+    impressions: rows.reduce((sum, r) => sum + r.impressions, 0),
+    spendCents: rows.reduce((sum, r) => sum + r.spendCents, 0),
+    chargedLeads: rows.reduce((sum, r) => sum + r.chargedLeads, 0),
+    // Rates are averaged by how often the ad was actually shown, not by
+    // month — a month with 30 impressions shouldn't weigh the same as one
+    // with 300.
+    topRatePct: wavg((r) => r.topRatePct),
+    absTopRatePct: wavg((r) => r.absTopRatePct),
+    updatedAt: rows.reduce((a, r) => (r.updatedAt > a ? r.updatedAt : a), rows[0].updatedAt),
+  };
+}
+
+// "July", or "May to July" when a window spans several.
+function monthsLabel(months: string[]): string {
+  if (months.length === 1) return monthName(months[0]);
+  return `${monthName(months[0])} to ${monthName(months[months.length - 1])}`;
 }
 
 // A lead counts unless someone said otherwise. Every contact is already
 // filtered hard upstream (robocalls and spam forms never become leads at
 // all), so "worthwhile" is the default and marking one a bad fit is the
 // exception — qualified === false. Deleted leads never count. See D34.
-const COUNTS: { deletedAt: null; NOT: { qualified: false } } = { deletedAt: null, NOT: { qualified: false } };
+// NOT: { qualified: false } would be wrong: in SQL, NOT (NULL = false) is
+// NULL, so every unreviewed lead — which is nearly all of them — would be
+// silently excluded. Spell the two accepted states out instead.
+const COUNTS: Prisma.ServiceLeadWhereInput = {
+  deletedAt: null,
+  OR: [{ qualified: null }, { qualified: true }],
+};
 
 const RESOLVERS: Record<string, Resolver> = {
   // Every ServiceLead row is, by construction, a real lead — spam/robocall
@@ -107,46 +157,46 @@ const RESOLVERS: Record<string, Resolver> = {
   // than pro-rating a number Google never published.
   "lsa.cpl": async ({ clientId }, period) => {
     if (!period) throw new Error('"lsa.cpl" requires a period');
-    const stat = await latestOrMonthStat(clientId, period);
-    if (!stat || stat.chargedLeads === 0) {
-      return { display: "—", source: "Google Ads (manual entry)", asOf: stat?.updatedAt ?? null };
+    const agg = await lsaForPeriod(clientId, period);
+    if (!agg || agg.chargedLeads === 0) {
+      return { display: "—", source: "Google Ads (manual entry)", asOf: agg?.updatedAt ?? null };
     }
     return {
-      display: fmtMoney(stat.spendCents / stat.chargedLeads),
+      display: fmtMoney(agg.spendCents / agg.chargedLeads),
       source: "Google Ads (manual entry)",
-      asOf: stat.updatedAt,
+      asOf: agg.updatedAt,
     };
   },
 
   "lsa.cpl.support": async ({ clientId }, period) => {
     if (!period) throw new Error('"lsa.cpl.support" requires a period');
-    const stat = await latestOrMonthStat(clientId, period);
+    const agg = await lsaForPeriod(clientId, period);
     // A bare "—" with nothing under it reads as "broken" to a
     // non-technical reader. Say plainly why it's empty instead.
-    if (!stat) {
+    if (!agg) {
       return { display: "The ad figures haven't been added yet", source: "Google Ads (manual entry)", asOf: null };
     }
-    if (stat.chargedLeads === 0) {
+    if (agg.chargedLeads === 0) {
       return {
-        display: `No charged leads from Google ads in ${monthName(stat.month)}`,
+        display: `No charged leads from Google ads in ${monthsLabel(agg.months)}`,
         source: "Google Ads (manual entry)",
-        asOf: stat.updatedAt,
+        asOf: agg.updatedAt,
       };
     }
-    const leadWord = stat.chargedLeads === 1 ? "lead" : "leads";
+    const leadWord = agg.chargedLeads === 1 ? "lead" : "leads";
     return {
-      display: `${fmtMoneyExact(stat.spendCents)} paid to Google in ${monthName(stat.month)} for ${stat.chargedLeads} ${leadWord}`,
+      display: `${fmtMoneyExact(agg.spendCents)} paid to Google in ${monthsLabel(agg.months)} for ${agg.chargedLeads} ${leadWord}`,
       source: "Google Ads (manual entry)",
-      asOf: stat.updatedAt,
+      asOf: agg.updatedAt,
     };
   },
 
   // ---- The Numbers page ----
   "lsa.impressions": async ({ clientId }, period) => {
-    if (!period) throw new Error('"lsa.impressions" requires a :YYYY-MM period');
-    const stat = await prisma.lsaMonthlyStat.findUnique({ where: { clientId_month: { clientId, month: period } } });
-    if (!stat) return { display: "—", source: "Google Ads (manual entry)", asOf: null };
-    return { display: fmtInt(stat.impressions), source: "Google Ads (manual entry)", asOf: stat.updatedAt };
+    if (!period) throw new Error('"lsa.impressions" requires a period');
+    const agg = await lsaForPeriod(clientId, period);
+    if (!agg) return { display: "—", source: "Google Ads (manual entry)", asOf: null };
+    return { display: fmtInt(agg.impressions), source: "Google Ads (manual entry)", asOf: agg.updatedAt };
   },
 
   // "May 202 · June 336 · July 300" — the trend line under a headline number.
@@ -161,37 +211,40 @@ const RESOLVERS: Record<string, Resolver> = {
   },
 
   "lsa.topRate": async ({ clientId }, period) => {
-    if (!period) throw new Error('"lsa.topRate" requires a :YYYY-MM period');
-    const stat = await prisma.lsaMonthlyStat.findUnique({ where: { clientId_month: { clientId, month: period } } });
-    if (!stat) return { display: "—", source: "Google Ads (manual entry)", asOf: null };
-    return { display: `${Math.round(stat.absTopRatePct)}%`, source: "Google Ads (manual entry)", asOf: stat.updatedAt };
+    if (!period) throw new Error('"lsa.topRate" requires a period');
+    const agg = await lsaForPeriod(clientId, period);
+    if (!agg) return { display: "—", source: "Google Ads (manual entry)", asOf: null };
+    return { display: `${Math.round(agg.absTopRatePct)}%`, source: "Google Ads (manual entry)", asOf: agg.updatedAt };
   },
 
   "lsa.topRate.support": async ({ clientId }, period) => {
-    if (!period) throw new Error('"lsa.topRate.support" requires a :YYYY-MM period');
+    if (!period) throw new Error('"lsa.topRate.support" requires a period');
+    const agg = await lsaForPeriod(clientId, period);
+    if (!agg) return { display: "", source: "Google Ads (manual entry)", asOf: null };
+    // Compare against the month before the earliest one in this window.
     const stats = await prisma.lsaMonthlyStat.findMany({ where: { clientId }, orderBy: { month: "asc" } });
-    const idx = stats.findIndex((s) => s.month === period);
-    if (idx <= 0) return { display: "", source: "Google Ads (manual entry)", asOf: null };
+    const idx = stats.findIndex((s) => s.month === agg.months[0]);
+    if (idx <= 0) return { display: `Measured across ${monthsLabel(agg.months)}`, source: "Google Ads (manual entry)", asOf: agg.updatedAt };
     const prev = stats[idx - 1];
     return {
       display: `Was ${Math.round(prev.absTopRatePct)}% in ${monthName(prev.month)}`,
       source: "Google Ads (manual entry)",
-      asOf: stats[idx].updatedAt,
+      asOf: agg.updatedAt,
     };
   },
 
   "lsa.spend": async ({ clientId }, period) => {
-    if (!period) throw new Error('"lsa.spend" requires a :YYYY-MM period');
-    const stat = await prisma.lsaMonthlyStat.findUnique({ where: { clientId_month: { clientId, month: period } } });
-    if (!stat) return { display: "—", source: "Google Ads (manual entry)", asOf: null };
-    return { display: fmtMoney(stat.spendCents), source: "Google Ads (manual entry)", asOf: stat.updatedAt };
+    if (!period) throw new Error('"lsa.spend" requires a period');
+    const agg = await lsaForPeriod(clientId, period);
+    if (!agg) return { display: "—", source: "Google Ads (manual entry)", asOf: null };
+    return { display: fmtMoney(agg.spendCents), source: "Google Ads (manual entry)", asOf: agg.updatedAt };
   },
 
   "lsa.chargedLeads": async ({ clientId }, period) => {
-    if (!period) throw new Error('"lsa.chargedLeads" requires a :YYYY-MM period');
-    const stat = await prisma.lsaMonthlyStat.findUnique({ where: { clientId_month: { clientId, month: period } } });
-    if (!stat) return { display: "—", source: "Google Ads (manual entry)", asOf: null };
-    return { display: fmtInt(stat.chargedLeads), source: "Google Ads (manual entry)", asOf: stat.updatedAt };
+    if (!period) throw new Error('"lsa.chargedLeads" requires a period');
+    const agg = await lsaForPeriod(clientId, period);
+    if (!agg) return { display: "—", source: "Google Ads (manual entry)", asOf: null };
+    return { display: fmtInt(agg.chargedLeads), source: "Google Ads (manual entry)", asOf: agg.updatedAt };
   },
 
   "lsa.chargedLeads.trend": async ({ clientId }) => {

@@ -11,6 +11,9 @@ const prisma = new PrismaClient();
 // estimated or inferred. Where the portal has no evidence — which jobs Bryan
 // actually won, what work happened off-system — the recap stays quiet rather
 // than guessing. Alan edits these before Bryan and Desiree ever see them.
+//
+// A person who got in touch is a LEAD, never a "customer" — the portal has
+// no idea whether Bryan won the job. See D35.
 const SLUG = "canencia-painting";
 
 type Recap = {
@@ -38,7 +41,7 @@ const RECAPS: Recap[] = [
         detail: "Appeared in Google search 4,190 times this month, bringing 34 people to the site",
       },
       {
-        title: "2 real customers got in touch",
+        title: "2 real leads got in touch",
         detail: "1 phone call from your Google listing, 1 enquiry through the website",
       },
     ],
@@ -48,13 +51,13 @@ const RECAPS: Recap[] = [
   },
   {
     month: "2026-06",
-    heroTitle: "The ads brought you your first paid customers, at less than half what most painters pay.",
+    heroTitle: "The ads brought you your first paid leads, at less than half what most painters pay.",
     heroSub:
       "Two people contacted you straight through the Google ad in June, and Google charged $39.32 for both — about $19.66 each. The national average for a painting lead is around $53. You were still the first painter shown 99% of the time.",
     items: [
       {
-        title: "Google ads brought in 2 real customers",
-        detail: "$39.32 spent all month · $19.66 per customer · shown 336 times",
+        title: "Google ads brought in 2 real leads",
+        detail: "$39.32 spent all month · $19.66 per lead · shown 336 times",
       },
       {
         title: "Still first painter listed, 99.2% of the time",
@@ -65,22 +68,22 @@ const RECAPS: Recap[] = [
         detail: "4,838 appearances in Google search, up from 4,190 in May",
       },
       {
-        title: "4 real customers in total",
+        title: "4 real leads in total",
         detail: "2 through the Google ad, 2 phone calls from your Google Maps listing",
       },
     ],
     nextMonth: [],
     note:
-      "$19.66 a customer is genuinely good — most painters on the mainland pay nearly triple that. The reason your total is still small isn't the ads, it's that only so many people on Oahu search for a painter in a month. The ads can't create demand that isn't there. That's exactly the job the town pages are for: they reach people searching for 'painter in Kailua' rather than just 'painter', which the ads never show up for.",
+      "$19.66 a lead is genuinely good — most painters on the mainland pay nearly triple that. The reason your total is still small isn't the ads, it's that only so many people on Oahu search for a painter in a month. The ads can't create demand that isn't there. That's exactly the job the town pages are for: they reach people searching for 'painter in Kailua' rather than just 'painter', which the ads never show up for.",
   },
   {
     month: "2026-07",
-    heroTitle: "Your best month yet — 6 real customers, and more people finding you through the website.",
+    heroTitle: "Your best month yet — 6 real leads, and more people finding you through the website.",
     heroSub:
       "Six people got in touch in July, up from four in June and two in May. Website visits from Google went from 35 to 46 — the biggest jump so far, and the first clear sign the town pages are starting to earn their keep.",
     items: [
       {
-        title: "6 real customers — triple May's number",
+        title: "6 real leads — triple May's number",
         detail: "2 through the Google ad, 3 phone calls from your Google listing, 1 website enquiry",
       },
       {
@@ -89,7 +92,7 @@ const RECAPS: Recap[] = [
       },
       {
         title: "Google ads still cheap and still on top",
-        detail: "$37.27 all month for 2 customers · $18.64 each · first painter listed 98.5% of the time",
+        detail: "$37.27 all month for 2 leads · $18.64 each · first painter listed 98.5% of the time",
       },
       {
         title: "19 of your 20 town pages now showing in Google search",
@@ -102,7 +105,7 @@ const RECAPS: Recap[] = [
       "Build up reviews, which is the single biggest thing deciding your position on Google Maps",
     ],
     note:
-      "Three months in a row of growth, and the shape of it matters more than the size. In May everything came from the ads and your Maps listing. In July, the website is starting to contribute — and unlike the ads, that part keeps growing without costing more. Two things to be straight about: your ad cost per customer is excellent, but the ceiling on it is Oahu's search volume, not the budget. And I can only report on jobs won if the outcomes get marked on the Leads page — right now the portal knows who got in touch, but not who said yes.",
+      "Three months in a row of growth, and the shape of it matters more than the size. In May everything came from the ads and your Maps listing. In July, the website is starting to contribute — and unlike the ads, that part keeps growing without costing more. Two things to be straight about: your ad cost per lead is excellent, but the ceiling on it is Oahu's search volume, not the budget. And I can only report on jobs won if the outcomes get marked on the Leads page — right now the portal knows who got in touch, but not who said yes.",
   },
 ];
 

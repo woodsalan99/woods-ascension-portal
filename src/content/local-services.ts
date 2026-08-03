@@ -64,9 +64,12 @@ export const LS_CONTENT = {
   "overview.period.mtd": { def: "This month so far", max: 40 },
 
   // ---- Overview / KPI card labels ----
+  // A person who rings is a LEAD, never a "customer" — the portal has no
+  // idea whether Bryan won the job, and calling them customers claims
+  // something we cannot know. See D35.
   // The v8 mock rendered this as "Real customers who reached out / Leads" —
   // that slash was two candidate labels, not copy. Picked the plain one.
-  "overview.kpi.leads.label": { def: "Real customers who reached out", max: 100 },
+  "overview.kpi.leads.label": { def: "Real leads who got in touch", max: 100 },
   "overview.kpi.cpl.label": { def: "Cost per lead from Google Local Service Ads", max: 100 },
   "overview.kpi.pages.label": { def: "Pages showing on Google", max: 100 },
   "overview.kpi.reviews.label": { def: "Your Google reviews", max: 100 },
@@ -85,7 +88,7 @@ export const LS_CONTENT = {
   },
   "numbers.ads.title": { def: "Your Google ads", max: 60 },
   "numbers.ads.sub": { def: "The paid listings at the very top of Google", max: 120 },
-  "numbers.customers.title": { def: "Your customers & reputation", max: 80 },
+  "numbers.customers.title": { def: "Your leads & reputation", max: 80 },
   "numbers.customers.sub": { def: "What's actually coming in", max: 120 },
 
   "numbers.adLeads.label": { def: "Leads from Google Ads", max: 80 },
@@ -113,7 +116,7 @@ export const LS_CONTENT = {
   "numbers.spend.healthy": { def: "Money has never been what's holding this back — there simply aren't many searches to pay for. That's exactly why the website work matters.", max: 400 },
   "numbers.spend.improve": { def: "Keep the unused budget rather than spending it for the sake of it|Look at other channels once the website work has matured", max: 400 },
 
-  "numbers.leads.label": { def: "Real customers who reached out", max: 80 },
+  "numbers.leads.label": { def: "Real leads who got in touch", max: 80 },
   "numbers.leads.plain": { def: "Actual homeowners wanting a quote for a job.", max: 300 },
   "numbers.leads.healthy": { def: "4–10 a month is realistic today. This should climb as the town pages get onto Google.", max: 300 },
   "numbers.leads.improve": { def: "Reach people outside Ewa Beach|Text back automatically on missed calls", max: 400 },
@@ -134,7 +137,7 @@ export const LS_CONTENT = {
   "numbers.reviews.improve": { def: "Ask every finished customer|One polite reminder if they don't reply", max: 400 },
 
   "numbers.chart.label": { def: "Since we started", max: 60 },
-  "numbers.chart.title": { def: "Ad views and real customers, month by month", max: 120 },
+  "numbers.chart.title": { def: "Ad views and real leads, month by month", max: 120 },
   "numbers.chart.note": {
     def: "The grey bars are how many people saw your ad. They stay fairly flat, which tells us the size of the search market on Oahu — that ceiling is why the website work matters.",
     max: 400,
@@ -282,6 +285,11 @@ export const LS_CONTENT = {
   "recap.eyebrow": { def: "Monthly recap", max: 60 },
   "recap.sub": { def: "What we did, what it produced, and what's coming next month.", max: 200 },
   "recap.headline.label": { def: "The headline", max: 40 },
+  "recap.leads.title": { def: "Who got in touch", max: 60 },
+  "recap.leads.sub": {
+    def: "Every lead behind the number above. A lead is someone who contacted you — whether it turned into a paying job is only shown once it's marked won on the Leads page.",
+    max: 400,
+  },
   "recap.did.title": { def: "What we did", max: 60 },
   "recap.next.title": { def: "What's coming next", max: 60 },
   "recap.note.label": { def: "A note from Alan", max: 60 },
@@ -290,7 +298,7 @@ export const LS_CONTENT = {
     def: "One short page each month: the headline of what actually happened, the numbers that go with it, and what's planned next — so you never have to wonder what you're paying for.",
     max: 400,
   },
-  "recap.kpi.leads": { def: "Real customers", max: 40 },
+  "recap.kpi.leads": { def: "Real leads", max: 40 },
   "recap.kpi.jobs": { def: "Jobs won", max: 40 },
   "recap.kpi.value": { def: "Work value", max: 40 },
   "recap.kpi.spend": { def: "Ad spend", max: 40 },

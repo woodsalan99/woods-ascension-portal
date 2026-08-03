@@ -2,6 +2,8 @@ import { getDashboardScope } from "@/lib/dashboard-scope";
 import { prisma } from "@/lib/prisma";
 import { getContent } from "@/lib/content";
 import { resolveMetrics, LAST_30 } from "@/lib/ls-metrics";
+import { periodRangeLabel } from "@/lib/ls-periods";
+import { PeriodSwitch } from "@/components/ls/PeriodSwitch";
 import { monthKeyInTimezone } from "@/lib/timezone";
 import { EditProvider } from "@/components/ls/EditProvider";
 import { E, EList } from "@/components/ls/Editable";
@@ -91,21 +93,20 @@ export async function LsOverview({ period }: { period?: string }) {
     .filter((item) => (isMtd ? true : item.at >= cutoff))
     .sort((a, b) => b.at.getTime() - a.at.getTime());
 
-  const dateRangeLabel = isMtd
-    ? `${now.toLocaleDateString("en-US", { month: "long", timeZone: client.timezone })} 1 – ${now.toLocaleDateString(
-        "en-US",
-        { month: "long", day: "numeric", timeZone: client.timezone },
-      )}`
-    : `${cutoff.toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: client.timezone })} – ${now.toLocaleDateString(
-        "en-US",
-        { month: "long", day: "numeric", timeZone: client.timezone },
-      )}`;
+  const dateRangeLabel = periodRangeLabel(window, client.timezone, now);
+
+  // Overview offers the two windows that matter here. The Numbers page has
+  // the full set — this is a front page, not a report.
+  const PERIODS = [
+    { value: LAST_30, label: content.text("overview.period.rolling") },
+    { value: "mtd", label: content.text("overview.period.mtd") },
+  ];
 
   const needsYou = await prisma.serviceLead.findMany({
     where: {
       clientId: client.id,
       deletedAt: null,
-      NOT: { qualified: false },
+      OR: [{ qualified: null }, { qualified: true }],
       stage: { notIn: ["JOB_WON", "REVIEW_COMPLETE", "LOST"] },
       nextActionAt: { lte: now },
     },
@@ -141,15 +142,12 @@ export async function LsOverview({ period }: { period?: string }) {
             </div>
           )}
         </div>
-        <div className="wa-period-switch">
-          <a href="/" className={isMtd ? "" : "on"} aria-current={isMtd ? undefined : "page"}>
-            <E k="overview.period.rolling" v={content.text("overview.period.rolling")} label="Period — rolling" />
-          </a>
-          <a href="/?p=mtd" className={isMtd ? "on" : ""} aria-current={isMtd ? "page" : undefined}>
-            <E k="overview.period.mtd" v={content.text("overview.period.mtd")} label="Period — month to date" />
-          </a>
-          <span className="wa-weekbadge">{dateRangeLabel}</span>
-        </div>
+        <PeriodSwitch
+          basePath="/"
+          options={PERIODS}
+          current={isMtd ? "mtd" : LAST_30}
+          rangeLabel={dateRangeLabel}
+        />
       </div>
 
       <details className="wa-thesis" open>
@@ -237,7 +235,7 @@ export async function LsOverview({ period }: { period?: string }) {
             <E k="overview.kpi.leads.label" v={content.text("overview.kpi.leads.label")} label="Leads KPI label" />
           </div>
           <div className="wa-kpi-value">
-            <Num m={metric(`leads.real:${window}`)} clientId={client.id} label="Real customers this month" />
+            <Num m={metric(`leads.real:${window}`)} clientId={client.id} label="Real leads this period" />
           </div>
           <div className="wa-kpi-detail">
             <Num m={metric(`leads.split:${window}`)} clientId={client.id} label="Leads split (free vs. paid)" />
