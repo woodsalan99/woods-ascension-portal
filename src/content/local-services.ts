@@ -39,13 +39,16 @@ export const LS_CONTENT = {
   // Alan does in return. A blank line between them renders as a real
   // paragraph break — see the pre-line note in Editable.tsx.
   "overview.thesis.needs": {
-    def: "The core things I need from you: **respond to leads quickly (always)**, **follow up with them (always)**, **send me names and phone numbers for reviews (weekly)**, **share photos from your projects**, and update the outcome of leads in the pipeline on an ongoing basis.\n\nOn my end, the core things I'll do monthly that move this campaign forward are: adding 6 pages to the website, adding internal links and backlinks, reaching out to customers for reviews, posting photos to your listings, and keeping this portal up to date and sharing everything with you.",
+    def: "__The core things I need from you:__ **respond to leads quickly (always)**, **follow up with them (always)**, **send me names and phone numbers for reviews (weekly)**, **share photos from your projects**, and **update the outcome of leads in the pipeline on an ongoing basis**.\n\n__On my end,__ the core things I'll do monthly that move this campaign forward are: adding 6 pages to the website, adding internal links and backlinks, reaching out to customers for reviews, posting photos to your listings, and keeping this portal up to date and sharing everything with you.",
     max: 1500,
   },
   "overview.thesis.expand": {
     def: "With that foundation in place, we'll keep seeing progress — and once it's working, we can expand into other things like Facebook ads.",
     max: 1500,
   },
+
+  "overview.thesis.expandLabel": { def: "Expand", max: 30 },
+  "overview.thesis.shrinkLabel": { def: "Shrink", max: 30 },
 
   // ---- Overview / hero (shown until a MonthlyWork row exists for the current month) ----
   "overview.hero.titleDefault": { def: "Welcome to your growth portal.", max: 150 },
@@ -81,10 +84,16 @@ export const LS_CONTENT = {
   "overview.kpi.pages.label": { def: "Pages showing on Google", max: 100 },
   "overview.kpi.reviews.label": { def: "Your Google reviews", max: 100 },
 
-  // ---- Overview / needs-you queue ----
-  "overview.needsYou.title": { def: "Needs you", max: 60 },
-  "overview.needsYou.sub": { def: "Leads waiting on a next step", max: 100 },
-  "overview.needsYou.empty": { def: "Nothing needs your attention right now.", max: 200 },
+  "overview.kpi.reviews.link": { def: "View on Google Maps →", max: 60 },
+
+  // ---- Overview / latest leads ----
+  "overview.needsYou.title": { def: "Latest leads", max: 60 },
+  "overview.needsYou.sub": { def: "The most recent people who got in touch", max: 100 },
+  "overview.needsYou.empty": { def: "No leads yet — they'll appear here the moment someone calls or fills in the form.", max: 200 },
+  "overview.needsYou.hint": {
+    def: "Tap a name to fix it or add a note. Anything you type here shows up on the Leads page too.",
+    max: 200,
+  },
 
   // ---- The Numbers ----
   "numbers.eyebrow": { def: "How it's going", max: 60 },
@@ -326,10 +335,11 @@ export const LS_CONTENT = {
   "recap.kpi.junk": { def: "Junk blocked", max: 40 },
   "recap.kpi.reviews": { def: "Reviews now", max: 40 },
 
-  // ---- Overview / junk-blocked card ----
-  "overview.junk.title": { def: "Junk we kept off your phone", max: 80 },
-  "overview.junk.sub": { def: "Robocalls and fake website inquiries that never reached you.", max: 200 },
-  "overview.junk.empty": { def: "No junk to report yet.", max: 200 },
+  // The junk-blocked card was pulled from the Overview. The counting was
+  // right, but the only thing it had ever counted was two of Alan's own
+  // historical form tests and zero robocalls — a headline achievement made
+  // of nothing. The `junk.blocked` resolver stays; bring the card back once
+  // there's real volume behind it. See D40.
 } as const satisfies Record<string, ContentEntry>;
 
 export type ContentKey = keyof typeof LS_CONTENT;

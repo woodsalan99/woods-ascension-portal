@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth";
+import type { Prisma } from "@prisma/client";
 
 // Admin data entry for LOCAL_SERVICES clients. Everything here is a number
 // or an image that no API will give us: Google Ads Local Services reports
@@ -235,6 +236,52 @@ export async function addWorkLog(clientId: string, formData: FormData) {
 export async function deleteWorkLog(clientId: string, id: string) {
   await requireAdmin();
   await prisma.workLog.delete({ where: { id } });
+  refresh(clientId);
+}
+
+// ---------- "What we did" quick-add ----------
+
+// The one-liner Alan actually reaches for: type what you did, pick the day,
+// done. It appends to that month's MonthlyWork.items, which is the same list
+// the client's Overview shows under "what we built for you" and the Monthly
+// Recap shows under "what we did". Written once, appears in both. The date
+// is what later ages it out of the Overview's rolling 30-day view. See D40.
+export async function addWorkItem(clientId: string, formData: FormData) {
+  await requireAdmin();
+  const title = str(formData, "title");
+  if (!title) throw new Error("Write what you did first");
+
+  const dateRaw = str(formData, "date");
+  const date = dateRaw || new Date().toISOString().slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error(`Date must look like 2026-08-14, got "${date}"`);
+  // The item belongs to the month it happened in, not the month it's typed in
+  // — back-dating something from last month must land on last month's recap.
+  const month = date.slice(0, 7);
+
+  const existing = await prisma.monthlyWork.findUnique({ where: { clientId_month: { clientId, month } } });
+  const items = ((existing?.items as { title: string; detail?: string; date?: string }[] | null) ?? []).concat({
+    title,
+    detail: optStr(formData, "detail") ?? "",
+    date,
+  });
+
+  await prisma.monthlyWork.upsert({
+    where: { clientId_month: { clientId, month } },
+    create: { clientId, month, items, nextMonth: [] },
+    update: { items },
+  });
+
+  // Also goes in the work log, so the month-end write-up has the raw trail
+  // even if the item is later reworded.
+  await prisma.workLog.create({ data: { clientId, body: `${date} — ${title}`, source: "ADMIN_NOTE" } });
+  refresh(clientId);
+}
+
+export async function deleteWorkItem(clientId: string, month: string, index: number) {
+  await requireAdmin();
+  const row = await prisma.monthlyWork.findUniqueOrThrow({ where: { clientId_month: { clientId, month } } });
+  const items = (((row.items as Prisma.JsonArray | null) ?? []) as Prisma.JsonArray).filter((_, i) => i !== index);
+  await prisma.monthlyWork.update({ where: { id: row.id }, data: { items } });
   refresh(clientId);
 }
 

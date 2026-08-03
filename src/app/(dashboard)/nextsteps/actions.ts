@@ -134,6 +134,84 @@ export async function toggleTaskDone(taskId: string) {
   revalidatePath("/", "layout"); // the nav badge counts open tasks
 }
 
+// ---------- Admin task authoring, from the client's own page ----------
+//
+// Deliberately NOT admin-only-page work. Alan reads this page in preview far
+// more often than he opens the admin panel, and the moment he thinks "they
+// need to do X" is while he's looking at it. Guarded on ADMIN, so a real
+// client session can never reach any of it. See D41.
+
+async function requireAdminForClient(clientId: string) {
+  const ctx = await getScopedContext();
+  if (ctx.role !== "ADMIN") throw new Error("Admin only");
+  const client = await prisma.client.findUniqueOrThrow({ where: { id: clientId }, select: { id: true } });
+  return client.id;
+}
+
+export type TaskDraft = {
+  id?: string;
+  title: string;
+  explanation: string;
+  urgency: string;
+  responseType: string;
+  dueAt: string | null; // YYYY-MM-DD
+};
+
+export async function saveTask(clientId: string, draft: TaskDraft) {
+  await requireAdminForClient(clientId);
+  const title = draft.title.trim();
+  if (!title) throw new Error("A task needs a title");
+
+  const data = {
+    title: title.slice(0, 200),
+    explanation: draft.explanation.trim().slice(0, 1000),
+    urgency: draft.urgency.trim().slice(0, 40) || "This week",
+    responseType: draft.responseType,
+    // Noon UTC so the date shown never slips a day either side of the
+    // international date line — Hawaii is UTC-10.
+    dueAt: draft.dueAt ? new Date(`${draft.dueAt}T12:00:00Z`) : null,
+  };
+
+  if (draft.id) {
+    const existing = await prisma.clientTask.findUniqueOrThrow({ where: { id: draft.id } });
+    if (existing.clientId !== clientId) throw new Error("Forbidden");
+    await prisma.clientTask.update({ where: { id: draft.id }, data });
+  } else {
+    const last = await prisma.clientTask.findFirst({
+      where: { clientId },
+      orderBy: { sortOrder: "desc" },
+      select: { sortOrder: true },
+    });
+    await prisma.clientTask.create({ data: { clientId, ...data, sortOrder: (last?.sortOrder ?? 0) + 1 } });
+  }
+  revalidatePath("/nextsteps");
+  revalidatePath("/", "layout");
+}
+
+export async function deleteTask(clientId: string, taskId: string) {
+  await requireAdminForClient(clientId);
+  const task = await prisma.clientTask.findUniqueOrThrow({ where: { id: taskId } });
+  if (task.clientId !== clientId) throw new Error("Forbidden");
+  await prisma.clientTask.delete({ where: { id: taskId } });
+  revalidatePath("/nextsteps");
+  revalidatePath("/", "layout");
+}
+
+// Whole-list reorder rather than move-one-up: dragging or nudging repeatedly
+// against a server round-trip per step is where off-by-one ordering bugs come
+// from. The client sends the order it wants; we write exactly that.
+export async function reorderTasks(clientId: string, orderedIds: string[]) {
+  await requireAdminForClient(clientId);
+  const owned = await prisma.clientTask.findMany({ where: { clientId }, select: { id: true } });
+  const ownedIds = new Set(owned.map((t) => t.id));
+  if (orderedIds.some((id) => !ownedIds.has(id))) throw new Error("Forbidden");
+
+  await prisma.$transaction(
+    orderedIds.map((id, i) => prisma.clientTask.update({ where: { id }, data: { sortOrder: i + 1 } })),
+  );
+  revalidatePath("/nextsteps");
+}
+
 export async function addReviewRequest(formData: FormData) {
   const scope = await requireDashboardWriteScope();
   const customerName = String(formData.get("customerName") ?? "").trim();

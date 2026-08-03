@@ -3,7 +3,9 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { formatMonthKey } from "@/lib/timezone";
 import {
+  addWorkItem,
   addWorkLog,
+  deleteWorkItem,
   deleteClientTask,
   deleteGeogridScan,
   deleteLsaMonth,
@@ -69,6 +71,61 @@ export default async function LocalServicesAdmin({ params }: { params: Promise<{
           the client&apos;s portal immediately.
         </p>
       </div>
+
+      {/* ---------- What we did: the one used most often ---------- */}
+      <section className="border p-4 rounded bg-gray-50">
+        <h2 className="font-bold mb-1">Log something you did</h2>
+        <p className="text-gray-500 text-sm mb-3">
+          Goes straight onto their Overview under &quot;what we built for you&quot;, and into that month&apos;s
+          recap. The date decides which month it counts for and when it drops off their last-30-days view.
+        </p>
+        <form action={addWorkItem.bind(null, id)} className="flex flex-col gap-2">
+          <div className="grid grid-cols-4 gap-2">
+            <label className="text-xs col-span-3">
+              What you did
+              <input name="title" placeholder="Published 6 more town pages" className="border p-1 w-full" required />
+            </label>
+            <label className="text-xs">
+              When
+              <input name="date" type="date" className="border p-1 w-full" />
+            </label>
+          </div>
+          <label className="text-xs">
+            A bit more detail (optional) — shown under it on their Overview
+            <input name="detail" placeholder="Kailua, Kaneohe, Wahiawa, Haleiwa, Kahala, Manoa" className="border p-1 w-full" />
+          </label>
+          <button className="bg-black text-white px-3 py-1 rounded w-fit">Add it</button>
+        </form>
+
+        {recaps.length > 0 && (
+          <div className="mt-4">
+            <div className="text-xs text-gray-500 mb-1">Logged so far</div>
+            {recaps.map((r) => {
+              const items = (r.items as { title: string; detail?: string; date?: string }[]) ?? [];
+              if (items.length === 0) return null;
+              return (
+                <div key={r.id} className="mb-2">
+                  <div className="text-xs font-bold">{formatMonthKey(r.month)}</div>
+                  <ul className="text-sm">
+                    {items.map((it, i) => (
+                      <li key={i} className="flex gap-2 border-t py-1">
+                        <span className="text-gray-500 text-xs w-20 shrink-0">{it.date ?? "no date"}</span>
+                        <span className="flex-1">
+                          {it.title}
+                          {it.detail ? <span className="text-gray-500"> — {it.detail}</span> : null}
+                        </span>
+                        <form action={deleteWorkItem.bind(null, id, r.month, i)}>
+                          <button className="underline text-red-600 text-xs">remove</button>
+                        </form>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </section>
 
       {/* ---------- Google Local Services Ads ---------- */}
       <section className="border p-4 rounded">

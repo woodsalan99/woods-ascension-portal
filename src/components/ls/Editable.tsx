@@ -37,7 +37,15 @@ export function E({
     if (runs.length <= 1) return <Tag style={style}>{current}</Tag>;
     return (
       <Tag style={style}>
-        {runs.map((r, i) => (r.bold ? <b key={i}>{r.text}</b> : <span key={i}>{r.text}</span>))}
+        {runs.map((r, i) =>
+          r.bold ? (
+            <b key={i}>{r.text}</b>
+          ) : r.strong ? (
+            <strong key={i}>{r.text}</strong>
+          ) : (
+            <span key={i}>{r.text}</span>
+          ),
+        )}
       </Tag>
     );
   }
@@ -77,7 +85,17 @@ export function EList({ k, items, label, itemLabel }: { k: ContentKey; items: st
         {items.map((item, i) => {
           const runs = parseCopyMarkup(item);
           return (
-            <li key={i}>{runs.map((r, j) => (r.bold ? <b key={j}>{r.text}</b> : <span key={j}>{r.text}</span>))}</li>
+            <li key={i}>
+              {runs.map((r, j) =>
+                r.bold ? (
+                  <b key={j}>{r.text}</b>
+                ) : r.strong ? (
+                  <strong key={j}>{r.text}</strong>
+                ) : (
+                  <span key={j}>{r.text}</span>
+                ),
+              )}
+            </li>
           );
         })}
       </ul>

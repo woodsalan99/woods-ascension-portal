@@ -4,6 +4,7 @@ import { getContent } from "@/lib/content";
 import { resolveMetrics, LAST_30 } from "@/lib/ls-metrics";
 import { periodRangeLabel } from "@/lib/ls-periods";
 import { PeriodSwitch } from "@/components/ls/PeriodSwitch";
+import { LatestLeads, type LatestLeadVM } from "@/components/ls/LatestLeads";
 import { monthKeyInTimezone } from "@/lib/timezone";
 import { EditProvider } from "@/components/ls/EditProvider";
 import { E, EList } from "@/components/ls/Editable";
@@ -26,6 +27,10 @@ import { Num } from "@/components/ls/Num";
 // window. Items entered before dates existed have none — treat those as the
 // last day of the month they were logged under, so they age out in order
 // rather than all at once.
+// Canencia's public Google Maps profile — where the reviews the KPI counts
+// actually live, so the client can go and look at them.
+const GOOGLE_MAPS_URL = "https://share.google/ZbLNa2ZWm0izmx0VN";
+
 type WorkItem = { title: string; detail?: string; date?: string };
 
 function itemDate(item: WorkItem, month: string): Date {
@@ -61,7 +66,6 @@ export async function LsOverview({ period }: { period?: string }) {
     "gsc.pagesShowing.support",
     "reviews.count",
     "reviews.support",
-    `junk.blocked:${window}`,
   ];
   const metrics = await resolveMetrics(client.id, client.timezone, metricKeys);
   const metric = (k: string) => metrics.get(k)!;
@@ -102,21 +106,38 @@ export async function LsOverview({ period }: { period?: string }) {
     { value: "mtd", label: content.text("overview.period.mtd") },
   ];
 
-  const needsYou = await prisma.serviceLead.findMany({
-    where: {
-      clientId: client.id,
-      deletedAt: null,
-      OR: [{ qualified: null }, { qualified: true }],
-      stage: { notIn: ["JOB_WON", "REVIEW_COMPLETE", "LOST"] },
-      nextActionAt: { lte: now },
+  // Most-recent-first, regardless of stage. "Needs you" only ever showed
+  // leads with a next-action date set, which almost none have — so it was
+  // usually empty on the busiest page of the portal. See D40.
+  const latestRows = await prisma.serviceLead.findMany({
+    where: { clientId: client.id, deletedAt: null, OR: [{ qualified: null }, { qualified: true }] },
+    orderBy: { receivedAt: "desc" },
+    take: 6,
+    select: {
+      id: true,
+      name: true,
+      phone: true,
+      source: true,
+      receivedAt: true,
+      _count: { select: { notes: true } },
     },
-    orderBy: { nextActionAt: "asc" },
-    take: 5,
-    select: { id: true, name: true, nextActionLabel: true },
   });
 
-  const junk = metric(`junk.blocked:${window}`);
-  const junkIsZero = !junk.overridden && junk.display === "0";
+  const SOURCE_LABEL: Record<string, string> = {
+    LSA: "Google Ads",
+    GBP_CALL: "Google Maps call",
+    WEBSITE_FORM: "Website form",
+    REFERRAL: "Referral",
+    OTHER: "Other",
+  };
+  const latestLeads: LatestLeadVM[] = latestRows.map((l) => ({
+    id: l.id,
+    name: l.name,
+    phone: l.phone,
+    sourceLabel: SOURCE_LABEL[l.source] ?? l.source,
+    receivedAt: l.receivedAt,
+    noteCount: l._count.notes,
+  }));
 
   return (
     <EditProvider clientId={client.id} canEdit={scope.isPreview}>
@@ -155,6 +176,16 @@ export async function LsOverview({ period }: { period?: string }) {
           <h2 className="wa-thesis-heading">
             <E k="overview.thesis.summaryLabel" v={content.text("overview.thesis.summaryLabel")} label="Thesis heading" />
           </h2>
+          {/* The native <details> marker is hidden by the design, which left
+              this reading as a plain heading nobody knew to press. */}
+          <span className="wa-thesis-toggle">
+            <span className="when-closed">
+              <E k="overview.thesis.expandLabel" v={content.text("overview.thesis.expandLabel")} label="Thesis — expand label" />
+            </span>
+            <span className="when-open">
+              <E k="overview.thesis.shrinkLabel" v={content.text("overview.thesis.shrinkLabel")} label="Thesis — shrink label" />
+            </span>
+          </span>
         </summary>
         <div className="wa-thesis-body">
           <E k="overview.thesis.intro" v={content.text("overview.thesis.intro")} label="Thesis intro" as="p" multiline />
@@ -276,6 +307,9 @@ export async function LsOverview({ period }: { period?: string }) {
           <div className="wa-kpi-detail">
             <Num m={metric("reviews.support")} clientId={client.id} label="Reviews detail" />
           </div>
+          <a className="wa-kpi-link" href={GOOGLE_MAPS_URL} target="_blank" rel="noopener noreferrer">
+            <E k="overview.kpi.reviews.link" v={content.text("overview.kpi.reviews.link")} label="Reviews link text" />
+          </a>
         </article>
       </div>
 
@@ -283,52 +317,27 @@ export async function LsOverview({ period }: { period?: string }) {
         <div className="wa-section-head">
           <div>
             <div className="wa-eyebrow">
-              <E k="overview.needsYou.title" v={content.text("overview.needsYou.title")} label="Needs-you title" />
+              <E k="overview.needsYou.title" v={content.text("overview.needsYou.title")} label="Latest leads title" />
             </div>
             <h2 className="wa-h2">
-              <E k="overview.needsYou.sub" v={content.text("overview.needsYou.sub")} label="Needs-you subtitle" />
+              <E k="overview.needsYou.sub" v={content.text("overview.needsYou.sub")} label="Latest leads subtitle" />
             </h2>
+            <p className="wa-page-sub">
+              <E k="overview.needsYou.hint" v={content.text("overview.needsYou.hint")} label="Latest leads hint" multiline />
+            </p>
           </div>
         </div>
-        {needsYou.length === 0 ? (
+        {latestLeads.length === 0 ? (
           <div className="wa-empty wa-empty-slim">
             <p>
-              <E k="overview.needsYou.empty" v={content.text("overview.needsYou.empty")} label="Needs-you empty state" />
+              <E k="overview.needsYou.empty" v={content.text("overview.needsYou.empty")} label="Latest leads empty state" />
             </p>
           </div>
         ) : (
-          <div className="wa-ob-list">
-            {needsYou.map((lead) => (
-              <a key={lead.id} href="/leads" className="wa-ob-item" style={{ textDecoration: "none", color: "inherit" }}>
-                <div className="wa-ob-body">
-                  <div className="wa-ob-step">{lead.name ?? "Unknown Name"}</div>
-                </div>
-                <span className="wa-ob-now">{lead.nextActionLabel ?? "Follow up"} →</span>
-              </a>
-            ))}
-          </div>
+          <LatestLeads leads={latestLeads} />
         )}
       </div>
 
-      <div className="wa-card">
-        <div className="wa-kpi-label">
-          <E k="overview.junk.title" v={content.text("overview.junk.title")} label="Junk-blocked title" />
-        </div>
-        {junkIsZero ? (
-          <p className="wa-page-sub" style={{ marginTop: 8 }}>
-            <E k="overview.junk.empty" v={content.text("overview.junk.empty")} label="Junk-blocked empty state" />
-          </p>
-        ) : (
-          <>
-            <h2 className="wa-h2" style={{ marginTop: 5 }}>
-              <Num m={junk} clientId={client.id} label="Junk blocked this month" /> blocked
-            </h2>
-            <p className="wa-page-sub">
-              <E k="overview.junk.sub" v={content.text("overview.junk.sub")} label="Junk-blocked subtitle" />
-            </p>
-          </>
-        )}
-      </div>
     </EditProvider>
   );
 }

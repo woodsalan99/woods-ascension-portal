@@ -3,7 +3,8 @@ import { prisma } from "@/lib/prisma";
 import { getContent } from "@/lib/content";
 import { getScopedContext } from "@/lib/auth";
 import { EditProvider } from "@/components/ls/EditProvider";
-import { E, EList } from "@/components/ls/Editable";
+import { E } from "@/components/ls/Editable";
+import { HabitList } from "@/components/ls/HabitList";
 import { TaskList, type TaskVM } from "@/components/ls/TaskList";
 import { ReviewRequestForm } from "@/components/ls/ReviewRequestForm";
 
@@ -11,14 +12,6 @@ import { ReviewRequestForm } from "@/components/ls/ReviewRequestForm";
 // where to sign in to reply and unlock the customer's details.
 const LSA_URL = "https://ads.google.com/local-services-ads";
 const LSA_SIGN_IN_EMAIL = "canenciapainting@gmail.com";
-
-// Weekly habits are stored as one pipe-separated string per item so Alan can
-// add, remove and reorder them from edit mode without a schema change:
-//   icon|heading|body|why it matters
-function splitHabit(raw: string) {
-  const [icon = "•", heading = "", body = "", why = ""] = raw.split("|");
-  return { icon, heading, body, why };
-}
 
 export default async function NextStepsPage() {
   const scope = await requireClientType("LOCAL_SERVICES");
@@ -49,6 +42,7 @@ export default async function NextStepsPage() {
       explanation: t.explanation,
       urgency: t.urgency,
       responseType: t.responseType,
+      dueAt: t.dueAt ? t.dueAt.toISOString().slice(0, 10) : null,
       done: t.status === "DONE",
       // Each person edits their own written answer; photos are shared, because
       // a job photo belongs to the business, not to whoever happened to upload it.
@@ -91,7 +85,7 @@ export default async function NextStepsPage() {
             </p>
           </div>
         </div>
-        <TaskList tasks={taskVMs} />
+        <TaskList tasks={taskVMs} clientId={scope.clientId} />
       </div>
 
       <div className="wa-card">
@@ -163,31 +157,7 @@ export default async function NextStepsPage() {
           </div>
         </div>
 
-        {scope.isPreview ? (
-          // Edit mode works on the raw pipe-separated strings; clients never see them.
-          <EList
-            k="ask.habits.items"
-            items={habits}
-            label="Weekly habits"
-            itemLabel="Habit (icon|heading|body|why it matters)"
-          />
-        ) : (
-          <div>
-            {habits.map((raw, i) => {
-              const h = splitHabit(raw);
-              return (
-                <div key={i} className="wa-habit">
-                  <div className="wa-habit-ico">{h.icon}</div>
-                  <div>
-                    <b>{h.heading}</b>
-                    <p>{h.body}</p>
-                    {h.why && <div className="wa-habit-why">{h.why}</div>}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
+        <HabitList items={habits} />
       </div>
 
       <div className="wa-card">

@@ -62,12 +62,34 @@ export async function addLeadNote(leadId: string, body: string) {
     prisma.leadActivity.create({ data: { leadId, type: "NOTE" } }),
   ]);
   revalidatePath("/leads");
+  revalidatePath("/"); // the Overview shows each lead's note count
 }
 
 // Every lead is worthwhile until someone says otherwise — robocalls and spam
 // forms are filtered out long before they could become a lead, so the thing
 // worth recording is the exception. qualified === false means bad fit;
 // null and true both mean it counted. See D34.
+// Renaming happens on the Overview far more than on the Leads board: the
+// commonest first act on a fresh lead is putting a name to a phone number.
+// Blank clears back to null so the card falls back to showing the number
+// rather than displaying an empty title.
+export async function renameLead(leadId: string, name: string) {
+  const scope = await requireDashboardWriteScope();
+  const lead = await assertOwnsLead(leadId, scope.clientId);
+  const trimmed = name.trim().slice(0, 120);
+  const next = trimmed.length > 0 ? trimmed : null;
+  if (next === lead.name) return;
+
+  await prisma.$transaction([
+    prisma.serviceLead.update({ where: { id: leadId }, data: { name: next } }),
+    prisma.leadActivity.create({
+      data: { leadId, type: "RENAME", meta: { summary: `Name set to "${next ?? "(cleared)"}"`, from: lead.name } },
+    }),
+  ]);
+  revalidatePath("/leads");
+  revalidatePath("/");
+}
+
 export async function toggleLeadBadFit(leadId: string) {
   const scope = await requireDashboardWriteScope();
   const lead = await assertOwnsLead(leadId, scope.clientId);

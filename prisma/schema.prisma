@@ -738,6 +738,9 @@ model ClientTask {
   responseType String // CHECK | TEXT | PHOTO | BOTH
   status       String           @default("OPEN") // OPEN | DONE
   sortOrder    Int
+  // Optional, and most tasks won't have one. When set, the client's page
+  // shows how long is left and turns it red once it's past. See D41.
+  dueAt        DateTime?
   completedAt  DateTime?
   submissions  TaskSubmission[]
 }

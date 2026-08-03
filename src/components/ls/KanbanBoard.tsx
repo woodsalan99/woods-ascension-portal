@@ -41,6 +41,7 @@ const HISTORY_ICON: Record<string, string> = {
   NOTE: "🗒",
   VALUE_SET: "💵",
   QUALIFIED_TOGGLE: "✓",
+  RENAME: "✎",
 };
 
 const COLUMNS: { stage: LeadStage; title: string; help: string }[] = [
