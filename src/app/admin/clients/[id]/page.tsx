@@ -119,6 +119,11 @@ export default async function AdminClientDetail({
           <h1 className="text-xl font-bold mt-2">{client.name}</h1>
         </div>
         <div className="flex items-center gap-2">
+          {client.type === "LOCAL_SERVICES" && (
+            <a href={`/admin/clients/${id}/local`} className="border px-3 py-2 rounded text-xs">
+              Local services data →
+            </a>
+          )}
           {templates.length > 0 && (
             <form action={applyTemplate.bind(null, id)} className="flex items-center gap-1">
               <select name="templateId" className="border p-1 text-xs" required defaultValue="">
