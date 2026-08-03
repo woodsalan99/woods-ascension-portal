@@ -243,7 +243,13 @@ export async function GET(req: Request) {
             message: outcome.data.message || null,
           });
 
-          const confident = verdict.confidence >= SPAM_CONFIDENCE_THRESHOLD;
+          // With no message there is nothing for the model to judge, and it
+          // reliably calls that spam at high confidence — which would bin a
+          // real homeowner who filled in their name and number and skipped
+          // the box. No message means no confident verdict, full stop.
+          // See D50.
+          const hasMessage = (outcome.data.message ?? "").trim().length >= 3;
+          const confident = hasMessage && verdict.confidence >= SPAM_CONFIDENCE_THRESHOLD;
           const spamVerdict = confident ? verdict.qualified : null; // null = ambiguous, needs Alan's review
           const passedOn = confident && verdict.qualified;
 
