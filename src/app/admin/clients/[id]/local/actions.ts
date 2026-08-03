@@ -244,11 +244,17 @@ export async function upsertMonthlyWork(clientId: string, formData: FormData) {
   await requireAdmin();
   const month = assertMonth(str(formData, "month"));
 
-  // "What we did" items are entered one per line as `title | detail`. The
-  // same list renders on the Overview and in the recap, so it's written once.
+  // "What we did" items are entered one per line as `title | detail | date`.
+  // The same list renders on the Overview and in the recap, so it's written
+  // once. The date is what makes an item age out of the Overview's rolling
+  // 30-day view; leave it off and the item counts as the last day of this
+  // month. See D33.
   const items = lines(formData, "items").map((line) => {
-    const [title, detail = ""] = line.split("|").map((p) => p.trim());
-    return { title, detail };
+    const [title, detail = "", date = ""] = line.split("|").map((p) => p.trim());
+    if (date && !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+      throw new Error(`Date on "${title}" must look like 2026-08-14, got "${date}"`);
+    }
+    return date ? { title, detail, date } : { title, detail };
   });
 
   const data = {

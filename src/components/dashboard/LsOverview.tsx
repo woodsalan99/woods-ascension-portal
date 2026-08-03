@@ -1,7 +1,7 @@
 import { getDashboardScope } from "@/lib/dashboard-scope";
 import { prisma } from "@/lib/prisma";
 import { getContent } from "@/lib/content";
-import { resolveMetrics } from "@/lib/ls-metrics";
+import { resolveMetrics, LAST_30 } from "@/lib/ls-metrics";
 import { monthKeyInTimezone } from "@/lib/timezone";
 import { EditProvider } from "@/components/ls/EditProvider";
 import { E, EList } from "@/components/ls/Editable";
@@ -20,7 +20,19 @@ import { Num } from "@/components/ls/Num";
 // ships, no MonthlyWork row exists, so this page shows the registry
 // DEFAULT hero copy and an empty-state for the work block — both of which
 // ARE registry-editable, since right now they're what's actually visible.
-export async function LsOverview() {
+// A work item's own date is what decides whether it falls inside a rolling
+// window. Items entered before dates existed have none — treat those as the
+// last day of the month they were logged under, so they age out in order
+// rather than all at once.
+type WorkItem = { title: string; detail?: string; date?: string };
+
+function itemDate(item: WorkItem, month: string): Date {
+  if (item.date) return new Date(`${item.date}T12:00:00Z`);
+  const [y, m] = month.split("-").map(Number);
+  return new Date(Date.UTC(y, m, 0, 12));
+}
+
+export async function LsOverview({ period }: { period?: string }) {
   const scope = await getDashboardScope();
   const client = await prisma.client.findUniqueOrThrow({
     where: { id: scope.clientId },
@@ -28,32 +40,66 @@ export async function LsOverview() {
   });
 
   const content = await getContent(client.id);
-  const monthKey = monthKeyInTimezone(new Date(), client.timezone);
+  const now = new Date();
+  const monthKey = monthKeyInTimezone(now, client.timezone);
+
+  // Rolling 30 days by default. Month-to-date is one tap away, but it is the
+  // wrong first impression: on the 2nd of the month it shows a nearly empty
+  // page, which reads as "nothing is happening" rather than "the month just
+  // started". See D33.
+  const isMtd = period === "mtd";
+  const window = isMtd ? monthKey : LAST_30;
 
   const metricKeys = [
-    `leads.real:${monthKey}`,
-    `leads.split:${monthKey}`,
-    `lsa.cpl:${monthKey}`,
-    `lsa.cpl.support:${monthKey}`,
+    `leads.real:${window}`,
+    `leads.split:${window}`,
+    `lsa.cpl:${window}`,
+    `lsa.cpl.support:${window}`,
     "gsc.pagesShowing",
     "gsc.pagesShowing.support",
     "reviews.count",
     "reviews.support",
-    `junk.blocked:${monthKey}`,
+    `junk.blocked:${window}`,
   ];
   const metrics = await resolveMetrics(client.id, client.timezone, metricKeys);
   const metric = (k: string) => metrics.get(k)!;
 
+  // The hero copy still belongs to the calendar month it was written for —
+  // it's the month-end write-up, not a rolling summary.
   const monthlyWork = await prisma.monthlyWork.findUnique({
     where: { clientId_month: { clientId: client.id, month: monthKey } },
   });
-  const workItems = (monthlyWork?.items as { title: string; detail: string }[] | null) ?? [];
 
-  const now = new Date();
-  const dateRangeLabel = `${now.toLocaleDateString("en-US", { month: "long", timeZone: client.timezone })} 1 – ${now.toLocaleDateString(
-    "en-US",
-    { month: "long", day: "numeric", timeZone: client.timezone },
-  )}`;
+  // In rolling mode the window straddles two calendar months, so work items
+  // come from both rows and are filtered by their own date.
+  const cutoff = new Date(now.getTime() - 30 * 86_400_000);
+  const [curYear, curMonth] = monthKey.split("-").map(Number);
+  const prevMonthKey =
+    curMonth === 1 ? `${curYear - 1}-12` : `${curYear}-${String(curMonth - 1).padStart(2, "0")}`;
+  const workRows = isMtd
+    ? monthlyWork
+      ? [monthlyWork]
+      : []
+    : await prisma.monthlyWork.findMany({
+        where: { clientId: client.id, month: { in: [monthKey, prevMonthKey] } },
+      });
+
+  const workItems = workRows
+    .flatMap((row) =>
+      ((row.items as WorkItem[] | null) ?? []).map((item) => ({ ...item, at: itemDate(item, row.month) })),
+    )
+    .filter((item) => (isMtd ? true : item.at >= cutoff))
+    .sort((a, b) => b.at.getTime() - a.at.getTime());
+
+  const dateRangeLabel = isMtd
+    ? `${now.toLocaleDateString("en-US", { month: "long", timeZone: client.timezone })} 1 – ${now.toLocaleDateString(
+        "en-US",
+        { month: "long", day: "numeric", timeZone: client.timezone },
+      )}`
+    : `${cutoff.toLocaleDateString("en-US", { month: "long", day: "numeric", timeZone: client.timezone })} – ${now.toLocaleDateString(
+        "en-US",
+        { month: "long", day: "numeric", timeZone: client.timezone },
+      )}`;
 
   const needsYou = await prisma.serviceLead.findMany({
     where: {
@@ -66,7 +112,7 @@ export async function LsOverview() {
     select: { id: true, name: true, nextActionLabel: true },
   });
 
-  const junk = metric(`junk.blocked:${monthKey}`);
+  const junk = metric(`junk.blocked:${window}`);
   const junkIsZero = !junk.overridden && junk.display === "0";
 
   return (
@@ -93,7 +139,15 @@ export async function LsOverview() {
             </div>
           )}
         </div>
-        <span className="wa-weekbadge">{dateRangeLabel}</span>
+        <div className="wa-period-switch">
+          <a href="/" className={isMtd ? "" : "on"} aria-current={isMtd ? undefined : "page"}>
+            <E k="overview.period.rolling" v={content.text("overview.period.rolling")} label="Period — rolling" />
+          </a>
+          <a href="/?p=mtd" className={isMtd ? "on" : ""} aria-current={isMtd ? "page" : undefined}>
+            <E k="overview.period.mtd" v={content.text("overview.period.mtd")} label="Period — month to date" />
+          </a>
+          <span className="wa-weekbadge">{dateRangeLabel}</span>
+        </div>
       </div>
 
       <details className="wa-thesis" open>
@@ -120,10 +174,26 @@ export async function LsOverview() {
         <div className="wa-section-head">
           <div>
             <div className="wa-eyebrow">
-              <E k="overview.work.label" v={content.text("overview.work.label")} label="Work block eyebrow" />
+              {isMtd ? (
+                <E k="overview.work.label" v={content.text("overview.work.label")} label="Work block eyebrow" />
+              ) : (
+                <E
+                  k="overview.work.label.rolling"
+                  v={content.text("overview.work.label.rolling")}
+                  label="Work block eyebrow (30 days)"
+                />
+              )}
             </div>
             <h2 className="wa-h2">
-              <E k="overview.work.title" v={content.text("overview.work.title")} label="Work block title" />
+              {isMtd ? (
+                <E k="overview.work.title" v={content.text("overview.work.title")} label="Work block title" />
+              ) : (
+                <E
+                  k="overview.work.title.rolling"
+                  v={content.text("overview.work.title.rolling")}
+                  label="Work block title (30 days)"
+                />
+              )}
             </h2>
             <p className="wa-page-sub">
               <E k="overview.work.sub" v={content.text("overview.work.sub")} label="Work block subtitle" multiline />
@@ -133,7 +203,15 @@ export async function LsOverview() {
         {workItems.length === 0 ? (
           <div className="wa-empty wa-empty-slim">
             <p>
-              <E k="overview.work.empty" v={content.text("overview.work.empty")} label="Work block empty state" />
+              {isMtd ? (
+                <E k="overview.work.empty" v={content.text("overview.work.empty")} label="Work block empty state" />
+              ) : (
+                <E
+                  k="overview.work.empty.rolling"
+                  v={content.text("overview.work.empty.rolling")}
+                  label="Work block empty state (30 days)"
+                />
+              )}
             </p>
           </div>
         ) : (
@@ -157,10 +235,10 @@ export async function LsOverview() {
             <E k="overview.kpi.leads.label" v={content.text("overview.kpi.leads.label")} label="Leads KPI label" />
           </div>
           <div className="wa-kpi-value">
-            <Num m={metric(`leads.real:${monthKey}`)} clientId={client.id} label="Real customers this month" />
+            <Num m={metric(`leads.real:${window}`)} clientId={client.id} label="Real customers this month" />
           </div>
           <div className="wa-kpi-detail">
-            <Num m={metric(`leads.split:${monthKey}`)} clientId={client.id} label="Leads split (free vs. paid)" />
+            <Num m={metric(`leads.split:${window}`)} clientId={client.id} label="Leads split (free vs. paid)" />
           </div>
         </article>
 
@@ -169,10 +247,10 @@ export async function LsOverview() {
             <E k="overview.kpi.cpl.label" v={content.text("overview.kpi.cpl.label")} label="Cost per lead KPI label" />
           </div>
           <div className="wa-kpi-value">
-            <Num m={metric(`lsa.cpl:${monthKey}`)} clientId={client.id} label="Cost per LSA lead" />
+            <Num m={metric(`lsa.cpl:${window}`)} clientId={client.id} label="Cost per LSA lead" />
           </div>
           <div className="wa-kpi-detail">
-            <Num m={metric(`lsa.cpl.support:${monthKey}`)} clientId={client.id} label="LSA spend detail" />
+            <Num m={metric(`lsa.cpl.support:${window}`)} clientId={client.id} label="LSA spend detail" />
           </div>
         </article>
 

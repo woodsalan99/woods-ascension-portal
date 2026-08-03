@@ -55,6 +55,13 @@ export const LS_CONTENT = {
     max: 300,
   },
   "overview.work.empty": { def: "Nothing logged yet this month — check back soon.", max: 200 },
+  // Rolling-window wording. Same block, different window — the copy has to
+  // match what the numbers above it are actually counting.
+  "overview.work.label.rolling": { def: "Work completed in the last 30 days", max: 80 },
+  "overview.work.title.rolling": { def: "What we built for you in the last 30 days", max: 120 },
+  "overview.work.empty.rolling": { def: "Nothing logged in the last 30 days — check back soon.", max: 200 },
+  "overview.period.rolling": { def: "Last 30 days", max: 40 },
+  "overview.period.mtd": { def: "This month so far", max: 40 },
 
   // ---- Overview / KPI card labels ----
   // The v8 mock rendered this as "Real customers who reached out / Leads" —

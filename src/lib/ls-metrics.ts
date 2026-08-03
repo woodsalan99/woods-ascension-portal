@@ -21,6 +21,12 @@ function splitKey(scopeKey: string): [string, string | null] {
   return i === -1 ? [scopeKey, null] : [scopeKey.slice(0, i), scopeKey.slice(i + 1)];
 }
 
+// A period is either a calendar month ("2026-07") or the rolling window
+// "last30". The rolling window is the Overview's default: on the 3rd of the
+// month, month-to-date shows almost nothing and reads as though the work
+// stopped, when in fact the previous four weeks were busy. See D33.
+export const LAST_30 = "last30";
+
 // Month-key range as plain UTC calendar boundaries — the same simplification
 // dashboard-compute.ts's periodRange() already uses for COLD_EMAIL (dates are
 // bucketed into the correct local day at write time via dateKeyInTimezone;
@@ -33,6 +39,14 @@ function monthRangeUtc(monthKey: string): { start: Date; end: Date } {
   };
 }
 
+export function periodRange(period: string): { start: Date; end: Date } {
+  if (period === LAST_30) {
+    const end = new Date();
+    return { start: new Date(end.getTime() - 30 * 86_400_000), end };
+  }
+  return monthRangeUtc(period);
+}
+
 const fmtInt = (n: number) => n.toLocaleString("en-US");
 const fmtMoney = (cents: number) => `$${Math.round(cents / 100).toLocaleString("en-US")}`;
 // Headline figures round to whole dollars (per the approved mock); the
@@ -41,13 +55,22 @@ const fmtMoney = (cents: number) => `$${Math.round(cents / 100).toLocaleString("
 const fmtMoneyExact = (cents: number) => `$${(cents / 100).toFixed(2)}`;
 const monthName = (monthKey: string) => formatMonthKey(monthKey).split(" ")[0];
 
+// Google reports Local Services figures monthly only. On a rolling window
+// there is nothing to sum, so use the newest month on file.
+async function latestOrMonthStat(clientId: string, period: string) {
+  if (period === LAST_30) {
+    return prisma.lsaMonthlyStat.findFirst({ where: { clientId }, orderBy: { month: "desc" } });
+  }
+  return prisma.lsaMonthlyStat.findUnique({ where: { clientId_month: { clientId, month: period } } });
+}
+
 const RESOLVERS: Record<string, Resolver> = {
   // Every ServiceLead row is, by construction, a real lead — spam/robocall
   // calls and form submissions never become ServiceLead rows (they're
   // filtered upstream in the Gmail/CallRail sync, Phase 3).
   "leads.real": async ({ clientId }, period) => {
     if (!period) throw new Error('"leads.real" requires a :YYYY-MM period');
-    const { start, end } = monthRangeUtc(period);
+    const { start, end } = periodRange(period);
     const count = await prisma.serviceLead.count({
       where: { clientId, receivedAt: { gte: start, lt: end } },
     });
@@ -56,7 +79,7 @@ const RESOLVERS: Record<string, Resolver> = {
 
   "leads.split": async ({ clientId }, period) => {
     if (!period) throw new Error('"leads.split" requires a :YYYY-MM period');
-    const { start, end } = monthRangeUtc(period);
+    const { start, end } = periodRange(period);
     const leads = await prisma.serviceLead.findMany({
       where: { clientId, receivedAt: { gte: start, lt: end } },
       select: { source: true },
@@ -71,10 +94,14 @@ const RESOLVERS: Record<string, Resolver> = {
     return { display: parts.join(" · "), source: "Leads board", asOf: null };
   },
 
-  // No public LSA API — this is Alan's manual monthly entry (LsaMonthlyStat).
+  // No public LSA API — this is Alan's manual monthly entry (LsaMonthlyStat),
+  // and Google only reports it a month at a time. So there is no such thing
+  // as a true rolling-30-day ad figure: for "last30" we show the most recent
+  // month Alan has entered and name that month in the support line, rather
+  // than pro-rating a number Google never published.
   "lsa.cpl": async ({ clientId }, period) => {
-    if (!period) throw new Error('"lsa.cpl" requires a :YYYY-MM period');
-    const stat = await prisma.lsaMonthlyStat.findUnique({ where: { clientId_month: { clientId, month: period } } });
+    if (!period) throw new Error('"lsa.cpl" requires a period');
+    const stat = await latestOrMonthStat(clientId, period);
     if (!stat || stat.chargedLeads === 0) {
       return { display: "—", source: "Google Ads (manual entry)", asOf: stat?.updatedAt ?? null };
     }
@@ -86,19 +113,23 @@ const RESOLVERS: Record<string, Resolver> = {
   },
 
   "lsa.cpl.support": async ({ clientId }, period) => {
-    if (!period) throw new Error('"lsa.cpl.support" requires a :YYYY-MM period');
-    const stat = await prisma.lsaMonthlyStat.findUnique({ where: { clientId_month: { clientId, month: period } } });
+    if (!period) throw new Error('"lsa.cpl.support" requires a period');
+    const stat = await latestOrMonthStat(clientId, period);
     // A bare "—" with nothing under it reads as "broken" to a
     // non-technical reader. Say plainly why it's empty instead.
     if (!stat) {
-      return { display: "This month's ad figures haven't been added yet", source: "Google Ads (manual entry)", asOf: null };
+      return { display: "The ad figures haven't been added yet", source: "Google Ads (manual entry)", asOf: null };
     }
     if (stat.chargedLeads === 0) {
-      return { display: "No charged leads from Google ads this month", source: "Google Ads (manual entry)", asOf: stat.updatedAt };
+      return {
+        display: `No charged leads from Google ads in ${monthName(stat.month)}`,
+        source: "Google Ads (manual entry)",
+        asOf: stat.updatedAt,
+      };
     }
     const leadWord = stat.chargedLeads === 1 ? "lead" : "leads";
     return {
-      display: `${fmtMoneyExact(stat.spendCents)} paid to Google in ${monthName(period)} for ${stat.chargedLeads} ${leadWord}`,
+      display: `${fmtMoneyExact(stat.spendCents)} paid to Google in ${monthName(stat.month)} for ${stat.chargedLeads} ${leadWord}`,
       source: "Google Ads (manual entry)",
       asOf: stat.updatedAt,
     };
@@ -170,7 +201,7 @@ const RESOLVERS: Record<string, Resolver> = {
   // Leads that cost nothing per lead — everything except paid LSA.
   "leads.organic": async ({ clientId }, period) => {
     if (!period) throw new Error('"leads.organic" requires a :YYYY-MM period');
-    const { start, end } = monthRangeUtc(period);
+    const { start, end } = periodRange(period);
     const count = await prisma.serviceLead.count({
       where: { clientId, receivedAt: { gte: start, lt: end }, source: { not: "LSA" } },
     });
@@ -179,7 +210,7 @@ const RESOLVERS: Record<string, Resolver> = {
 
   "leads.organic.support": async ({ clientId }, period) => {
     if (!period) throw new Error('"leads.organic.support" requires a :YYYY-MM period');
-    const { start, end } = monthRangeUtc(period);
+    const { start, end } = periodRange(period);
     const leads = await prisma.serviceLead.findMany({
       where: { clientId, receivedAt: { gte: start, lt: end }, source: { not: "LSA" } },
       select: { source: true },
@@ -204,7 +235,7 @@ const RESOLVERS: Record<string, Resolver> = {
 
   "jobs.won": async ({ clientId }, period) => {
     if (!period) throw new Error('"jobs.won" requires a :YYYY-MM period');
-    const { start, end } = monthRangeUtc(period);
+    const { start, end } = periodRange(period);
     const count = await prisma.serviceLead.count({
       where: { clientId, stage: "JOB_WON", stageChangedAt: { gte: start, lt: end } },
     });
@@ -213,7 +244,7 @@ const RESOLVERS: Record<string, Resolver> = {
 
   "jobs.wonValue": async ({ clientId }, period) => {
     if (!period) throw new Error('"jobs.wonValue" requires a :YYYY-MM period');
-    const { start, end } = monthRangeUtc(period);
+    const { start, end } = periodRange(period);
     const won = await prisma.serviceLead.findMany({
       where: { clientId, stage: "JOB_WON", stageChangedAt: { gte: start, lt: end } },
       select: { jobValue: true },
@@ -277,7 +308,7 @@ const RESOLVERS: Record<string, Resolver> = {
   // logged, never deleted").
   "junk.blocked": async ({ clientId }, period) => {
     if (!period) throw new Error('"junk.blocked" requires a :YYYY-MM period');
-    const { start, end } = monthRangeUtc(period);
+    const { start, end } = periodRange(period);
     const [junkCalls, junkForms] = await Promise.all([
       prisma.callRecord.count({
         where: { clientId, occurredAt: { gte: start, lt: end }, classification: { in: ["ROBOCALL", "SPAM", "WRONG_AREA"] } },

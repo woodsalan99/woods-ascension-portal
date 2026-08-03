@@ -902,6 +902,16 @@ span.wa-ob-active { font-size: 12px; font-weight: 600; color: var(--green); }
 .wa-month-nav a:hover { border-color: var(--gold); }
 .wa-month-nav .current { background: var(--ink); color: #fff; border-color: var(--ink); }
 
+/* ---------- local-services: Overview period switch ---------- */
+.wa-period-switch { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.wa-period-switch a {
+  font-size: 12.5px; padding: 6px 12px; border-radius: 999px; text-decoration: none;
+  border: 1px solid var(--line); background: var(--card); color: var(--muted); white-space: nowrap;
+}
+.wa-period-switch a:hover { border-color: var(--gold); color: var(--ink); }
+.wa-period-switch a.on { background: var(--ink); border-color: var(--ink); color: #fff; }
+.wa-period-switch .wa-weekbadge { margin-left: 4px; }
+
 @media (max-width: 900px) {
   .wa-kpis { grid-template-columns: repeat(2, 1fr); }
   .wa-pipe-grid { grid-template-columns: repeat(2, 1fr); }

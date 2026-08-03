@@ -7,12 +7,17 @@ import { LsOverview } from "@/components/dashboard/LsOverview";
 // IMPLEMENTATION_STATE.md D-A) — every other page can guard on
 // requireClientType, but Overview has to fork instead, since there's
 // nowhere else to send someone standing on their own home page.
-export default async function OverviewPage() {
+export default async function OverviewPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ p?: string }>;
+}) {
   const scope = await getDashboardScope();
   const client = await prisma.client.findUniqueOrThrow({
     where: { id: scope.clientId },
     select: { type: true },
   });
+  const { p } = await searchParams;
 
-  return client.type === "LOCAL_SERVICES" ? <LsOverview /> : <ColdEmailOverview />;
+  return client.type === "LOCAL_SERVICES" ? <LsOverview period={p} /> : <ColdEmailOverview />;
 }

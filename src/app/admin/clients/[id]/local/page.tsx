@@ -321,7 +321,7 @@ export default async function LocalServicesAdmin({ params }: { params: Promise<{
           places. The KPI numbers on the recap are worked out live; you don&apos;t type those.
         </p>
         {recaps.map((r) => {
-          const items = (r.items as { title: string; detail?: string }[]) ?? [];
+          const items = (r.items as { title: string; detail?: string; date?: string }[]) ?? [];
           const next = (r.nextMonth as string[]) ?? [];
           return (
             <details key={r.id} className="border-t py-2">
@@ -348,11 +348,14 @@ export default async function LocalServicesAdmin({ params }: { params: Promise<{
                   />
                 </label>
                 <label className="text-xs">
-                  What we did — one per line, <code>title | detail</code>
+                  What we did — one per line, <code>title | detail | date</code>. The date decides when it drops
+                  off the client&apos;s &quot;last 30 days&quot; view; leave it off and it counts as month-end.
                   <textarea
                     name="items"
                     rows={5}
-                    defaultValue={items.map((i) => `${i.title} | ${i.detail ?? ""}`).join("\n")}
+                    defaultValue={items
+                      .map((i) => [i.title, i.detail ?? "", i.date ?? ""].join(" | ").replace(/ \| $/, ""))
+                      .join("\n")}
                     className="border p-1 w-full font-mono text-xs"
                   />
                 </label>
