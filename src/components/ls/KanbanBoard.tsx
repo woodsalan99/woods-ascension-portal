@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import type { LeadStage, LeadSource } from "@prisma/client";
 import { moveLeadStage, setJobWon, addLeadNote, toggleLeadBadFit, deleteLead } from "@/app/(dashboard)/leads/actions";
+import { leadLabel, isPlaceholderLabel } from "@/lib/lead-label";
 
 export type LeadCardVM = {
   id: string;
@@ -10,6 +11,7 @@ export type LeadCardVM = {
   source: LeadSource;
   name: string | null;
   phone: string | null;
+  email: string | null;
   location: string | null;
   serviceType: string | null;
   message: string | null;
@@ -295,7 +297,7 @@ export function KanbanBoard({ leads: initialLeads }: { leads: LeadCardVM[] }) {
                         onDragEnd={() => setDragId(null)}
                         role="button"
                         tabIndex={0}
-                        aria-label={`Open ${lead.name ?? "lead"}`}
+                        aria-label={`Open ${leadLabel(lead)}`}
                         onClick={() => setOpenLeadId(lead.id)}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" || e.key === " ") {
@@ -305,8 +307,8 @@ export function KanbanBoard({ leads: initialLeads }: { leads: LeadCardVM[] }) {
                         }}
                       >
                         <div className="wa-lead-top">
-                          <div className={`wa-lead-name ${!lead.name ? "wa-lead-name-unknown" : ""}`}>
-                            {lead.name ?? "Unknown Name"}
+                          <div className={`wa-lead-name ${isPlaceholderLabel(lead) ? "wa-lead-name-unknown" : ""}`}>
+                            {leadLabel(lead)}
                           </div>
                           {lead.jobValue !== null && (
                             <div className="wa-lead-value">${lead.jobValue.toLocaleString("en-US")}</div>
@@ -359,7 +361,7 @@ export function KanbanBoard({ leads: initialLeads }: { leads: LeadCardVM[] }) {
         <div className="wa-modal-bg" onClick={closeDetail}>
           <div className="wa-modal" onClick={(e) => e.stopPropagation()}>
             <div className="wa-modal-head">
-              <h2 className="wa-h2">{openLead.name ?? "Unknown Name"}</h2>
+              <h2 className="wa-h2">{leadLabel(openLead)}</h2>
               <p className="wa-page-sub">
                 {[SOURCE_CHIP[openLead.source].label, openLead.serviceType, openLead.location]
                   .filter(Boolean)
@@ -488,7 +490,7 @@ export function KanbanBoard({ leads: initialLeads }: { leads: LeadCardVM[] }) {
         <div className="wa-modal-bg" onClick={() => setPendingDelete(null)}>
           <div className="wa-modal" onClick={(e) => e.stopPropagation()}>
             <div className="wa-modal-head">
-              <h2 className="wa-h2">Delete {pendingDelete.name ?? "this lead"}?</h2>
+              <h2 className="wa-h2">Delete {leadLabel(pendingDelete)}?</h2>
               <p className="wa-page-sub">
                 It disappears from the board and stops counting in your numbers. If this person ever gets in
                 touch again, their card comes back with everything that&apos;s already on it.

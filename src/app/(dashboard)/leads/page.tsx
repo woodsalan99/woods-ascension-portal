@@ -28,6 +28,7 @@ export default async function LeadsPage() {
     source: l.source,
     name: l.name,
     phone: l.phone,
+    email: l.email,
     location: l.location,
     serviceType: l.serviceType,
     message: l.message,

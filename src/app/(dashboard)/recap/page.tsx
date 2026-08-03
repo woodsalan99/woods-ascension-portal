@@ -6,6 +6,7 @@ import { periodRange, resolveMetrics } from "@/lib/ls-metrics";
 import { formatMonthKey } from "@/lib/timezone";
 import { EditProvider } from "@/components/ls/EditProvider";
 import { E } from "@/components/ls/Editable";
+import { leadLabel } from "@/lib/lead-label";
 import type { ContentKey } from "@/content/local-services";
 
 // Each month's recap is one MonthlyWork row. `items` is the same list that
@@ -119,6 +120,8 @@ export default async function RecapPage({ searchParams }: { searchParams: Promis
     select: {
       id: true,
       name: true,
+      phone: true,
+      email: true,
       source: true,
       stage: true,
       serviceType: true,
@@ -201,7 +204,7 @@ export default async function RecapPage({ searchParams }: { searchParams: Promis
             <ul className="wa-recap-list wa-lead-lines">
               {periodLeads.map((l) => (
                 <li key={l.id}>
-                  <b>{l.name ?? "Unknown Name"}</b>
+                  <b>{leadLabel(l)}</b>
                   {" — "}
                   {[
                     SOURCE_LABEL[l.source],

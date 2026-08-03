@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { renameLead, addLeadNote } from "@/app/(dashboard)/leads/actions";
+import { leadLabel, isPlaceholderLabel } from "@/lib/lead-label";
 
 // The Overview's "Latest leads" block. Deliberately editable in place: the
 // most common thing anyone wants to do with a fresh lead is put a name to a
@@ -13,6 +14,7 @@ export type LatestLeadVM = {
   id: string;
   name: string | null;
   phone: string | null;
+  email: string | null;
   sourceLabel: string;
   receivedAt: Date;
   noteCount: number;
@@ -39,10 +41,8 @@ function LeadRow({ lead }: { lead: LatestLeadVM }) {
   const nameTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // A lead with no name shows its number, so there's always something to
-  // recognise it by — never a blank row.
-  const heading = lead.name ?? lead.phone ?? "Unknown Name";
-  const needsName = !lead.name;
+  const heading = leadLabel(lead);
+  const needsName = isPlaceholderLabel(lead);
 
   function onName(v: string) {
     setName(v);
@@ -106,7 +106,7 @@ function LeadRow({ lead }: { lead: LatestLeadVM }) {
           <input
             id={`n-${lead.id}`}
             value={name}
-            placeholder={lead.phone ?? "Their name"}
+            placeholder={needsName ? heading : "Their name"}
             onChange={(e) => onName(e.target.value)}
           />
           <span className={`wa-save-state ${nameState === "saved" ? "saved" : nameState}`}>
