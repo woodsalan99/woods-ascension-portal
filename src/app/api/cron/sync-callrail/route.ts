@@ -106,16 +106,33 @@ export async function GET(req: Request) {
         const lengthLabel = mins > 0 ? `${mins}m ${secs}s` : `${secs}s`;
         const callRailUrl = `https://app.callrail.com/calls/${call.id}`;
 
-        if (classification === "QUALIFIED") {
+        // Anything that got through the menu is a real person and is
+        // treated as one — answered or not. Only SCREENED calls (never
+        // forwarded to TalkRoute) are dropped. See D49.
+        if (classification === "QUALIFIED" || classification === "MISSED") {
+          const answered = classification === "QUALIFIED";
+          const summary = answered
+            ? `Called and got through — ${lengthLabel}`
+            : call.voicemail
+              ? `Called, nobody picked up — left a voicemail (${lengthLabel})`
+              : `Called, nobody picked up — rang ${lengthLabel}, no voicemail`;
+
           const result = await recordContact({
             clientId: integ.clientId,
             identity,
             event: {
-              type: "CALL",
+              type: answered ? "CALL" : "MISSED_CALL",
               dedupeKey: `call:${call.id}`,
               occurredAt: new Date(call.occurredAt),
-              summary: `Called and got through — ${lengthLabel}`,
-              meta: { callRecordId: record.id, recordingUrl: call.recordingUrl, callRailUrl, source },
+              summary,
+              meta: {
+                callRecordId: record.id,
+                recordingUrl: call.recordingUrl,
+                callRailUrl,
+                source,
+                answered,
+                voicemail: call.voicemail,
+              },
             },
             create: {
               source,
@@ -127,53 +144,51 @@ export async function GET(req: Request) {
               recordingUrl: call.recordingUrl,
               receivedAt: new Date(call.occurredAt),
             },
-            enrich: { name: call.callerName, phone: call.callerNumber, recordingUrl: call.recordingUrl, callRailUrl },
+            enrich: {
+              name: call.callerName,
+              phone: call.callerNumber,
+              recordingUrl: call.recordingUrl,
+              callRailUrl,
+            },
           });
 
-          // Only announce genuinely new people and genuinely new calls — a
-          // repeat caller shouldn't look like a brand-new lead, and a
-          // re-sync shouldn't re-notify at all.
+          // Every call that reached TalkRoute raises a notification —
+          // a missed one most of all, since that's the one somebody has to
+          // do something about. Re-syncs stay silent.
           if (result.isNewEvent) {
             if (result.isNewLead) leadsCreated++;
+            const who = result.lead.name ?? call.callerNumber;
+            const lines = [
+              answered
+                ? `${who} called and got through (${lengthLabel}).`
+                : `${who} called and NOBODY PICKED UP (rang ${lengthLabel}).`,
+              "",
+              `Number:   ${call.callerNumber}`,
+              call.callerName ? `Name:     ${call.callerName}` : null,
+              `Where:    ${source === "LSA" ? "Google Ads" : "Google Maps or your website"}`,
+              call.voicemail ? "They left a voicemail." : null,
+              call.recordingUrl ? "There's a recording on their lead card." : null,
+              "",
+              answered ? null : "Call them back — speed is what wins these.",
+              "",
+              "Their card: https://portal.woodsascension.com/leads",
+            ].filter((l) => l !== null);
+
             await notify({
               clientId: integ.clientId,
               kind: "NEW_LEAD",
-              title: result.isNewLead ? "New call lead" : `Repeat call — ${result.lead.name ?? call.callerNumber}`,
-              message: result.isNewLead
-                ? `A new ${source === "LSA" ? "Google Ads" : "Google Maps"} call came in for ${integ.client.name}.`
-                : `${result.lead.name ?? call.callerNumber} called again (${lengthLabel}).`,
-            });
-          }
-        } else {
-          // Missed / not connected. Deliberately does NOT create a lead or
-          // notify — but if we already know this person, the attempt goes
-          // on their timeline so a repeat caller's missed attempts are
-          // visible rather than invisible.
-          //
-          // NOTE: CallRail does not expose whether the caller pressed a key
-          // (keypad_entries is null on every call, including ones that
-          // demonstrably pressed and connected), so we cannot say whether a
-          // missed call got through the menu. The summary states only what
-          // is actually knowable.
-          const existing = await findExistingLead(integ.clientId, identity);
-          if (existing) {
-            await recordContact({
-              clientId: integ.clientId,
-              identity,
-              event: {
-                type: "MISSED_CALL",
-                dedupeKey: `call:${call.id}`,
-                occurredAt: new Date(call.occurredAt),
-                summary: `Missed call — rang ${lengthLabel}, not answered (CallRail can't tell us whether they pressed a key)`,
-                meta: { callRecordId: record.id, callRailUrl },
-              },
-              create: {
-                source,
-                stage: "NEW",
-                name: call.callerName,
-                phone: call.callerNumber,
-                receivedAt: new Date(call.occurredAt),
-              },
+              title: answered
+                ? `Call answered — ${who}`
+                : `MISSED CALL — ${who}${call.voicemail ? " (voicemail)" : ""}`,
+              message: [
+                answered ? `Got through, ${lengthLabel}.` : `Nobody picked up. Rang ${lengthLabel}.`,
+                `Number: ${call.callerNumber}`,
+                call.voicemail ? "Left a voicemail." : null,
+              ]
+                .filter(Boolean)
+                .join(" ")
+                .slice(0, 240),
+              emailBody: lines.join("\n"),
             });
           }
         }

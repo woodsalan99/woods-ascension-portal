@@ -5,6 +5,14 @@ import { listNewMessages, getMessage, type GmailCursor } from "@/lib/gmail";
 import { lsaMatcher, formMatcher, type GmailMatcherConfig } from "@/lib/gmail-parsers";
 import { classifySpam } from "@/lib/spam-classify";
 import { notify } from "@/lib/notify";
+
+// Where a client goes to act on a Google Ads lead, and where the sign-in
+// details for it live. The password is only ever a LINK — never stored in
+// or sent by the portal. See D49.
+const LSA_CONSOLE_URL = "https://business.google.com/us/ad-solutions/local-service-ads/";
+const LSA_CREDENTIALS_URL =
+  "https://docs.google.com/document/d/1bULpMBD8zBPGpT6XrrpzyrSis8YCl67Np9tJsQIy6pc/edit?tab=t.0";
+const LEADS_URL = "https://portal.woodsascension.com/leads";
 import { recordContact } from "@/lib/lead-identity";
 
 const SPAM_CONFIDENCE_THRESHOLD = 0.75;
@@ -152,29 +160,47 @@ export async function GET(req: Request) {
 
           const lsa = outcome.ok ? outcome.data : null;
           const lsaWhere = [lsa?.serviceType, lsa?.location].filter(Boolean).join(" · ");
+
+          // Wording specified by Alan, so it reads the same on all three
+          // phones and always carries the two links needed to act on it.
+          const pushover = [
+            "New lead from Google Ads.",
+            lsa?.phone ? `Phone number is ${lsa.phone}.` : "Google is still hiding their number.",
+            lsa?.message ? `Their message says: ${lsa.message}` : null,
+            `View the full conversation at ${LSA_CONSOLE_URL}`,
+            `Login details: ${LSA_CREDENTIALS_URL}`,
+          ]
+            .filter(Boolean)
+            .join(" ");
+
           await notify({
             clientId: integ.clientId,
             kind: "NEW_LEAD",
             title: lsa?.phone ? `Google Ads lead — ${lsa.phone}` : "New Google Ads lead",
-            message:
-              [lsaWhere, lsa?.message].filter(Boolean).join(" — ").slice(0, 240) ||
-              "A new Google Local Services Ads lead came in. Open Google to see the details.",
+            message: pushover.slice(0, 900),
             emailBody: [
               lsa?.phone
-                ? `A Google Ads customer replied with their number: ${lsa.phone}`
+                ? `A Google Ads customer got in touch. Their number is ${lsa.phone}.`
                 : "A new Google Local Services Ads lead just came in.",
               "",
               lsaWhere ? `Job:      ${lsaWhere}` : null,
               lsa?.phone ? `Phone:    ${lsa.phone}` : null,
+              lsa?.name ? `Name:     ${lsa.name}` : null,
               "",
               lsa?.message ? "What they said:" : null,
               lsa?.message ?? null,
-              "",
+              lsa?.message ? "" : null,
               lsa?.phone
                 ? "You can call them straight back."
-                : "Google hides the customer's name and number until you reply. Open the Local Services app, or sign in at https://ads.google.com/local-services-ads to reply and reveal their details.",
+                : "Google hides the customer's name and number until you reply to them.",
               "",
-              "This lead is also on your Leads page: https://portal.woodsascension.com/leads",
+              `View the full conversation: ${LSA_CONSOLE_URL}`,
+              `Sign-in details for that account: ${LSA_CREDENTIALS_URL}`,
+              "",
+              `This lead is also on your Leads page: ${LEADS_URL}`,
+              "",
+              "----- Google's original email -----",
+              text.slice(0, 4000),
             ]
               .filter((line) => line !== null)
               .join("\n"),
@@ -307,7 +333,14 @@ export async function GET(req: Request) {
               "",
               "Reply fast — most homeowners contact two or three painters before choosing one.",
               "",
-              "This lead is also on your Leads page: https://portal.woodsascension.com/leads",
+              `This lead is also on your Leads page: ${LEADS_URL}`,
+              "",
+              // The original, so nothing is lost in the parsing and they can
+              // see exactly what the person typed. Only sent for submissions
+              // that PASSED the spam check — the whole point is that junk
+              // never reaches their inbox. See D49.
+              "----- The original message from your website -----",
+              text.slice(0, 4000),
             ].join("\n"),
           });
         }

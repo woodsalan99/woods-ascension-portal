@@ -13,6 +13,14 @@ export type CallRailCall = {
   trackingNumber: string;
   keypress: string | null;
   answered: boolean;
+  // The number CallRail actually forwarded the call ON to — TalkRoute, in
+  // Canencia's case. Present only when the caller got through the
+  // "press 1 or 2" menu, so it is the reliable "this was a real person"
+  // signal that `keypad_entries` was supposed to be and never is. See D49.
+  forwardedTo: string | null;
+  /** True when the call reached TalkRoute, answered there or not. */
+  reachedForward: boolean;
+  voicemail: boolean;
   recordingUrl: string | null;
   // CallRail's own cross-contact identity for this caller — the same value
   // appears on every call AND text from that person, which makes it the
@@ -61,7 +69,7 @@ export async function fetchCalls(params: {
     url.searchParams.set("start_date", sinceIso.slice(0, 10));
     url.searchParams.set(
       "fields",
-      "id,answered,business_phone_number,customer_phone_number,customer_name,duration,start_time,recording,tracking_phone_number,keypad_entries,person_id,prior_calls,call_disposition",
+      "id,answered,business_phone_number,customer_phone_number,customer_name,duration,start_time,recording,voicemail,tracking_phone_number,keypad_entries,person_id,prior_calls,call_disposition",
     );
     url.searchParams.set("page", String(page));
     url.searchParams.set("per_page", String(perPage));
@@ -85,6 +93,9 @@ export async function fetchCalls(params: {
         trackingNumber: String(c.tracking_phone_number ?? c.business_phone_number ?? ""),
         keypress: c.keypad_entries ? String(c.keypad_entries) : null,
         answered: !!c.answered,
+        forwardedTo: c.business_phone_number ? String(c.business_phone_number) : null,
+        reachedForward: Boolean(c.business_phone_number),
+        voicemail: !!c.voicemail,
         recordingUrl: c.recording ? String(c.recording) : null,
         personId: c.person_id ? String(c.person_id) : null,
         priorCalls: Number(c.prior_calls ?? 0),
@@ -186,12 +197,29 @@ export function isLsaLine(call: CallRailCall, config: CallRailConfig): boolean {
 //
 // Calls on a configured LSA line (none for Canencia — LSA bypasses
 // CallRail entirely there) are always QUALIFIED regardless.
+// The screening question is "did this call get through the menu", not "did
+// somebody pick it up".
+//
+// Alan's setup: caller hits CallRail → hears "press 1 for a project, 2 if
+// you're an existing customer" → CallRail forwards to TalkRoute → TalkRoute
+// rings Desiree. A robot can't press a key, so it never gets forwarded and
+// `business_phone_number` stays empty. A real person who pressed 1 and then
+// got voicemail HAS been forwarded, and is exactly the lead we were dropping
+// on the floor before — this used to key on `answered`, which treated an
+// unanswered real caller identically to a robocall. See D49.
 export function classifyCall(call: CallRailCall, config: CallRailConfig): { classification: string; needsReview: boolean } {
+  // LSA calls bypass the menu entirely — Google has already verified those.
   if (isLsaLine(call, config)) return { classification: "QUALIFIED", needsReview: call.durationSec < 20 };
-  if (call.answered) return { classification: "QUALIFIED", needsReview: call.durationSec < 20 };
-  // Never answered: either a robot that hung up at the menu, or a real
-  // person nobody picked up for. Flagged so it is reviewable either way.
-  return { classification: "MISSED", needsReview: true };
+
+  if (call.reachedForward) {
+    // Got through the menu. Answered or not, a person did this.
+    if (call.answered) return { classification: "QUALIFIED", needsReview: call.durationSec < 20 };
+    return { classification: "MISSED", needsReview: false };
+  }
+
+  // Never forwarded: hung up at the menu without pressing anything. Almost
+  // always a robot, and never something to put on the client's phone.
+  return { classification: "SCREENED", needsReview: false };
 }
 
 // Fetches recording audio bytes server-side for the in-portal playback

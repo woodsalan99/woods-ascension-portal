@@ -416,7 +416,7 @@ const RESOLVERS: Record<string, Resolver> = {
     const { start, end } = periodRange(period);
     const [junkCalls, junkForms] = await Promise.all([
       prisma.callRecord.count({
-        where: { clientId, occurredAt: { gte: start, lt: end }, classification: { in: ["ROBOCALL", "SPAM", "WRONG_AREA"] } },
+        where: { clientId, occurredAt: { gte: start, lt: end }, classification: { in: ["ROBOCALL", "SPAM", "WRONG_AREA", "SCREENED"] } },
       }),
       prisma.formSubmission.count({
         where: { clientId, receivedAt: { gte: start, lt: end }, spamVerdict: false },
