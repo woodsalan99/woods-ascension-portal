@@ -103,6 +103,31 @@ export default async function RankPage() {
         </div>
       )}
 
+      <div className="wa-card wa-card-centered">
+        <div className="wa-section-head wa-section-head-centered">
+          <div>
+            <h2 className="wa-h2">
+              <E k="rank.keywords.title" v={content.text("rank.keywords.title")} label="Keywords title" />
+            </h2>
+            <p className="wa-page-sub">
+              <E k="rank.keywords.sub" v={content.text("rank.keywords.sub")} label="Keywords subtitle" multiline />
+            </p>
+            <p className="wa-page-sub wa-page-sub-quiet">
+              <E k="rank.keywords.note" v={content.text("rank.keywords.note")} label="Keywords note" multiline />
+            </p>
+          </div>
+        </div>
+        {latestScans.length === 0 ? (
+          <div className="wa-empty wa-empty-slim">
+            <p>
+              <E k="rank.geo.empty" v={content.text("rank.geo.empty")} label="Map empty state" />
+            </p>
+          </div>
+        ) : (
+          <Geogrid scans={latestScans} />
+        )}
+      </div>
+
       {months.length > 0 && (
         <div className="wa-card">
           <div className="wa-section-head">
@@ -144,31 +169,6 @@ export default async function RankPage() {
           </p>
         </div>
       )}
-
-      <div className="wa-card">
-        <div className="wa-section-head">
-          <div>
-            <div className="wa-eyebrow">
-              <E k="rank.keywords.label" v={content.text("rank.keywords.label")} label="Keywords label" />
-            </div>
-            <h2 className="wa-h2">
-              <E k="rank.keywords.title" v={content.text("rank.keywords.title")} label="Keywords title" />
-            </h2>
-            <p className="wa-page-sub">
-              <E k="rank.keywords.sub" v={content.text("rank.keywords.sub")} label="Keywords subtitle" multiline />
-            </p>
-          </div>
-        </div>
-        {latestScans.length === 0 ? (
-          <div className="wa-empty wa-empty-slim">
-            <p>
-              <E k="rank.geo.empty" v={content.text("rank.geo.empty")} label="Map empty state" />
-            </p>
-          </div>
-        ) : (
-          <Geogrid scans={latestScans} />
-        )}
-      </div>
 
       <div className="wa-card">
         <div className="wa-section-head">
@@ -257,12 +257,23 @@ export default async function RankPage() {
         </div>
         <div className="wa-ob-list">
           {pages.map((p) => (
-            <div key={p.id} className="wa-ob-item">
+            // The whole row opens the real page on the live site — a client
+            // who's told "this one is on Google" should be one tap from
+            // seeing it, not left taking our word for it.
+            <a
+              key={p.id}
+              className="wa-ob-item wa-ob-item-link"
+              href={p.url}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
               <div className="wa-ob-body">
                 <div className="wa-ob-step">{p.town}</div>
               </div>
-              <span className={`wa-pill ${p.indexed ? "live" : ""}`}>{p.indexed ? "On Google" : "Processing"}</span>
-            </div>
+              <span className={`wa-pill ${p.indexed ? "live" : ""}`}>
+                {p.indexed ? "On Google →" : "Processing →"}
+              </span>
+            </a>
           ))}
         </div>
       </div>

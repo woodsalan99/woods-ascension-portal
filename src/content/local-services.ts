@@ -194,7 +194,7 @@ export const LS_CONTENT = {
   "rank.monthStrip.label": { def: "Your average position, month by month", max: 100 },
   "rank.monthStrip.title": { def: "Are we improving?", max: 80 },
   "rank.monthStrip.sub": {
-    def: "This is your average across every spot on the map and every search term we check. Lower is better.",
+    def: "We run this scan every month and keep every one of them, so this line only gets longer. It's your average across every spot on the map and every search term we check — lower is better.",
     max: 300,
   },
   "rank.monthStrip.footnote": {
@@ -239,10 +239,10 @@ export const LS_CONTENT = {
     def: "A profile that's complete and consistent, backed by real pages about the towns and services you cover.",
     max: 400,
   },
-  "rank.keywords.label": { def: "Results by search term", max: 80 },
-  "rank.keywords.title": { def: "What people are typing", max: 80 },
-  "rank.keywords.sub": {
-    def: "We track the most common searches separately, because you rank differently for each one.",
+  "rank.keywords.title": { def: "Where You Show Up on Google Maps", max: 80 },
+  "rank.keywords.sub": { def: "Results by search term", max: 300 },
+  "rank.keywords.note": {
+    def: "We check each of these separately, because you rank differently for every one — and we run it again every month.",
     max: 300,
   },
   "rank.geo.empty": {

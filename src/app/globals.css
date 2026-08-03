@@ -919,6 +919,15 @@ span.wa-ob-active { font-size: 12px; font-weight: 600; color: var(--green); }
 .wa-period-switch a.on { background: var(--ink); border-color: var(--ink); color: #fff; }
 .wa-period-switch .wa-weekbadge { margin-left: 4px; }
 
+/* ---------- local-services: Where You Rank tweaks ---------- */
+.wa-section-head-centered { justify-content: center; text-align: center; }
+.wa-section-head-centered > div { max-width: 640px; margin: 0 auto; }
+.wa-card-centered .wa-page-sub { margin-left: auto; margin-right: auto; }
+.wa-page-sub-quiet { font-size: 12.5px; margin-top: 8px; }
+.wa-ob-item-link { text-decoration: none; color: inherit; }
+.wa-ob-item-link:hover { background: #FBFBF7; }
+.wa-ob-item-link:hover .wa-pill { border-color: var(--gold); }
+
 @media (max-width: 900px) {
   .wa-kpis { grid-template-columns: repeat(2, 1fr); }
   .wa-pipe-grid { grid-template-columns: repeat(2, 1fr); }
