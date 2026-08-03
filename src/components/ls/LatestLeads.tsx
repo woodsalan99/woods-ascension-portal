@@ -10,14 +10,18 @@ import { leadLabel, isPlaceholderLabel } from "@/lib/lead-label";
 // Leads page first is how that stops happening. Everything written here is
 // the same record the Leads board shows — one lead, one truth.
 
+export type LatestNoteVM = { id: string; body: string; createdAt: Date };
+
 export type LatestLeadVM = {
   id: string;
   name: string | null;
   phone: string | null;
   email: string | null;
   sourceLabel: string;
+  serviceType: string | null;
+  message: string | null;
   receivedAt: Date;
-  noteCount: number;
+  notes: LatestNoteVM[];
 };
 
 function when(date: Date): string {
@@ -36,13 +40,15 @@ function LeadRow({ lead }: { lead: LatestLeadVM }) {
   const [note, setNote] = useState("");
   const [nameState, setNameState] = useState<"idle" | "saving" | "saved">("idle");
   const [noteState, setNoteState] = useState<"idle" | "saving" | "saved">("idle");
-  const [noteCount, setNoteCount] = useState(lead.noteCount);
+  const [notes, setNotes] = useState(lead.notes);
   const [error, setError] = useState<string | null>(null);
   const nameTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const noteTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const heading = leadLabel(lead);
   const needsName = isPlaceholderLabel(lead);
+  const newest = notes[0]?.body ?? lead.message ?? null;
+  const snippet = newest ? (newest.length > 90 ? `${newest.slice(0, 90).trimEnd()}…` : newest) : null;
 
   function onName(v: string) {
     setName(v);
@@ -75,7 +81,9 @@ function LeadRow({ lead }: { lead: LatestLeadVM }) {
       try {
         await addLeadNote(lead.id, body);
         setNote("");
-        setNoteCount((n) => n + 1);
+        // Shown straight away rather than waiting for the page to revalidate,
+        // so it never looks like the note vanished.
+        setNotes((n) => [{ id: `local-${n.length}`, body, createdAt: new Date() }, ...n]);
         setNoteState("saved");
       } catch (err) {
         setNoteState("idle");
@@ -90,9 +98,11 @@ function LeadRow({ lead }: { lead: LatestLeadVM }) {
         <span className="wa-latest-main">
           <span className={`wa-latest-name ${needsName ? "unnamed" : ""}`}>{heading}</span>
           <span className="wa-latest-meta">
-            {lead.sourceLabel}
-            {noteCount > 0 && ` · ${noteCount} note${noteCount === 1 ? "" : "s"}`}
+            {[lead.sourceLabel, lead.serviceType].filter(Boolean).join(" · ")}
           </span>
+          {/* A count told the client nothing. The newest note's actual words
+              are what let them recognise the lead without opening it. */}
+          {snippet && <span className="wa-latest-snippet">{snippet}</span>}
         </span>
         <span className="wa-latest-when">{when(lead.receivedAt)}</span>
         <span className="wa-latest-arrow">{open ? "▲" : "▼"}</span>
@@ -113,7 +123,30 @@ function LeadRow({ lead }: { lead: LatestLeadVM }) {
             {nameState === "saving" ? "Saving…" : nameState === "saved" ? "Saved" : "Saves as you type"}
           </span>
 
-          <label htmlFor={`no-${lead.id}`}>Add a note</label>
+          {lead.message && (
+            <>
+              <label>What they said when they got in touch</label>
+              <div className="wa-latest-message">{lead.message}</div>
+            </>
+          )}
+
+          {notes.length > 0 && (
+            <>
+              <label>Notes so far</label>
+              <div className="wa-latest-notes">
+                {notes.map((n) => (
+                  <div key={n.id} className="wa-latest-note">
+                    <p>{n.body}</p>
+                    <span>
+                      {n.createdAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          <label htmlFor={`no-${lead.id}`}>{notes.length > 0 ? "Add another note" : "Add a note"}</label>
           <textarea
             id={`no-${lead.id}`}
             value={note}

@@ -119,8 +119,12 @@ export async function LsOverview({ period }: { period?: string }) {
       phone: true,
       email: true,
       source: true,
+      serviceType: true,
+      message: true,
       receivedAt: true,
-      _count: { select: { notes: true } },
+      // The notes themselves, not a count — the client needs the words to
+      // recognise a lead without opening it. See D45.
+      notes: { orderBy: { createdAt: "desc" }, take: 5, select: { id: true, body: true, createdAt: true } },
     },
   });
 
@@ -137,8 +141,10 @@ export async function LsOverview({ period }: { period?: string }) {
     phone: l.phone,
     email: l.email,
     sourceLabel: SOURCE_LABEL[l.source] ?? l.source,
+    serviceType: l.serviceType,
+    message: l.message,
     receivedAt: l.receivedAt,
-    noteCount: l._count.notes,
+    notes: l.notes,
   }));
 
   return (

@@ -102,7 +102,7 @@ export default async function RankPage() {
   const places = statusOf("GOOGLE_PLACES");
 
   const AssetHead = ({ titleKey, label }: { titleKey: "rank.asset.maps.title" | "rank.asset.web.title" | "rank.asset.ads.title"; label: string }) => (
-    <div className="wa-asset-head">
+    <div className="wa-asset-head wa-asset-head-centered">
       <h2 className="wa-asset-title">
         <E k={titleKey} v={content.text(titleKey)} label={label} />
       </h2>
@@ -133,20 +133,6 @@ export default async function RankPage() {
         )}
       </div>
 
-      {latestScans.length > 0 && (
-        <div className="wa-note-strip">
-          <b>
-            <E k="rank.howToRead.title" v={content.text("rank.howToRead.title")} label="How to read — heading" />
-          </b>{" "}
-          <E k="rank.howToRead.body" v={content.text("rank.howToRead.body")} label="How to read — body" multiline />
-          <br />
-          <br />
-          <b>
-            <E k="rank.whyVaries.title" v={content.text("rank.whyVaries.title")} label="Why it varies — heading" />
-          </b>{" "}
-          <E k="rank.whyVaries.body" v={content.text("rank.whyVaries.body")} label="Why it varies — body" multiline />
-        </div>
-      )}
 
       {/* ---------- The three core pieces ---------- */}
       <div className="wa-core">
@@ -181,6 +167,20 @@ export default async function RankPage() {
 
       {/* ---------- Asset 1: Google Maps ---------- */}
       <AssetHead titleKey="rank.asset.maps.title" label="Asset 1 title" />
+      {latestScans.length > 0 && (
+        <div className="wa-note-strip">
+          <b>
+            <E k="rank.howToRead.title" v={content.text("rank.howToRead.title")} label="How to read — heading" />
+          </b>{" "}
+          <E k="rank.howToRead.body" v={content.text("rank.howToRead.body")} label="How to read — body" multiline />
+          <br />
+          <br />
+          <b>
+            <E k="rank.whyVaries.title" v={content.text("rank.whyVaries.title")} label="Why it varies — heading" />
+          </b>{" "}
+          <E k="rank.whyVaries.body" v={content.text("rank.whyVaries.body")} label="Why it varies — body" multiline />
+        </div>
+      )}
       <div className="wa-card wa-card-centered">
         <div className="wa-section-head wa-section-head-centered">
           <div>
@@ -208,7 +208,7 @@ export default async function RankPage() {
       <ControlsPanel
         contentKey="rank.controls.maps.items"
         items={content.list("rank.controls.maps.items")}
-        title={content.text("rank.controls.title")}
+        title={content.text("rank.controls.maps.title")}
       />
 
       {/* ---------- Asset 2: Website ---------- */}
@@ -332,7 +332,7 @@ export default async function RankPage() {
       <ControlsPanel
         contentKey="rank.controls.web.items"
         items={content.list("rank.controls.web.items")}
-        title={content.text("rank.controls.title")}
+        title={content.text("rank.controls.web.title")}
       />
 
       {/* ---------- Asset 3: Google Ads ---------- */}
@@ -402,7 +402,7 @@ export default async function RankPage() {
       <ControlsPanel
         contentKey="rank.controls.ads.items"
         items={content.list("rank.controls.ads.items")}
-        title={content.text("rank.controls.title")}
+        title={content.text("rank.controls.ads.title")}
       />
 
       {/* ---------- Behind the scenes ---------- */}

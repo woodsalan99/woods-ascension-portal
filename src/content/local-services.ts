@@ -102,11 +102,6 @@ export const LS_CONTENT = {
     def: "Everything worth watching, in two groups. The \"healthy\" note under each one is what's realistic for a painter on Oahu — not a national average from a much bigger city.",
     max: 1500,
   },
-  "numbers.adsMoved.title": { def: "Looking for your Google Ads numbers?", max: 80 },
-  "numbers.adsMoved.body": {
-    def: "They moved. They now sit with the map and the website on the rankings page, because all three are about the same thing — where people find you. This page is about what came in.",
-    max: 1500,
-  },
   "numbers.ads.title": { def: "Your Google ads", max: 60 },
   "numbers.ads.sub": { def: "The paid listings at the very top of Google", max: 120 },
   "numbers.customers.title": { def: "Your leads", max: 80 },
@@ -259,7 +254,11 @@ export const LS_CONTENT = {
   "rank.asset.maps.title": { def: "Asset #1: Google Maps", max: 60 },
   "rank.asset.web.title": { def: "Asset #2: Website", max: 60 },
   "rank.asset.ads.title": { def: "Asset #3: Google Ads", max: 60 },
-  "rank.controls.title": { def: "What controls your position", max: 80 },
+  // One title per asset: "What controls your position" three times running
+  // never said which position. See D45.
+  "rank.controls.maps.title": { def: "What controls your position on Google Maps", max: 80 },
+  "rank.controls.web.title": { def: "What controls your website's ranking", max: 80 },
+  "rank.controls.ads.title": { def: "What controls your Google Ads results", max: 80 },
 
   // Website asset
   "rank.web.sub": {

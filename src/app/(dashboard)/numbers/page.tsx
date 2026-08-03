@@ -41,6 +41,14 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
 
   const keys = [
     `lsa.chargedLeads:${month}`,
+    "lsa.chargedLeads.trend",
+    `lsa.cpl:${month}`,
+    `lsa.cpl.support:${month}`,
+    `lsa.impressions:${month}`,
+    "lsa.impressions.trend",
+    `lsa.topRate:${month}`,
+    `lsa.topRate.support:${month}`,
+    `lsa.spend:${month}`,
     `jobs.won.support:${month}`,
     `leads.real:${month}`, `leads.split:${month}`,
     `leads.organic:${month}`, `leads.organic.support:${month}`,
@@ -154,12 +162,54 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
         />
       </div>
 
-      <div className="wa-note-strip">
-        <b>
-          <E k="numbers.adsMoved.title" v={c("numbers.adsMoved.title")} label="Ads moved — heading" />
-        </b>{" "}
-        <E k="numbers.adsMoved.body" v={c("numbers.adsMoved.body")} label="Ads moved — body" multiline />{" "}
-        <a href="/rank">Where you rank →</a>
+      {/* Ads live on both pages by design. Here they answer "what did the
+          money do"; on Where You Rank they answer "where do people find us".
+          Same resolvers, so the two can never disagree. See D45. */}
+      <div className="wa-section-head">
+        <h2 className="wa-h2">
+          <E k="numbers.ads.title" v={c("numbers.ads.title")} label="Ads section title" />
+        </h2>
+        <span className="wa-page-sub">
+          <E k="numbers.ads.sub" v={c("numbers.ads.sub")} label="Ads section subtitle" />
+        </span>
+      </div>
+      <div className="wa-number-grid">
+        <NumberCard
+          label={<E k="numbers.cpl.label" v={c("numbers.cpl.label")} label="Cost per lead label" />}
+          value={<Num m={m(`lsa.cpl:${month}`)} clientId={client.id} label="Cost per ad lead" />}
+          support={<Num m={m(`lsa.cpl.support:${month}`)} clientId={client.id} label="Cost per lead detail" />}
+          plain={<E k="numbers.cpl.plain" v={c("numbers.cpl.plain")} label="Cost per lead explanation" multiline />}
+          status={status(`lsa.cpl:${month}`, "numbers.cpl.status", "Cost per lead status")}
+          healthyRange={<E k="numbers.cpl.healthy" v={c("numbers.cpl.healthy")} label="Cost per lead healthy range" multiline />}
+          improvements={bullets(c("numbers.cpl.improve"))}
+        />
+        <NumberCard
+          label={<E k="numbers.impressions.label" v={c("numbers.impressions.label")} label="Impressions label" />}
+          value={<Num m={m(`lsa.impressions:${month}`)} clientId={client.id} label="Ad impressions" />}
+          support={<Num m={m("lsa.impressions.trend")} clientId={client.id} label="Impressions trend" />}
+          plain={<E k="numbers.impressions.plain" v={c("numbers.impressions.plain")} label="Impressions explanation" multiline />}
+          status={status(`lsa.impressions:${month}`, "numbers.impressions.status", "Impressions status")}
+          healthyRange={<E k="numbers.impressions.healthy" v={c("numbers.impressions.healthy")} label="Impressions healthy range" multiline />}
+          improvements={bullets(c("numbers.impressions.improve"))}
+        />
+        <NumberCard
+          label={<E k="numbers.topRate.label" v={c("numbers.topRate.label")} label="Top rate label" />}
+          value={<Num m={m(`lsa.topRate:${month}`)} clientId={client.id} label="Shown-first rate" />}
+          support={<Num m={m(`lsa.topRate.support:${month}`)} clientId={client.id} label="Shown-first previous month" />}
+          plain={<E k="numbers.topRate.plain" v={c("numbers.topRate.plain")} label="Top rate explanation" multiline />}
+          status={status(`lsa.topRate:${month}`, "numbers.topRate.status", "Top rate status")}
+          healthyRange={<E k="numbers.topRate.healthy" v={c("numbers.topRate.healthy")} label="Top rate healthy range" multiline />}
+          improvements={bullets(c("numbers.topRate.improve"))}
+        />
+        <NumberCard
+          label={<E k="numbers.spend.label" v={c("numbers.spend.label")} label="Spend label" />}
+          value={<Num m={m(`lsa.spend:${month}`)} clientId={client.id} label="Ad spend" />}
+          plain={<E k="numbers.spend.plain" v={c("numbers.spend.plain")} label="Spend explanation" multiline />}
+          status={status(`lsa.spend:${month}`, "numbers.spend.status", "Spend status")}
+          statusTone="watch"
+          healthyRange={<E k="numbers.spend.healthy" v={c("numbers.spend.healthy")} label="Spend healthy range" multiline />}
+          improvements={bullets(c("numbers.spend.improve"))}
+        />
       </div>
 
       <div className="wa-section-head">
