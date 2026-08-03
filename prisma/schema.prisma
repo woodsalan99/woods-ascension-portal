@@ -641,17 +641,24 @@ model ClientLocation {
 // gridJson is normalized to { rows, cols, cells: number[] } at upload so
 // the renderer can draw any grid size, not just the mock's 7x7.
 model GeogridScan {
-  id         String         @id @default(cuid())
-  clientId   String
-  client     Client         @relation(fields: [clientId], references: [id])
-  locationId String
-  location   ClientLocation @relation(fields: [locationId], references: [id])
-  keyword    String
-  month      String
-  gridJson   Json
-  avgRank    Float // computed server-side on upload
-  top3Pct    Float
-  takenAt    DateTime
+  id           String         @id @default(cuid())
+  clientId     String
+  client       Client         @relation(fields: [clientId], references: [id])
+  locationId   String
+  location     ClientLocation @relation(fields: [locationId], references: [id])
+  keyword      String
+  month        String
+  gridJson     Json
+  avgRank      Float // computed server-side on upload
+  top3Pct      Float
+  takenAt      DateTime
+  // The Local Falcon map export itself. The numbers alone lose all
+  // geography — a 9x9 block of circles doesn't tell a homeowner which one
+  // is Kailua. Stored inline like Document.data (these are ~100-200KB
+  // webp/png and there's no blob store configured), served via
+  // /api/geogrid/[id]/image with a scope check.
+  mapImage     Bytes?
+  mapImageType String? // MIME type of mapImage
 
   @@unique([clientId, locationId, keyword, month])
 }

@@ -6,7 +6,7 @@ import { EditProvider } from "@/components/ls/EditProvider";
 import { E } from "@/components/ls/Editable";
 import { Geogrid, type GeogridScanVM } from "@/components/ls/Geogrid";
 
-type GridJson = { rows: number; cols: number; cells: number[] };
+type GridJson = { rows: number; cols: number; cells: number[]; radiusMiles?: number };
 
 export default async function RankPage() {
   const scope = await requireClientType("LOCAL_SERVICES");
@@ -31,12 +31,14 @@ export default async function RankPage() {
   const latestScans: GeogridScanVM[] = scans
     .filter((s) => s.month === latestMonth)
     .map((s) => ({
+      id: s.id,
       keyword: s.keyword,
       month: s.month,
       avgRank: s.avgRank,
       top3Pct: s.top3Pct,
       takenAt: s.takenAt,
       grid: s.gridJson as unknown as GridJson,
+      hasMapImage: s.mapImage !== null,
     }));
 
   // Month strip: one blended average per month, across every keyword and
