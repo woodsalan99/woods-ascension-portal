@@ -271,6 +271,25 @@ export const LS_CONTENT = {
     max: 200,
   },
 
+  // ---- Monthly Recap ----
+  "recap.eyebrow": { def: "Monthly recap", max: 60 },
+  "recap.sub": { def: "What we did, what it produced, and what's coming next month.", max: 200 },
+  "recap.headline.label": { def: "The headline", max: 40 },
+  "recap.did.title": { def: "What we did", max: 60 },
+  "recap.next.title": { def: "What's coming next", max: 60 },
+  "recap.note.label": { def: "A note from Alan", max: 60 },
+  "recap.empty.title": { def: "Your first recap arrives at the end of the month.", max: 120 },
+  "recap.empty.body": {
+    def: "One short page each month: the headline of what actually happened, the numbers that go with it, and what's planned next — so you never have to wonder what you're paying for.",
+    max: 400,
+  },
+  "recap.kpi.leads": { def: "Real customers", max: 40 },
+  "recap.kpi.jobs": { def: "Jobs won", max: 40 },
+  "recap.kpi.value": { def: "Work value", max: 40 },
+  "recap.kpi.spend": { def: "Ad spend", max: 40 },
+  "recap.kpi.junk": { def: "Junk blocked", max: 40 },
+  "recap.kpi.reviews": { def: "Reviews now", max: 40 },
+
   // ---- Overview / junk-blocked card ----
   "overview.junk.title": { def: "Junk we kept off your phone", max: 80 },
   "overview.junk.sub": { def: "Robocalls and fake website inquiries that never reached you.", max: 200 },
