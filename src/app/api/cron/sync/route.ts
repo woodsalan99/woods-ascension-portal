@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { fetchCampaignStatistics, fetchCampaignLeads, fetchLeadCategories } from "@/lib/smartlead";
 import { dateKeyInTimezone, dateKeyToUtcMidnight } from "@/lib/timezone";
 import { guessCompanyFromEmail } from "@/lib/format";
+import { runWatchdog } from "@/lib/watchdog";
 
 type DayBucket = {
   sends: number; // by SEND date
@@ -293,7 +294,18 @@ export async function GET(req: Request) {
       },
     });
 
-    return Response.json({ ok: true, campaignsSynced, daysUpserted, audienceDaysUpserted, positiveRepliesAdded });
+    // Piggy-backs on the hourly Smartlead cron rather than needing a Railway
+    // service of its own. Wrapped so a watchdog problem can never fail the
+    // sync that carries it — the sync's job is more important than the alert's.
+    let watchdog: { raised: number; checks: string[] } | { error: string };
+    try {
+      watchdog = await runWatchdog();
+    } catch (err) {
+      watchdog = { error: err instanceof Error ? err.message : String(err) };
+      console.error("[cron/sync] watchdog failed", err);
+    }
+
+    return Response.json({ ok: true, campaignsSynced, daysUpserted, audienceDaysUpserted, positiveRepliesAdded, watchdog });
   } catch (err) {
     await prisma.syncRun.update({
       where: { id: syncRun.id },
