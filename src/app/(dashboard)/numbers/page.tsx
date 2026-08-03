@@ -40,11 +40,8 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
   const month = chosen.period;
 
   const keys = [
-    `lsa.chargedLeads:${month}`, `lsa.chargedLeads.trend`,
-    `lsa.cpl:${month}`, `lsa.cpl.support:${month}`,
-    `lsa.impressions:${month}`, `lsa.impressions.trend`,
-    `lsa.topRate:${month}`, `lsa.topRate.support:${month}`,
-    `lsa.spend:${month}`,
+    `lsa.chargedLeads:${month}`,
+    `jobs.won.support:${month}`,
     `leads.real:${month}`, `leads.split:${month}`,
     `leads.organic:${month}`, `leads.organic.support:${month}`,
     `jobs.won:${month}`, `jobs.wonValue:${month}`,
@@ -69,10 +66,13 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
     orderBy: { month: "asc" },
     take: 8,
   });
+  // Per month: total leads, and the paid/free split beneath it. The whole
+  // argument of this page is that the free half is the one that compounds,
+  // so the chart has to show both, not just a total. See D43.
   const leadsByMonth = await Promise.all(
     lsaMonths.map(async (s) => {
       const [y, mo] = s.month.split("-").map(Number);
-      return prisma.serviceLead.count({
+      const rows = await prisma.serviceLead.findMany({
         where: {
           clientId: client.id,
           // Same rule as every other lead count: deleted and bad-fit leads
@@ -81,7 +81,10 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
           OR: [{ qualified: null }, { qualified: true }],
           receivedAt: { gte: new Date(Date.UTC(y, mo - 1, 1)), lt: new Date(Date.UTC(y, mo, 1)) },
         },
+        select: { source: true },
       });
+      const paid = rows.filter((r) => r.source === "LSA").length;
+      return { total: rows.length, paid, free: rows.length - paid };
     }),
   );
   const maxImpressions = Math.max(1, ...lsaMonths.map((s) => s.impressions));
@@ -108,63 +111,10 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
         />
       </div>
 
+      {/* Leads lead. The three gold cards are the lead-source split — total,
+          paid, free — because that trio is the whole point of the page and
+          everything else is supporting detail. See D43. */}
       <div className="wa-section-head" style={{ marginTop: 0 }}>
-        <h2 className="wa-h2">
-          <E k="numbers.ads.title" v={c("numbers.ads.title")} label="Ads section title" />
-        </h2>
-        <span className="wa-page-sub">
-          <E k="numbers.ads.sub" v={c("numbers.ads.sub")} label="Ads section subtitle" />
-        </span>
-      </div>
-      <div className="wa-number-grid">
-        <NumberCard
-          label={<E k="numbers.adLeads.label" v={c("numbers.adLeads.label")} label="Ad leads label" />}
-          value={<Num m={m(`lsa.chargedLeads:${month}`)} clientId={client.id} label="Charged ad leads" />}
-          support={<Num m={m("lsa.chargedLeads.trend")} clientId={client.id} label="Ad leads trend" />}
-          plain={<E k="numbers.adLeads.plain" v={c("numbers.adLeads.plain")} label="Ad leads explanation" multiline />}
-          status={status(`lsa.chargedLeads:${month}`, "numbers.adLeads.status", "Ad leads status")}
-          healthyRange={<E k="numbers.adLeads.healthy" v={c("numbers.adLeads.healthy")} label="Ad leads healthy range" multiline />}
-          improvements={bullets(c("numbers.adLeads.improve"))}
-        />
-        <NumberCard
-          label={<E k="numbers.cpl.label" v={c("numbers.cpl.label")} label="Cost per lead label" />}
-          value={<Num m={m(`lsa.cpl:${month}`)} clientId={client.id} label="Cost per ad lead" />}
-          support={<Num m={m(`lsa.cpl.support:${month}`)} clientId={client.id} label="Cost per lead detail" />}
-          plain={<E k="numbers.cpl.plain" v={c("numbers.cpl.plain")} label="Cost per lead explanation" multiline />}
-          status={status(`lsa.cpl:${month}`, "numbers.cpl.status", "Cost per lead status")}
-          healthyRange={<E k="numbers.cpl.healthy" v={c("numbers.cpl.healthy")} label="Cost per lead healthy range" multiline />}
-          improvements={bullets(c("numbers.cpl.improve"))}
-        />
-        <NumberCard
-          label={<E k="numbers.impressions.label" v={c("numbers.impressions.label")} label="Impressions label" />}
-          value={<Num m={m(`lsa.impressions:${month}`)} clientId={client.id} label="Ad impressions" />}
-          support={<Num m={m("lsa.impressions.trend")} clientId={client.id} label="Impressions trend" />}
-          plain={<E k="numbers.impressions.plain" v={c("numbers.impressions.plain")} label="Impressions explanation" multiline />}
-          status={status(`lsa.impressions:${month}`, "numbers.impressions.status", "Impressions status")}
-          healthyRange={<E k="numbers.impressions.healthy" v={c("numbers.impressions.healthy")} label="Impressions healthy range" multiline />}
-          improvements={bullets(c("numbers.impressions.improve"))}
-        />
-        <NumberCard
-          label={<E k="numbers.topRate.label" v={c("numbers.topRate.label")} label="Top rate label" />}
-          value={<Num m={m(`lsa.topRate:${month}`)} clientId={client.id} label="Shown-first rate" />}
-          support={<Num m={m(`lsa.topRate.support:${month}`)} clientId={client.id} label="Shown-first previous month" />}
-          plain={<E k="numbers.topRate.plain" v={c("numbers.topRate.plain")} label="Top rate explanation" multiline />}
-          status={status(`lsa.topRate:${month}`, "numbers.topRate.status", "Top rate status")}
-          healthyRange={<E k="numbers.topRate.healthy" v={c("numbers.topRate.healthy")} label="Top rate healthy range" multiline />}
-          improvements={bullets(c("numbers.topRate.improve"))}
-        />
-        <NumberCard
-          label={<E k="numbers.spend.label" v={c("numbers.spend.label")} label="Spend label" />}
-          value={<Num m={m(`lsa.spend:${month}`)} clientId={client.id} label="Ad spend" />}
-          plain={<E k="numbers.spend.plain" v={c("numbers.spend.plain")} label="Spend explanation" multiline />}
-          status={status(`lsa.spend:${month}`, "numbers.spend.status", "Spend status")}
-          statusTone="watch"
-          healthyRange={<E k="numbers.spend.healthy" v={c("numbers.spend.healthy")} label="Spend healthy range" multiline />}
-          improvements={bullets(c("numbers.spend.improve"))}
-        />
-      </div>
-
-      <div className="wa-section-head">
         <h2 className="wa-h2">
           <E k="numbers.customers.title" v={c("numbers.customers.title")} label="Leads section title" />
         </h2>
@@ -174,6 +124,7 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
       </div>
       <div className="wa-number-grid">
         <NumberCard
+          gold
           label={<E k="numbers.leads.label" v={c("numbers.leads.label")} label="Leads label" />}
           value={<Num m={m(`leads.real:${month}`)} clientId={client.id} label="Real leads this period" />}
           support={<Num m={m(`leads.split:${month}`)} clientId={client.id} label="Free vs paid split" />}
@@ -183,6 +134,16 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
           improvements={bullets(c("numbers.leads.improve"))}
         />
         <NumberCard
+          gold
+          label={<E k="numbers.adLeads.label" v={c("numbers.adLeads.label")} label="Ad leads label" />}
+          value={<Num m={m(`lsa.chargedLeads:${month}`)} clientId={client.id} label="Charged ad leads" />}
+          plain={<E k="numbers.adLeads.plain" v={c("numbers.adLeads.plain")} label="Ad leads explanation" multiline />}
+          status={status(`lsa.chargedLeads:${month}`, "numbers.adLeads.status", "Ad leads status")}
+          healthyRange={<E k="numbers.adLeads.healthy" v={c("numbers.adLeads.healthy")} label="Ad leads healthy range" multiline />}
+          improvements={bullets(c("numbers.adLeads.improve"))}
+        />
+        <NumberCard
+          gold
           label={<E k="numbers.organic.label" v={c("numbers.organic.label")} label="Organic leads label" />}
           value={<Num m={m(`leads.organic:${month}`)} clientId={client.id} label="Free leads" />}
           support={<Num m={m(`leads.organic.support:${month}`)} clientId={client.id} label="Free leads breakdown" />}
@@ -191,10 +152,29 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
           healthyRange={<E k="numbers.organic.healthy" v={c("numbers.organic.healthy")} label="Organic healthy range" multiline />}
           improvements={bullets(c("numbers.organic.improve"))}
         />
+      </div>
+
+      <div className="wa-note-strip">
+        <b>
+          <E k="numbers.adsMoved.title" v={c("numbers.adsMoved.title")} label="Ads moved — heading" />
+        </b>{" "}
+        <E k="numbers.adsMoved.body" v={c("numbers.adsMoved.body")} label="Ads moved — body" multiline />{" "}
+        <a href="/rank">Where you rank →</a>
+      </div>
+
+      <div className="wa-section-head">
+        <h2 className="wa-h2">
+          <E k="numbers.outcomes.title" v={c("numbers.outcomes.title")} label="Outcomes section title" />
+        </h2>
+        <span className="wa-page-sub">
+          <E k="numbers.outcomes.sub" v={c("numbers.outcomes.sub")} label="Outcomes section subtitle" />
+        </span>
+      </div>
+      <div className="wa-number-grid">
         <NumberCard
           label={<E k="numbers.jobs.label" v={c("numbers.jobs.label")} label="Jobs won label" />}
           value={<Num m={m(`jobs.won:${month}`)} clientId={client.id} label="Jobs won" />}
-          support={<Num m={m(`jobs.wonValue:${month}`)} clientId={client.id} label="Value of jobs won" />}
+          support={<Num m={m(`jobs.won.support:${month}`)} clientId={client.id} label="Jobs won detail" />}
           plain={<E k="numbers.jobs.plain" v={c("numbers.jobs.plain")} label="Jobs explanation" multiline />}
           status={status(`jobs.won:${month}`, "numbers.jobs.status", "Jobs status")}
           healthyRange={<E k="numbers.jobs.healthy" v={c("numbers.jobs.healthy")} label="Jobs healthy range" multiline />}
@@ -205,8 +185,6 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
           value={<Num m={m("reviews.count")} clientId={client.id} label="Google review count" />}
           support={<Num m={m("reviews.support")} clientId={client.id} label="Reviews detail" />}
           plain={<E k="numbers.reviews.plain" v={c("numbers.reviews.plain")} label="Reviews explanation" multiline />}
-          status={status("reviews.count", "numbers.reviews.status", "Reviews status")}
-          statusTone="attn"
           healthyRange={<E k="numbers.reviews.healthy" v={c("numbers.reviews.healthy")} label="Reviews healthy range" multiline />}
           improvements={bullets(c("numbers.reviews.improve"))}
         />
@@ -239,9 +217,29 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
           <div className="wa-bar-marks">
             {leadsByMonth.map((n, i) => (
               <div key={i} className="wa-bar-mark">
-                {n} lead{n === 1 ? "" : "s"}
+                <b>
+                  {n.total} lead{n.total === 1 ? "" : "s"}
+                </b>
+                {n.total > 0 && (
+                  <span className="wa-bar-split">
+                    {n.free > 0 && <span className="free">{n.free} free</span>}
+                    {n.free > 0 && n.paid > 0 && " · "}
+                    {n.paid > 0 && <span className="paid">{n.paid} paid</span>}
+                  </span>
+                )}
               </div>
             ))}
+          </div>
+          <div className="wa-bar-legend">
+            <span>
+              <i className="bar" /> Times your ad was seen
+            </span>
+            <span>
+              <i className="free" /> Leads that cost you nothing
+            </span>
+            <span>
+              <i className="paid" /> Leads from Google Ads
+            </span>
           </div>
           <p className="wa-page-sub" style={{ marginTop: 13 }}>
             <E k="numbers.chart.note" v={c("numbers.chart.note")} label="Chart note" multiline />

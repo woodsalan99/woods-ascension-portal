@@ -292,13 +292,44 @@ const RESOLVERS: Record<string, Resolver> = {
     };
   },
 
+  // A flat "0" here reads as "you won nothing", when the truth is nobody has
+  // marked an outcome on the Leads board yet. Until the first one is marked,
+  // say we don't know — a zero we can't stand behind is worse than a blank.
+  // See D43.
   "jobs.won": async ({ clientId }, period) => {
     if (!period) throw new Error('"jobs.won" requires a :YYYY-MM period');
     const { start, end } = periodRange(period);
     const count = await prisma.serviceLead.count({
       where: { clientId, ...COUNTS, stage: "JOB_WON", stageChangedAt: { gte: start, lt: end } },
     });
-    return { display: fmtInt(count), source: "Leads board", asOf: null };
+    if (count > 0) return { display: fmtInt(count), source: "Leads board", asOf: null };
+
+    const everMarked = await prisma.serviceLead.count({ where: { clientId, stage: "JOB_WON" } });
+    return {
+      display: everMarked === 0 ? "Not tracked yet" : "0",
+      source: "Leads board",
+      asOf: null,
+    };
+  },
+
+  "jobs.won.support": async ({ clientId }, period) => {
+    if (!period) throw new Error('"jobs.won.support" requires a period');
+    const everMarked = await prisma.serviceLead.count({ where: { clientId, stage: "JOB_WON" } });
+    if (everMarked === 0) {
+      return {
+        display: "We only know this once a lead is moved to Job Won on the Leads page",
+        source: "Leads board",
+        asOf: null,
+      };
+    }
+    const { start, end } = periodRange(period);
+    const won = await prisma.serviceLead.findMany({
+      where: { clientId, ...COUNTS, stage: "JOB_WON", stageChangedAt: { gte: start, lt: end } },
+      select: { jobValue: true },
+    });
+    if (won.length === 0) return { display: "None marked won in this window", source: "Leads board", asOf: null };
+    const total = won.reduce((sum, l) => sum + (l.jobValue ?? 0), 0);
+    return { display: `$${total.toLocaleString("en-US")} in accepted work`, source: "Leads board", asOf: null };
   },
 
   "jobs.wonValue": async ({ clientId }, period) => {

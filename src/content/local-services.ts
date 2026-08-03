@@ -102,10 +102,17 @@ export const LS_CONTENT = {
     def: "Everything worth watching, in two groups. The \"healthy\" note under each one is what's realistic for a painter on Oahu — not a national average from a much bigger city.",
     max: 1500,
   },
+  "numbers.adsMoved.title": { def: "Looking for your Google Ads numbers?", max: 80 },
+  "numbers.adsMoved.body": {
+    def: "They moved. They now sit with the map and the website on the rankings page, because all three are about the same thing — where people find you. This page is about what came in.",
+    max: 1500,
+  },
   "numbers.ads.title": { def: "Your Google ads", max: 60 },
   "numbers.ads.sub": { def: "The paid listings at the very top of Google", max: 120 },
-  "numbers.customers.title": { def: "Your leads & reputation", max: 80 },
-  "numbers.customers.sub": { def: "What's actually coming in", max: 120 },
+  "numbers.customers.title": { def: "Your leads", max: 80 },
+  "numbers.customers.sub": { def: "What's actually coming in, and where from", max: 120 },
+  "numbers.outcomes.title": { def: "Jobs & reputation", max: 80 },
+  "numbers.outcomes.sub": { def: "What happened after they got in touch", max: 120 },
 
   "numbers.adLeads.label": { def: "Leads from Google Ads", max: 80 },
   "numbers.adLeads.plain": { def: "People who called or messaged you straight from the paid listing at the top of Google.", max: 1500 },
@@ -143,7 +150,7 @@ export const LS_CONTENT = {
   "numbers.organic.improve": { def: "More pages, more reviews, more photos|Climb the map ranking across the island", max: 1500 },
 
   "numbers.jobs.label": { def: "Jobs won", max: 60 },
-  "numbers.jobs.plain": { def: "Leads that turned into real paid jobs this month.", max: 1500 },
+  "numbers.jobs.plain": { def: "Leads that turned into real paid jobs. We only know this once a lead is marked Job Won on the Leads page — the portal can see who got in touch, but not who said yes.", max: 1500 },
   "numbers.jobs.healthy": { def: "Roughly 1 in 3 quotes turning into a job is healthy for painting.", max: 1500 },
   "numbers.jobs.improve": { def: "Make sure every quote gets a follow-up|Get to new leads faster than competitors", max: 1500 },
 
@@ -164,12 +171,11 @@ export const LS_CONTENT = {
   "numbers.leads.status": { def: "Normal", max: 30 },
   "numbers.organic.status": { def: "Growing", max: 30 },
   "numbers.jobs.status": { def: "On track", max: 30 },
-  "numbers.reviews.status": { def: "Room to grow", max: 30 },
 
   "numbers.chart.label": { def: "Since we started", max: 60 },
   "numbers.chart.title": { def: "Ad views and real leads, month by month", max: 120 },
   "numbers.chart.note": {
-    def: "The grey bars are how many people saw your ad. They stay fairly flat, which tells us the size of the search market on Oahu — that ceiling is why the website work matters.",
+    def: "The grey bars are how many people saw your ad — they stay fairly flat, which tells us the size of the search market on Oahu. Underneath is how many people actually got in touch, split by whether they cost you anything. The free half is the one that keeps growing without costing more, and that ceiling on the bars is exactly why it matters.",
     max: 1500,
   },
 
@@ -234,6 +240,81 @@ export const LS_CONTENT = {
     def: "The goal is to get that average under 5, which is roughly when you start appearing in the small map box at the top of Google without anyone having to scroll.",
     max: 1500,
   },
+  // ---- Where You Rank / the three assets ----
+  // The page is organised around the three places a homeowner can find you,
+  // because that's the mental model — not around which tool reports it.
+  "rank.core.label": { def: "The core pieces", max: 60 },
+  "rank.core.sub": {
+    def: "Three places a homeowner can find you. Each one is measured separately below, because you can be doing well in one and invisible in another.",
+    max: 1500,
+  },
+  "rank.core.1": { def: "Google Maps", max: 40 },
+  "rank.core.1.note": { def: "The map box that shows up first", max: 80 },
+  "rank.core.2": { def: "Website", max: 40 },
+  "rank.core.2.note": { def: "The pages people land on", max: 80 },
+  "rank.core.3": { def: "Google Ads", max: 40 },
+  "rank.core.3.note": { def: "The paid slots above everything", max: 80 },
+
+  "rank.asset.subtitle": { def: "Where you show up", max: 60 },
+  "rank.asset.maps.title": { def: "Asset #1: Google Maps", max: 60 },
+  "rank.asset.web.title": { def: "Asset #2: Website", max: 60 },
+  "rank.asset.ads.title": { def: "Asset #3: Google Ads", max: 60 },
+  "rank.controls.title": { def: "What controls your position", max: 80 },
+
+  // Website asset
+  "rank.web.sub": {
+    def: "Your own pages, and what people typed to reach them. This is the slowest of the three to move and the only one that keeps working without you paying for it.",
+    max: 1500,
+  },
+  "rank.web.visits.label": { def: "Visits from Google", max: 60 },
+  "rank.web.impressions.label": { def: "Times you appeared in search", max: 60 },
+  "rank.web.pages.label": { def: "Pages showing on Google", max: 60 },
+  "rank.web.trend.title": { def: "Visits from Google, month by month", max: 100 },
+  "rank.web.keywords.title": { def: "What people typed to find you", max: 100 },
+  "rank.web.keywords.sub": {
+    def: "Your position in the normal (unpaid) Google results for each one. Lower is better — position 1 is the top of page one.",
+    max: 1500,
+  },
+  "rank.web.keywords.empty": { def: "The keyword report lands at the end of the month.", max: 200 },
+  "rank.web.pages.title": { def: "The pages we've built for you", max: 100 },
+
+  // Ads asset
+  "rank.ads.sub": {
+    def: "The paid slots at the very top of Google. Fastest of the three to move, and the only one that stops the moment you stop paying.",
+    max: 1500,
+  },
+
+  "rank.controls.maps.items": {
+    kind: "list",
+    maxItem: 500,
+    def: [
+      "Reviews|How many you have, how good they are, and how recently they arrived. A steady trickle beats a big burst.|Biggest one · you control this",
+      "Photos|Google favours profiles with real, recent job photos going up regularly. Before-and-afters do best.|Biggest one · you control this",
+      "Distance from the customer|The single biggest factor, and the one nobody controls. Being in Ewa Beach means you rank stronger nearby and weaker windward.|Nobody controls this one",
+      "How fast you respond|Google watches how quickly calls and messages get answered, and ranks faster responders higher.|You control this",
+    ],
+  },
+  "rank.controls.web.items": {
+    kind: "list",
+    maxItem: 500,
+    def: [
+      "Pages that match the search|One page per town and service, so there's something for Google to show whatever they typed.|We handle this",
+      "Links pointing at those pages|Both from your own pages to each other, and from other websites. This is what makes Google trust them.|We handle this",
+      "Time|New pages take months to earn their position. Nothing makes this part fast — it just compounds.|Nobody controls this one",
+      "Reviews and photos|The same things that lift the map also lift the site, because Google reads them as signs of a real, active business.|You control this",
+    ],
+  },
+  "rank.controls.ads.items": {
+    kind: "list",
+    maxItem: 500,
+    def: [
+      "Reviews|The main thing deciding which painter Google shows first in the paid slots.|Biggest one · you control this",
+      "How fast you reply|Google demotes advertisers who are slow to answer, and promotes the ones who pick up.|You control this",
+      "Google Guaranteed badge|Being licensed, insured and background-checked with Google is what qualifies you for these slots at all.|Already sorted",
+      "Search volume on Oahu|The ceiling. Only so many people search for a painter here each month, and no budget changes that.|Nobody controls this one",
+    ],
+  },
+
   "rank.factors.label": { def: "What actually moves these numbers", max: 100 },
   "rank.factors.title": { def: "The things that decide your position", max: 120 },
   "rank.factors.sub": {

@@ -11,6 +11,7 @@ export function NumberCard({
   statusTone = "on",
   healthyRange,
   improvements,
+  gold = false,
 }: {
   label: ReactNode;
   value: ReactNode;
@@ -20,9 +21,11 @@ export function NumberCard({
   statusTone?: "on" | "attn" | "watch";
   healthyRange?: ReactNode;
   improvements?: ReactNode;
+  /** Gold outline for the handful of numbers the whole page is about. */
+  gold?: boolean;
 }) {
   return (
-    <article className="wa-card wa-number-card">
+    <article className={`wa-card wa-number-card ${gold ? "gold" : ""}`}>
       <div className="wa-kpi-label">{label}</div>
       <div className="wa-number-value">{value}</div>
       {support && <div className="wa-number-support">{support}</div>}

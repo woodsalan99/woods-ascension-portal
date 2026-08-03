@@ -952,6 +952,89 @@ span.wa-ob-active { font-size: 12px; font-weight: 600; color: var(--green); }
 .wa-ob-item-link:hover { background: #FBFBF7; }
 .wa-ob-item-link:hover .wa-pill { border-color: var(--gold); }
 
+.wa-bar-mark b { display: block; font-size: 12px; color: var(--ink); font-weight: 600; }
+.wa-bar-split { display: block; font-size: 11px; margin-top: 2px; }
+.wa-bar-split .free { color: var(--green); }
+.wa-bar-split .paid { color: var(--gold); }
+.wa-bar-legend { display: flex; gap: 16px; flex-wrap: wrap; margin-top: 14px; font-size: 11.5px; color: var(--muted); }
+.wa-bar-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.wa-bar-legend i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+.wa-bar-legend i.bar { background: #D8D6CB; }
+.wa-bar-legend i.free { background: var(--green); border-radius: 999px; }
+.wa-bar-legend i.paid { background: var(--gold); border-radius: 999px; }
+
+/* The lead-source trio. Gold because those three are the point of the page
+   and everything under them is supporting detail. */
+.wa-number-card.gold { border-color: #E0CFA6; box-shadow: 0 5px 18px rgba(168,126,63,.10); }
+.wa-number-card.gold .wa-kpi-label { color: var(--gold); }
+
+/* ---------- local-services: the three assets (Where You Rank) ---------- */
+.wa-core {
+  background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+  padding: 22px 24px; margin-bottom: 26px; box-shadow: 0 5px 15px rgba(16,30,46,.035);
+}
+.wa-core-label {
+  font-size: 11px; letter-spacing: .16em; text-transform: uppercase;
+  color: var(--gold); font-weight: 700; text-align: center; margin-bottom: 16px;
+}
+.wa-core-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.wa-core-piece {
+  display: flex; gap: 12px; align-items: center; background: #FCFCF9;
+  border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px;
+}
+.wa-core-num {
+  flex: 0 0 30px; height: 30px; border-radius: 999px; background: var(--ink); color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Fraunces', serif; font-size: 15px;
+}
+.wa-core-piece b { display: block; font-size: 14px; color: var(--ink); font-weight: 600; }
+.wa-core-piece span { display: block; font-size: 11.5px; color: var(--muted); margin-top: 2px; }
+.wa-core-sub { font-size: 12.5px; color: var(--muted); text-align: center; margin: 16px auto 0; max-width: 620px; line-height: 1.6; }
+
+.wa-asset-head { margin: 34px 0 14px; }
+.wa-asset-title { font-family: 'Fraunces', serif; font-weight: 500; font-size: 26px; color: var(--ink); margin: 0; letter-spacing: -0.01em; }
+.wa-asset-sub { font-size: 13px; color: var(--gold); margin-top: 4px; letter-spacing: .04em; }
+
+/* Collapsed by default: three open copies would bury the numbers. */
+.wa-controls {
+  background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+  margin-bottom: 8px; overflow: hidden;
+}
+.wa-controls summary {
+  list-style: none; cursor: pointer; padding: 15px 22px; display: flex;
+  align-items: center; justify-content: space-between; gap: 12px;
+  font-size: 13.5px; font-weight: 600; color: var(--ink);
+}
+.wa-controls summary::-webkit-details-marker { display: none; }
+.wa-controls-toggle::after { content: "▾"; font-size: 11px; color: var(--muted); transition: transform .2s; display: inline-block; }
+.wa-controls[open] .wa-controls-toggle::after { transform: rotate(180deg); }
+.wa-controls-body {
+  padding: 4px 22px 20px; display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 18px;
+}
+.wa-control h4 { font-size: 14px; color: var(--ink); margin: 7px 0 0; font-weight: 600; }
+.wa-control p { font-size: 12.5px; color: var(--muted); line-height: 1.6; margin-top: 4px; }
+.wa-controls-edit { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 22px; margin-bottom: 8px; }
+
+/* Keyword positions — the website's black box, opened. */
+.wa-kwrank-list { display: flex; flex-direction: column; }
+.wa-kwrank { display: flex; align-items: center; gap: 14px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+.wa-kwrank:last-child { border-bottom: 0; }
+.wa-kwrank-pos {
+  flex: 0 0 38px; height: 38px; border-radius: 999px; background: #FBFBF7;
+  border: 1px solid var(--line); color: var(--ink-soft);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Fraunces', serif; font-size: 16px;
+}
+.wa-kwrank-pos.top { background: var(--green-soft); border-color: #CFE3D7; color: var(--green); }
+.wa-kwrank-pos.mid { background: var(--gold-soft); border-color: #E8DCC2; color: var(--gold); }
+.wa-kwrank-main { flex: 1; min-width: 0; }
+.wa-kwrank-main b { display: block; font-size: 14px; color: var(--ink); font-weight: 600; }
+.wa-kwrank-main span { display: block; font-size: 12px; color: var(--muted); margin-top: 2px; }
+.wa-kwrank-move { font-size: 12px; font-weight: 600; white-space: nowrap; }
+.wa-kwrank-move.up { color: var(--green); }
+.wa-kwrank-move.down { color: var(--brick); }
+
 /* ---------- local-services: task editor (admin, in edit mode) ---------- */
 .wa-pill.late { background: #FCEBE8; border-color: #E8B8AE; color: var(--brick); font-weight: 600; }
 .wa-task-editor { padding-top: 4px; }
@@ -1038,6 +1121,10 @@ span.wa-ob-active { font-size: 12px; font-weight: 600; color: var(--green); }
   /* Long keyword names force these onto separate lines, and once stacked the
      inactive ones stop reading as buttons at all — they look like a list.
      A visible edge is what tells a thumb there's something to press. */
+  .wa-core-grid { grid-template-columns: 1fr; }
+  .wa-asset-title { font-size: 22px; }
+  .wa-controls summary { padding: 14px 18px; }
+  .wa-controls-body { padding: 4px 18px 18px; grid-template-columns: 1fr; }
   .wa-kw-tabs { flex-direction: column; }
   .wa-kw-tab { border: 1px solid var(--line); background: var(--card); text-align: left; }
   .wa-kw-tab.active { border-color: var(--ink); }
