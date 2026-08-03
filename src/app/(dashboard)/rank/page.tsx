@@ -1,13 +1,15 @@
 import { requireClientType } from "@/lib/dashboard-scope";
 import { prisma } from "@/lib/prisma";
 import { getContent } from "@/lib/content";
-import { resolveMetrics } from "@/lib/ls-metrics";
+import { resolveMetrics, LAST_30 } from "@/lib/ls-metrics";
 import { formatMonthKey, monthKeyInTimezone } from "@/lib/timezone";
 import { EditProvider } from "@/components/ls/EditProvider";
 import { E } from "@/components/ls/Editable";
 import { Num } from "@/components/ls/Num";
 import { Geogrid, type GeogridScanVM } from "@/components/ls/Geogrid";
 import { ControlsPanel } from "@/components/ls/ControlsPanel";
+import { SearchChart, type SearchPoint } from "@/components/ls/SearchChart";
+import { KeywordRanks } from "@/components/ls/KeywordRanks";
 
 // The page is organised around the three places a homeowner can actually
 // find Canencia — Maps, the website, the ads — because that's how a painter
@@ -67,25 +69,33 @@ export default async function RankPage() {
     .sort((a, b) => a[0].localeCompare(b[0]))
     .slice(-6)
     .map(([m, v]) => ({ month: m, ...v }));
-  const maxClicks = Math.max(1, ...webMonths.map((m) => m.clicks));
   const lastFull = webMonths[webMonths.length - 1];
+  const searchPoints: SearchPoint[] = webMonths.map((m) => ({
+    month: m.month,
+    label: formatMonthKey(m.month).split(" ")[0].slice(0, 3),
+    clicks: m.clicks,
+    impressions: m.impressions,
+  }));
 
   const indexed = pages.filter((p) => p.indexed).length;
   const latestKeywordMonth = keywords[0]?.month ?? null;
   const latestKeywords = keywords.filter((k) => k.month === latestKeywordMonth);
 
-  // ---- Ads: moved here from The Numbers, where they sat beside lead and
-  // job counts they have nothing to do with. ----
+  // ---- Ads ----
+  // This page has no period picker, and it was asking for the CURRENT month
+  // — which Google hasn't published yet, so every card showed a dash. The
+  // rolling window falls back to the newest month on file and names that
+  // month in the support line, which is the honest answer here. See D46.
   const adKeys = [
-    `lsa.impressions:${month}`,
+    `lsa.impressions:${LAST_30}`,
     "lsa.impressions.trend",
-    `lsa.topRate:${month}`,
-    `lsa.topRate.support:${month}`,
-    `lsa.chargedLeads:${month}`,
+    `lsa.topRate:${LAST_30}`,
+    `lsa.topRate.support:${LAST_30}`,
+    `lsa.chargedLeads:${LAST_30}`,
     "lsa.chargedLeads.trend",
-    `lsa.cpl:${month}`,
-    `lsa.cpl.support:${month}`,
-    `lsa.spend:${month}`,
+    `lsa.cpl:${LAST_30}`,
+    `lsa.cpl.support:${LAST_30}`,
+    `lsa.spend:${LAST_30}`,
   ];
   const adMetrics = await resolveMetrics(client.id, client.timezone, adKeys);
   const ad = (k: string) => adMetrics.get(k)!;
@@ -246,23 +256,12 @@ export default async function RankPage() {
           </div>
         </div>
 
-        {webMonths.length > 1 && (
+        {searchPoints.length > 1 && (
           <>
             <h3 className="wa-recap-h3" style={{ marginTop: 26 }}>
               <E k="rank.web.trend.title" v={content.text("rank.web.trend.title")} label="Website trend title" />
             </h3>
-            <div className="wa-bars">
-              {webMonths.map((m) => (
-                <div key={m.month} className="wa-bar-group">
-                  <div className="wa-bar-stack">
-                    <div className="wa-bar" style={{ height: `${(m.clicks / maxClicks) * 100}%` }}>
-                      <span className="wa-bar-val">{m.clicks}</span>
-                    </div>
-                  </div>
-                  <span className="wa-bar-label">{formatMonthKey(m.month).split(" ")[0]}</span>
-                </div>
-              ))}
-            </div>
+            <SearchChart points={searchPoints} />
           </>
         )}
 
@@ -279,55 +278,51 @@ export default async function RankPage() {
             </p>
           </div>
         ) : (
-          <div className="wa-kwrank-list">
-            {latestKeywords.map((k) => {
-              const moved = k.prevPosition !== null ? k.prevPosition - k.position : null;
-              return (
-                <div key={k.id} className="wa-kwrank">
-                  <span className={`wa-kwrank-pos ${k.position <= 3 ? "top" : k.position <= 10 ? "mid" : ""}`}>
-                    {k.position}
-                  </span>
-                  <div className="wa-kwrank-main">
-                    <b>{k.keyword}</b>
-                    <span>
-                      {k.volume ? `about ${k.volume.toLocaleString("en-US")} searches a month` : "search volume not reported"}
-                    </span>
-                  </div>
-                  {moved !== null && moved !== 0 && (
-                    <span className={`wa-kwrank-move ${moved > 0 ? "up" : "down"}`}>
-                      {moved > 0 ? `↑ ${moved}` : `↓ ${Math.abs(moved)}`}
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
+          <KeywordRanks
+            keywords={latestKeywords.map((k) => ({
+              id: k.id,
+              keyword: k.keyword,
+              position: k.position,
+              prevPosition: k.prevPosition,
+              volume: k.volume,
+            }))}
+          />
         )}
 
-        <h3 className="wa-recap-h3" style={{ marginTop: 26 }}>
-          <E k="rank.web.pages.title" v={content.text("rank.web.pages.title")} label="Pages title" />
-        </h3>
-        <p className="wa-page-sub" style={{ marginBottom: 10 }}>
-          <E k="rank.pages.sub" v={content.text("rank.pages.sub")} label="Pages subtitle" multiline />
-        </p>
-        <div className="wa-ob-list">
-          {pages.map((p) => (
-            <a
-              key={p.id}
-              className="wa-ob-item wa-ob-item-link"
-              href={p.url}
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <div className="wa-ob-body">
-                <div className="wa-ob-step">{p.town}</div>
-              </div>
-              <span className={`wa-pill ${p.indexed ? "live" : ""}`}>
-                {p.indexed ? "On Google →" : "Processing →"}
-              </span>
-            </a>
-          ))}
-        </div>
+        <details className="wa-expandable" style={{ marginTop: 26 }}>
+          <summary>
+            <span>
+              <E k="rank.web.pages.title" v={content.text("rank.web.pages.title")} label="Pages title" /> ({pages.length})
+            </span>
+            <span className="wa-expandable-toggle">
+              <span className="when-closed">Expand</span>
+              <span className="when-open">Shrink</span>
+            </span>
+          </summary>
+          <div className="wa-expandable-body">
+            <p className="wa-page-sub" style={{ marginBottom: 10 }}>
+              <E k="rank.pages.sub" v={content.text("rank.pages.sub")} label="Pages subtitle" multiline />
+            </p>
+            <div className="wa-ob-list">
+              {pages.map((p) => (
+                <a
+                  key={p.id}
+                  className="wa-ob-item wa-ob-item-link"
+                  href={p.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <div className="wa-ob-body">
+                    <div className="wa-ob-step">{p.town}</div>
+                  </div>
+                  <span className={`wa-pill ${p.indexed ? "live" : ""}`}>
+                    {p.indexed ? "On Google →" : "Processing →"}
+                  </span>
+                </a>
+              ))}
+            </div>
+          </div>
+        </details>
       </div>
       <ControlsPanel
         contentKey="rank.controls.web.items"
@@ -347,7 +342,7 @@ export default async function RankPage() {
               <E k="numbers.impressions.label" v={content.text("numbers.impressions.label")} label="Impressions label" />
             </div>
             <div className="wa-recap-v">
-              <Num m={ad(`lsa.impressions:${month}`)} clientId={client.id} label="Ad impressions" />
+              <Num m={ad(`lsa.impressions:${LAST_30}`)} clientId={client.id} label="Ad impressions" />
             </div>
             <div className="wa-number-support">
               <Num m={ad("lsa.impressions.trend")} clientId={client.id} label="Impressions trend" />
@@ -358,10 +353,10 @@ export default async function RankPage() {
               <E k="numbers.topRate.label" v={content.text("numbers.topRate.label")} label="Top rate label" />
             </div>
             <div className="wa-recap-v">
-              <Num m={ad(`lsa.topRate:${month}`)} clientId={client.id} label="Shown-first rate" />
+              <Num m={ad(`lsa.topRate:${LAST_30}`)} clientId={client.id} label="Shown-first rate" />
             </div>
             <div className="wa-number-support">
-              <Num m={ad(`lsa.topRate.support:${month}`)} clientId={client.id} label="Shown-first previous month" />
+              <Num m={ad(`lsa.topRate.support:${LAST_30}`)} clientId={client.id} label="Shown-first previous month" />
             </div>
           </div>
           <div className="wa-recap-cell">
@@ -369,7 +364,7 @@ export default async function RankPage() {
               <E k="numbers.adLeads.label" v={content.text("numbers.adLeads.label")} label="Ad leads label" />
             </div>
             <div className="wa-recap-v">
-              <Num m={ad(`lsa.chargedLeads:${month}`)} clientId={client.id} label="Charged ad leads" />
+              <Num m={ad(`lsa.chargedLeads:${LAST_30}`)} clientId={client.id} label="Charged ad leads" />
             </div>
             <div className="wa-number-support">
               <Num m={ad("lsa.chargedLeads.trend")} clientId={client.id} label="Ad leads trend" />
@@ -380,10 +375,10 @@ export default async function RankPage() {
               <E k="numbers.cpl.label" v={content.text("numbers.cpl.label")} label="Cost per lead label" />
             </div>
             <div className="wa-recap-v">
-              <Num m={ad(`lsa.cpl:${month}`)} clientId={client.id} label="Cost per ad lead" />
+              <Num m={ad(`lsa.cpl:${LAST_30}`)} clientId={client.id} label="Cost per ad lead" />
             </div>
             <div className="wa-number-support">
-              <Num m={ad(`lsa.cpl.support:${month}`)} clientId={client.id} label="Cost per lead detail" />
+              <Num m={ad(`lsa.cpl.support:${LAST_30}`)} clientId={client.id} label="Cost per lead detail" />
             </div>
           </div>
           <div className="wa-recap-cell">
@@ -391,7 +386,7 @@ export default async function RankPage() {
               <E k="numbers.spend.label" v={content.text("numbers.spend.label")} label="Spend label" />
             </div>
             <div className="wa-recap-v">
-              <Num m={ad(`lsa.spend:${month}`)} clientId={client.id} label="Ad spend" />
+              <Num m={ad(`lsa.spend:${LAST_30}`)} clientId={client.id} label="Ad spend" />
             </div>
           </div>
         </div>

@@ -365,10 +365,25 @@ const RESOLVERS: Record<string, Resolver> = {
     return { display, source: "Search Console / manual entry", asOf: null };
   },
 
-  "reviews.count": async ({ clientId }) => {
-    const latest = await prisma.reviewSnapshot.findFirst({ where: { clientId }, orderBy: { date: "desc" } });
-    if (!latest) return { display: "—", source: "Google Business Profile", asOf: null };
-    return { display: fmtInt(latest.count), source: "Google Business Profile", asOf: latest.date };
+  // Period-aware. Without this the recap showed today's count for May, June
+  // and July alike — the same 34 three times, which is plainly wrong to
+  // anyone who knows reviews came in over that stretch. We only started
+  // snapshotting on 2 Aug 2026, so anything earlier is genuinely unknowable:
+  // return blank and let the page drop the cell rather than assert a number
+  // we never measured. See D46.
+  "reviews.count": async ({ clientId }, period) => {
+    if (!period || isRolling(period)) {
+      const latest = await prisma.reviewSnapshot.findFirst({ where: { clientId }, orderBy: { date: "desc" } });
+      if (!latest) return { display: "—", source: "Google Business Profile", asOf: null };
+      return { display: fmtInt(latest.count), source: "Google Business Profile", asOf: latest.date };
+    }
+    const { end } = periodRange(period);
+    const asOfMonth = await prisma.reviewSnapshot.findFirst({
+      where: { clientId, date: { lt: end } },
+      orderBy: { date: "desc" },
+    });
+    if (!asOfMonth) return { display: "", source: "Google Business Profile", asOf: null };
+    return { display: fmtInt(asOfMonth.count), source: "Google Business Profile", asOf: asOfMonth.date };
   },
 
   "reviews.support": async ({ clientId, tz }) => {

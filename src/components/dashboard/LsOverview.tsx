@@ -90,6 +90,8 @@ export async function LsOverview({ period }: { period?: string }) {
         where: { clientId: client.id, month: { in: [monthKey, prevMonthKey] } },
       });
 
+  const planItems = ((monthlyWork?.nextMonth as string[] | null) ?? []).filter(Boolean);
+
   const workItems = workRows
     .flatMap((row) =>
       ((row.items as WorkItem[] | null) ?? []).map((item) => ({ ...item, at: itemDate(item, row.month) })),
@@ -267,6 +269,29 @@ export async function LsOverview({ period }: { period?: string }) {
           </div>
         )}
       </div>
+
+      {planItems.length > 0 && (
+        <div className="wa-card wa-plan">
+          <div className="wa-section-head">
+            <div>
+              <div className="wa-eyebrow">
+                <E k="overview.plan.label" v={content.text("overview.plan.label")} label="Plan label" />
+              </div>
+              <h2 className="wa-h2">
+                Plan for {new Date().toLocaleDateString("en-US", { month: "long", timeZone: client.timezone })}
+              </h2>
+              <p className="wa-page-sub">
+                <E k="overview.plan.sub" v={content.text("overview.plan.sub")} label="Plan subtitle" multiline />
+              </p>
+            </div>
+          </div>
+          <ol className="wa-plan-list">
+            {planItems.map((item, i) => (
+              <li key={i}>{item}</li>
+            ))}
+          </ol>
+        </div>
+      )}
 
       <div className="wa-kpis">
         <article className="wa-kpi">

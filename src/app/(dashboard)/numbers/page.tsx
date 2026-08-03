@@ -2,13 +2,14 @@ import { requireClientType } from "@/lib/dashboard-scope";
 import { prisma } from "@/lib/prisma";
 import { getContent } from "@/lib/content";
 import { resolveMetrics } from "@/lib/ls-metrics";
-import { formatMonthKey } from "@/lib/timezone";
+import { formatMonthKey, monthKeyInTimezone } from "@/lib/timezone";
 import { periodOptions, periodRangeLabel, resolvePeriod } from "@/lib/ls-periods";
 import { PeriodSwitch } from "@/components/ls/PeriodSwitch";
 import { EditProvider } from "@/components/ls/EditProvider";
 import { E } from "@/components/ls/Editable";
 import { Num } from "@/components/ls/Num";
 import { NumberCard } from "@/components/ls/NumberCard";
+import { SearchChart, type SearchPoint } from "@/components/ls/SearchChart";
 import type { ContentKey } from "@/content/local-services";
 
 // Improvement bullets are stored as one pipe-separated string per card so
@@ -96,6 +97,31 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
     }),
   );
   const maxImpressions = Math.max(1, ...lsaMonths.map((s) => s.impressions));
+
+  // Visits from Google, month by month, with times-appeared over the top.
+  // Current month excluded — it's partial, so it always reads as a collapse.
+  const gscDaily = await prisma.gscDailyStat.findMany({
+    where: { clientId: client.id },
+    orderBy: { date: "asc" },
+  });
+  const gscByMonth = new Map<string, { clicks: number; impressions: number }>();
+  for (const d of gscDaily) {
+    const key = `${d.date.getUTCFullYear()}-${String(d.date.getUTCMonth() + 1).padStart(2, "0")}`;
+    const row = gscByMonth.get(key) ?? { clicks: 0, impressions: 0 };
+    row.clicks += d.clicks;
+    row.impressions += d.impressions;
+    gscByMonth.set(key, row);
+  }
+  const searchPoints: SearchPoint[] = [...gscByMonth.entries()]
+    .filter(([mk]) => mk !== monthKeyInTimezone(new Date(), client.timezone))
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .slice(-6)
+    .map(([mk, v]) => ({
+      month: mk,
+      label: formatMonthKey(mk).split(" ")[0].slice(0, 3),
+      clicks: v.clicks,
+      impressions: v.impressions,
+    }));
 
   return (
     <EditProvider clientId={client.id} canEdit={scope.isPreview}>
@@ -239,6 +265,22 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
           improvements={bullets(c("numbers.reviews.improve"))}
         />
       </div>
+
+      {searchPoints.length > 1 && (
+        <div className="wa-card">
+          <div className="wa-section-head">
+            <div>
+              <div className="wa-eyebrow">
+                <E k="rank.web.visits.label" v={c("rank.web.visits.label")} label="Web visits label" />
+              </div>
+              <h2 className="wa-h2">
+                <E k="rank.web.trend.title" v={c("rank.web.trend.title")} label="Website trend title" />
+              </h2>
+            </div>
+          </div>
+          <SearchChart points={searchPoints} />
+        </div>
+      )}
 
       {lsaMonths.length > 0 && (
         <div className="wa-card">
