@@ -80,7 +80,9 @@ export default async function RecapPage({ searchParams }: { searchParams: Promis
   // A zero tells the client nothing and can actively mislead: "Junk blocked: 0"
   // for a month before the call filter existed reads as "nothing was filtered",
   // not "we weren't measuring yet". So a zero cell is dropped — except ad spend,
-  // where $0 alongside hundreds of impressions is the whole point.
+  // where $0 alongside hundreds of impressions is the whole point. Blanks and
+  // dashes go too: a resolver returns those when it has nothing to say at all.
+  const isEmpty = (v: string) => v === "" || v === "—" || v === "0" || v === "$0";
   const cells = (
     [
       { key: "recap.kpi.leads", label: "Recap KPI — customers", value: val(`leads.real:${selected}`) },
@@ -90,7 +92,7 @@ export default async function RecapPage({ searchParams }: { searchParams: Promis
       { key: "recap.kpi.junk", label: "Recap KPI — junk blocked", value: val(`junk.blocked:${selected}`) },
       { key: "recap.kpi.reviews", label: "Recap KPI — reviews", value: val("reviews.count") },
     ] satisfies { key: ContentKey; label: string; value: string; keepZero?: boolean }[]
-  ).filter((c) => ("keepZero" in c && c.keepZero) || (c.value !== "0" && c.value !== "$0"));
+  ).filter((c) => ("keepZero" in c && c.keepZero ? c.value !== "" && c.value !== "—" : !isEmpty(c.value)));
 
   const items = (work.items as unknown as WorkItem[]) ?? [];
   const nextMonth = (work.nextMonth as unknown as string[]) ?? [];
@@ -139,7 +141,10 @@ export default async function RecapPage({ searchParams }: { searchParams: Promis
         </div>
       )}
 
-      <div className="wa-recap-body" style={heroTitle ? undefined : { borderTop: "1px solid var(--line)", borderRadius: 14 }}>
+      <div
+        className="wa-recap-body"
+        style={heroTitle ? undefined : { borderTop: "1px solid var(--line)", borderRadius: 14 }}
+      >
         <div className="wa-recap-grid">
           {cells.map((c) => (
             <div key={c.key} className="wa-recap-cell">
