@@ -13,6 +13,10 @@
 // it as <b>; an edited value is always plain text and loses the emphasis
 // (accepted — see IMPLEMENTATION_STATE.md §3a "Hardest lines, settled").
 
+// `max` guards layout, not brevity. A short label really does break a card
+// if it runs long, so those stay tight; a body paragraph doesn't, so those
+// are generous. The old prose limits were guesses that turned out to be far
+// too tight the first time Alan wrote a real one. See D39.
 export type ContentEntry = { def: string; max?: number } | { kind: "list"; def: string[]; maxItem?: number };
 
 export const LS_CONTENT = {
@@ -20,7 +24,7 @@ export const LS_CONTENT = {
   "overview.thesis.summaryLabel": { def: "30-second summary of our campaign plan", max: 120 },
   "overview.thesis.intro": {
     def: "Our plan is simple. We bring in more leads through three things: **your website**, **Google Local Service Ads**, and **Google Maps**.",
-    max: 400,
+    max: 1500,
   },
   "overview.thesis.items": {
     kind: "list",
@@ -31,20 +35,23 @@ export const LS_CONTENT = {
       "**Google Maps** — more reviews, and more photos from your jobs.",
     ],
   },
+  // Two paragraphs in one field: what Alan needs from the client, and what
+  // Alan does in return. A blank line between them renders as a real
+  // paragraph break — see the pre-line note in Editable.tsx.
   "overview.thesis.needs": {
-    def: "The core things I need from you: **respond to leads quickly**, **follow up with them**, **send me names for reviews**, and **share photos from your projects**. I'll handle everything else.",
-    max: 500,
+    def: "The core things I need from you: **respond to leads quickly (always)**, **follow up with them (always)**, **send me names and phone numbers for reviews (weekly)**, **share photos from your projects**, and update the outcome of leads in the pipeline on an ongoing basis.\n\nOn my end, the core things I'll do monthly that move this campaign forward are: adding 6 pages to the website, adding internal links and backlinks, reaching out to customers for reviews, posting photos to your listings, and keeping this portal up to date and sharing everything with you.",
+    max: 1500,
   },
   "overview.thesis.expand": {
     def: "With that foundation in place, we'll keep seeing progress — and once it's working, we can expand into other things like Facebook ads.",
-    max: 400,
+    max: 1500,
   },
 
   // ---- Overview / hero (shown until a MonthlyWork row exists for the current month) ----
   "overview.hero.titleDefault": { def: "Welcome to your growth portal.", max: 150 },
   "overview.hero.subDefault": {
     def: "This is where you'll see your leads, your rankings, and everything we're building for you — updated as it happens.",
-    max: 400,
+    max: 1500,
   },
 
   // ---- Overview / work block ----
@@ -52,7 +59,7 @@ export const LS_CONTENT = {
   "overview.work.title": { def: "What we built for you this month", max: 120 },
   "overview.work.sub": {
     def: "Some of this shows up in the numbers right away. Most of it takes a few months to pay off — but it's all getting done.",
-    max: 300,
+    max: 1500,
   },
   "overview.work.empty": { def: "Nothing logged yet this month — check back soon.", max: 200 },
   // Rolling-window wording. Same block, different window — the copy has to
@@ -84,7 +91,7 @@ export const LS_CONTENT = {
   "numbers.title": { def: "The numbers", max: 60 },
   "numbers.sub": {
     def: "Everything worth watching, in two groups. The \"healthy\" note under each one is what's realistic for a painter on Oahu — not a national average from a much bigger city.",
-    max: 400,
+    max: 1500,
   },
   "numbers.ads.title": { def: "Your Google ads", max: 60 },
   "numbers.ads.sub": { def: "The paid listings at the very top of Google", max: 120 },
@@ -92,49 +99,49 @@ export const LS_CONTENT = {
   "numbers.customers.sub": { def: "What's actually coming in", max: 120 },
 
   "numbers.adLeads.label": { def: "Leads from Google Ads", max: 80 },
-  "numbers.adLeads.plain": { def: "People who called or messaged you straight from the paid listing at the top of Google.", max: 300 },
-  "numbers.adLeads.healthy": { def: "1–4 a month is what this market gives. There simply aren't many painting searches on Oahu each month.", max: 300 },
-  "numbers.adLeads.improve": { def: "Keep you first in line for every search there is|Dispute junk leads so you're not charged for them", max: 400 },
+  "numbers.adLeads.plain": { def: "People who called or messaged you straight from the paid listing at the top of Google.", max: 1500 },
+  "numbers.adLeads.healthy": { def: "1–4 a month is what this market gives. There simply aren't many painting searches on Oahu each month.", max: 1500 },
+  "numbers.adLeads.improve": { def: "Keep you first in line for every search there is|Dispute junk leads so you're not charged for them", max: 1500 },
 
   "numbers.cpl.label": { def: "What each ad lead cost", max: 80 },
-  "numbers.cpl.plain": { def: "Google only charges when a real person contacts you — never for being seen. This is ad cost only, separate from our monthly fee.", max: 300 },
-  "numbers.cpl.healthy": { def: "$20–50 is healthy for painting. The national average is about $53, so you're paying well under half.", max: 300 },
-  "numbers.cpl.improve": { def: "Dispute junk leads so Google refunds them|Keep the settings tight to the work you actually want", max: 400 },
+  "numbers.cpl.plain": { def: "Google only charges when a real person contacts you — never for being seen. This is ad cost only, separate from our monthly fee.", max: 1500 },
+  "numbers.cpl.healthy": { def: "$20–50 is healthy for painting. The national average is about $53, so you're paying well under half.", max: 1500 },
+  "numbers.cpl.improve": { def: "Dispute junk leads so Google refunds them|Keep the settings tight to the work you actually want", max: 1500 },
 
   "numbers.impressions.label": { def: "Times your ad was seen", max: 80 },
-  "numbers.impressions.plain": { def: "How many people on Oahu searched for a painter and saw your listing.", max: 300 },
-  "numbers.impressions.healthy": { def: "200–400 a month is simply how many people search here. It's a small island — this isn't a number we can push much higher.", max: 300 },
-  "numbers.impressions.improve": { def: "Keep every painting service switched on|Cover the whole island, available 24/7", max: 400 },
+  "numbers.impressions.plain": { def: "How many people on Oahu searched for a painter and saw your listing.", max: 1500 },
+  "numbers.impressions.healthy": { def: "200–400 a month is simply how many people search here. It's a small island — this isn't a number we can push much higher.", max: 1500 },
+  "numbers.impressions.improve": { def: "Keep every painting service switched on|Cover the whole island, available 24/7", max: 1500 },
 
   "numbers.topRate.label": { def: "How often you're shown first", max: 80 },
-  "numbers.topRate.plain": { def: "When your ad shows up, this is how often you're the very first painter on the page — above every competitor.", max: 300 },
-  "numbers.topRate.healthy": { def: "Anything above 85% is strong. There is no higher spot to win.", max: 300 },
-  "numbers.topRate.improve": { def: "Answer or return every lead quickly|Keep new reviews coming in steadily", max: 400 },
+  "numbers.topRate.plain": { def: "When your ad shows up, this is how often you're the very first painter on the page — above every competitor.", max: 1500 },
+  "numbers.topRate.healthy": { def: "Anything above 85% is strong. There is no higher spot to win.", max: 1500 },
+  "numbers.topRate.improve": { def: "Answer or return every lead quickly|Keep new reviews coming in steadily", max: 1500 },
 
   "numbers.spend.label": { def: "Ad money spent", max: 80 },
-  "numbers.spend.plain": { def: "What you actually paid Google this month. You only pay when someone contacts you.", max: 300 },
-  "numbers.spend.healthy": { def: "Money has never been what's holding this back — there simply aren't many searches to pay for. That's exactly why the website work matters.", max: 400 },
-  "numbers.spend.improve": { def: "Keep the unused budget rather than spending it for the sake of it|Look at other channels once the website work has matured", max: 400 },
+  "numbers.spend.plain": { def: "What you actually paid Google this month. You only pay when someone contacts you.", max: 1500 },
+  "numbers.spend.healthy": { def: "Money has never been what's holding this back — there simply aren't many searches to pay for. That's exactly why the website work matters.", max: 1500 },
+  "numbers.spend.improve": { def: "Keep the unused budget rather than spending it for the sake of it|Look at other channels once the website work has matured", max: 1500 },
 
   "numbers.leads.label": { def: "Real leads who got in touch", max: 80 },
-  "numbers.leads.plain": { def: "Actual homeowners wanting a quote for a job.", max: 300 },
-  "numbers.leads.healthy": { def: "4–10 a month is realistic today. This should climb as the town pages get onto Google.", max: 300 },
-  "numbers.leads.improve": { def: "Reach people outside Ewa Beach|Text back automatically on missed calls", max: 400 },
+  "numbers.leads.plain": { def: "Actual homeowners wanting a quote for a job.", max: 1500 },
+  "numbers.leads.healthy": { def: "4–10 a month is realistic today. This should climb as the town pages get onto Google.", max: 1500 },
+  "numbers.leads.improve": { def: "Reach people outside Ewa Beach|Text back automatically on missed calls", max: 1500 },
 
   "numbers.organic.label": { def: "Leads that cost you nothing", max: 80 },
-  "numbers.organic.plain": { def: "People who found you without you paying anything. These cost nothing per lead.", max: 300 },
-  "numbers.organic.healthy": { def: "This is the number the town pages are built to grow.", max: 300 },
-  "numbers.organic.improve": { def: "More pages, more reviews, more photos|Climb the map ranking across the island", max: 400 },
+  "numbers.organic.plain": { def: "People who found you without you paying anything. These cost nothing per lead.", max: 1500 },
+  "numbers.organic.healthy": { def: "This is the number the town pages are built to grow.", max: 1500 },
+  "numbers.organic.improve": { def: "More pages, more reviews, more photos|Climb the map ranking across the island", max: 1500 },
 
   "numbers.jobs.label": { def: "Jobs won", max: 60 },
-  "numbers.jobs.plain": { def: "Leads that turned into real paid jobs this month.", max: 300 },
-  "numbers.jobs.healthy": { def: "Roughly 1 in 3 quotes turning into a job is healthy for painting.", max: 300 },
-  "numbers.jobs.improve": { def: "Make sure every quote gets a follow-up|Get to new leads faster than competitors", max: 400 },
+  "numbers.jobs.plain": { def: "Leads that turned into real paid jobs this month.", max: 1500 },
+  "numbers.jobs.healthy": { def: "Roughly 1 in 3 quotes turning into a job is healthy for painting.", max: 1500 },
+  "numbers.jobs.improve": { def: "Make sure every quote gets a follow-up|Get to new leads faster than competitors", max: 1500 },
 
   "numbers.reviews.label": { def: "Your Google reviews", max: 80 },
-  "numbers.reviews.plain": { def: "When someone's comparing three painters, review count is usually what decides it.", max: 300 },
-  "numbers.reviews.healthy": { def: "2–4 new reviews a month is healthy. This is the single biggest thing holding your map ranking back.", max: 300 },
-  "numbers.reviews.improve": { def: "Ask every finished customer|One polite reminder if they don't reply", max: 400 },
+  "numbers.reviews.plain": { def: "When someone's comparing three painters, review count is usually what decides it.", max: 1500 },
+  "numbers.reviews.healthy": { def: "2–4 new reviews a month is healthy. This is the single biggest thing holding your map ranking back.", max: 1500 },
+  "numbers.reviews.improve": { def: "Ask every finished customer|One polite reminder if they don't reply", max: 1500 },
 
   // Status badges. These were hardcoded in the page — meaning Alan couldn't
   // edit them, and a card could still read "Excellent" while showing a dash
@@ -154,7 +161,7 @@ export const LS_CONTENT = {
   "numbers.chart.title": { def: "Ad views and real leads, month by month", max: 120 },
   "numbers.chart.note": {
     def: "The grey bars are how many people saw your ad. They stay fairly flat, which tells us the size of the search market on Oahu — that ceiling is why the website work matters.",
-    max: 400,
+    max: 1500,
   },
 
   // ---- What I Need From You ----
@@ -162,12 +169,12 @@ export const LS_CONTENT = {
   "ask.title": { def: "What I need from you", max: 80 },
   "ask.sub": {
     def: "Everything I need on your end, in one place — so you never have to dig through texts or emails to find it.",
-    max: 300,
+    max: 1500,
   },
   "ask.now.title": { def: "Right now", max: 60 },
   "ask.now.sub": {
     def: "Things that will genuinely help right now. Tick them off, or type and upload straight into the boxes.",
-    max: 300,
+    max: 1500,
   },
   "ask.habits.label": { def: "Every week", max: 60 },
   "ask.habits.title": { def: "The five things that actually bring in work", max: 100 },
@@ -187,7 +194,7 @@ export const LS_CONTENT = {
   "ask.reviews.title": { def: "Add a customer you'd like us to ask", max: 100 },
   "ask.reviews.sub": {
     def: "Drop a name in whenever you finish a job. We send the request and the follow-up — you don't do anything else.",
-    max: 300,
+    max: 1500,
   },
   "ask.reviews.empty": { def: "Nobody on the list right now.", max: 150 },
 
@@ -196,71 +203,71 @@ export const LS_CONTENT = {
   "rank.title": { def: "Where you rank", max: 80 },
   "rank.sub": {
     def: "Every month we check what position you come up in when someone searches from different spots around the island. Here's what we found.",
-    max: 300,
+    max: 1500,
   },
   "rank.howToRead.title": { def: "How to read the map below.", max: 100 },
   "rank.howToRead.body": {
     def: "Think of the grid as Oahu. Each circle is a spot where someone might be standing when they pull out their phone and search. The number inside is where you came up in the list of painters — so **1 means you were the very first painter shown** to someone standing there. Green is good.",
-    max: 600,
+    max: 1500,
   },
   "rank.whyVaries.title": { def: "Why the numbers are different in each spot.", max: 100 },
   "rank.whyVaries.body": {
     def: "You don't have one single position on Google. Where you show up changes depending on where the customer is searching from and how far that is from your business — someone in Ewa Beach sees a completely different list than someone in Kailua. That's why we check the whole island instead of just one place.",
-    max: 600,
+    max: 1500,
   },
   "rank.monthStrip.label": { def: "Your average position, month by month", max: 100 },
   "rank.monthStrip.title": { def: "Are we improving?", max: 80 },
   "rank.monthStrip.sub": {
     def: "We run this scan every month and keep every one of them, so this line only gets longer. It's your average across every spot on the map and every search term we check — lower is better.",
-    max: 300,
+    max: 1500,
   },
   "rank.monthStrip.footnote": {
     def: "The goal is to get that average under 5, which is roughly when you start appearing in the small map box at the top of Google without anyone having to scroll.",
-    max: 400,
+    max: 1500,
   },
   "rank.factors.label": { def: "What actually moves these numbers", max: 100 },
   "rank.factors.title": { def: "The things that decide your position", max: 120 },
   "rank.factors.sub": {
     def: "Google weighs a handful of things when it decides which painter to show first. Two of them are almost entirely in your hands.",
-    max: 300,
+    max: 1500,
   },
   "rank.factors.reviews.tag": { def: "Biggest one · you control this", max: 40 },
   "rank.factors.reviews.title": { def: "Reviews", max: 40 },
   "rank.factors.reviews.body": {
     def: "How many you have, how good they are, and how recently they came in. A steady trickle beats a big burst — Google wants to see new ones arriving month after month.",
-    max: 400,
+    max: 1500,
   },
   "rank.factors.photos.tag": { def: "Biggest one · you control this", max: 40 },
   "rank.factors.photos.title": { def: "Photos", max: 40 },
   "rank.factors.photos.body": {
     def: "Google favours profiles with real, recent job photos going up regularly. Before-and-afters do particularly well, and customers scroll them before they call.",
-    max: 400,
+    max: 1500,
   },
   "rank.factors.photos.you": {
     def: "Send a few from every job — phone photos are completely fine.",
-    max: 300,
+    max: 1500,
   },
   "rank.factors.distance.tag": { def: "Nobody controls this one", max: 40 },
   "rank.factors.distance.title": { def: "Distance from the customer", max: 60 },
   "rank.factors.distance.body": {
     def: "The single biggest factor, and the one nobody controls. Being based in Ewa Beach means you'll always rank stronger nearby and weaker on the windward side.",
-    max: 400,
+    max: 1500,
   },
   "rank.factors.distance.you": {
     def: "This is why the town pages matter — they're how we tell Google you genuinely work across the whole island.",
-    max: 300,
+    max: 1500,
   },
   "rank.factors.website.tag": { def: "We handle this", max: 40 },
   "rank.factors.website.title": { def: "Your website & profile", max: 60 },
   "rank.factors.website.body": {
     def: "A profile that's complete and consistent, backed by real pages about the towns and services you cover.",
-    max: 400,
+    max: 1500,
   },
   "rank.keywords.title": { def: "Where You Show Up on Google Maps", max: 80 },
-  "rank.keywords.sub": { def: "Results by search term", max: 300 },
+  "rank.keywords.sub": { def: "Results by search term", max: 1500 },
   "rank.keywords.note": {
     def: "We check each of these separately, because you rank differently for every one — and we run it again every month.",
-    max: 300,
+    max: 1500,
   },
   "rank.geo.empty": {
     def: "Your first map check is being prepared — it'll appear here once it's run.",
@@ -274,7 +281,7 @@ export const LS_CONTENT = {
   "rank.pages.title": { def: "The pages we've built for you", max: 100 },
   "rank.pages.sub": {
     def: "One page for each town we want you found in — plus service and guide pages as we go, based on what people are actually searching for.",
-    max: 400,
+    max: 1500,
   },
   "rank.systems.title": { def: "Behind the scenes", max: 60 },
   "rank.systems.sub": { def: "Everything running for you in the background", max: 120 },
@@ -288,7 +295,7 @@ export const LS_CONTENT = {
   "ask.accounts.lsa.what": { def: "Every lead Google sent you, and their messages", max: 200 },
   "ask.accounts.lsa.why": {
     def: "When Google hides a customer's name and number, this is where you reply to unlock them.",
-    max: 300,
+    max: 1500,
   },
   "ask.accounts.passwordNote": {
     def: "Passwords live in your own password manager, not in here.",
@@ -302,7 +309,7 @@ export const LS_CONTENT = {
   "recap.leads.title": { def: "Who got in touch", max: 60 },
   "recap.leads.sub": {
     def: "Every lead behind the number above. A lead is someone who contacted you — whether it turned into a paying job is only shown once it's marked won on the Leads page.",
-    max: 400,
+    max: 1500,
   },
   "recap.did.title": { def: "What we did", max: 60 },
   "recap.next.title": { def: "What's coming next", max: 60 },
@@ -310,7 +317,7 @@ export const LS_CONTENT = {
   "recap.empty.title": { def: "Your first recap arrives at the end of the month.", max: 120 },
   "recap.empty.body": {
     def: "One short page each month: the headline of what actually happened, the numbers that go with it, and what's planned next — so you never have to wonder what you're paying for.",
-    max: 400,
+    max: 1500,
   },
   "recap.kpi.leads": { def: "Real leads", max: 40 },
   "recap.kpi.jobs": { def: "Jobs won", max: 40 },

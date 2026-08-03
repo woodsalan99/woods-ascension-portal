@@ -2,7 +2,7 @@
 
 import { useEdit } from "@/components/ls/EditProvider";
 import { parseCopyMarkup } from "@/lib/copy-markup";
-import type { ContentKey } from "@/content/local-services";
+import { LS_CONTENT, type ContentKey } from "@/content/local-services";
 
 type Tag = "span" | "p" | "h1" | "h2" | "h3";
 
@@ -29,23 +29,40 @@ export function E({
   const current = ed.currentCopy(k, v);
 
   if (!ed.editing) {
+    // pre-line so a blank line typed in the editor renders as a real
+    // paragraph break. Without it HTML collapses the newline and two
+    // paragraphs come out as one wall of text. See D39.
+    const style = multiline ? { whiteSpace: "pre-line" as const } : undefined;
     const runs = parseCopyMarkup(current);
-    if (runs.length <= 1) return <Tag>{current}</Tag>;
+    if (runs.length <= 1) return <Tag style={style}>{current}</Tag>;
     return (
-      <Tag>
+      <Tag style={style}>
         {runs.map((r, i) => (r.bold ? <b key={i}>{r.text}</b> : <span key={i}>{r.text}</span>))}
       </Tag>
     );
   }
 
+  // Show the limit while typing. It used to only surface on save, as a
+  // rejected publish after the writing was already done.
+  const entry = LS_CONTENT[k];
+  const max = "max" in entry ? (entry.max ?? 1000) : 1000;
+  const over = current.length > max;
+
   const Field = multiline ? "textarea" : "input";
   return (
-    <Field
-      className={`wa-edit-field ${multiline ? "wa-edit-field-multiline" : ""}`}
-      value={current}
-      onChange={(e) => ed.markCopyDirty(k, label, v, e.target.value)}
-      aria-label={label}
-    />
+    <>
+      <Field
+        className={`wa-edit-field ${multiline ? "wa-edit-field-multiline" : ""} ${over ? "over" : ""}`}
+        value={current}
+        onChange={(e) => ed.markCopyDirty(k, label, v, e.target.value)}
+        aria-label={label}
+        aria-invalid={over || undefined}
+      />
+      <span className={`wa-edit-count ${over ? "over" : ""}`}>
+        {current.length} / {max}
+        {over ? ` — ${current.length - max} too many to save` : ""}
+      </span>
+    </>
   );
 }
 
