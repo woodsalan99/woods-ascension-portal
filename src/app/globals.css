@@ -1017,21 +1017,59 @@ span.wa-ob-active { font-size: 12px; font-weight: 600; color: var(--green); }
 .wa-control p { font-size: 12.5px; color: var(--muted); line-height: 1.6; margin-top: 4px; }
 .wa-controls-edit { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 18px 22px; margin-bottom: 8px; }
 
-/* Visits (bars) against times-appeared (line). Two scales — impressions run
-   about a hundred times clicks, so one axis would flatten the bars to nothing. */
-.wa-searchchart { margin-top: 6px; }
-.wa-searchchart svg { width: 100%; height: auto; display: block; }
-.wa-sc-bar { fill: #CFE3D7; }
-.wa-sc-barval { fill: var(--green); font-size: 11px; font-weight: 600; }
-.wa-sc-label { fill: var(--muted); font-size: 11px; }
-.wa-sc-line { stroke: var(--gold); stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
-.wa-sc-dot { fill: var(--gold); }
-.wa-sc-imprval { fill: var(--gold); font-size: 10.5px; font-weight: 600; }
-.wa-sc-legend { display: flex; gap: 18px; flex-wrap: wrap; margin-top: 10px; font-size: 11.5px; color: var(--muted); }
-.wa-sc-legend span { display: inline-flex; align-items: center; gap: 6px; }
-.wa-sc-legend i { width: 12px; height: 3px; border-radius: 2px; display: inline-block; }
-.wa-sc-legend i.bar { height: 10px; width: 10px; background: #CFE3D7; border-radius: 2px; }
-.wa-sc-legend i.line { background: var(--gold); }
+/* Which window a block of numbers describes. Five figures with no date on
+   them is a fair thing to be annoyed about. */
+.wa-timeframe {
+  display: inline-block; font-size: 11.5px; color: var(--gold); background: var(--gold-soft);
+  border: 1px solid #E8DCC2; border-radius: 999px; padding: 5px 12px;
+  white-space: nowrap; margin-bottom: 14px;
+}
+
+/* One chart, switchable series, tooltip on hover. Replaces two charts that
+   printed every value permanently — which is how "4,567" ended up sitting on
+   top of "40". Numbers live in the tooltip now. */
+.wa-perf { margin-top: 8px; }
+.wa-perf-plot { position: relative; }
+.wa-perf svg { width: 100%; height: auto; display: block; overflow: visible; }
+.wa-perf-grid { stroke: var(--line); stroke-width: 1; }
+.wa-perf-axis { fill: var(--muted); font-size: 10.5px; }
+.wa-perf-axis.views { fill: var(--gold); }
+.wa-perf-hit { fill: transparent; cursor: pointer; }
+.wa-perf-hit.on { fill: rgba(168,126,63,.055); }
+.wa-perf-month { fill: var(--muted); font-size: 11.5px; }
+.wa-perf-month.on { fill: var(--ink); font-weight: 600; }
+
+.wa-perf-tip {
+  position: absolute; top: 6px; transform: translateX(-50%);
+  background: var(--ink); color: #fff; border-radius: 10px; padding: 10px 12px;
+  min-width: 168px; pointer-events: none; z-index: 3;
+  box-shadow: 0 8px 24px rgba(16,30,46,.22);
+}
+.wa-perf-tip[data-side="left"] { transform: translateX(-92%); }
+.wa-perf-tip[data-side="right"] { transform: translateX(-8%); }
+.wa-perf-tip-month { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: rgba(255,255,255,.6); margin-bottom: 7px; }
+.wa-perf-tip-row { display: flex; align-items: center; gap: 8px; font-size: 12.5px; padding: 2px 0; }
+.wa-perf-tip-row i { width: 8px; height: 8px; border-radius: 2px; flex: 0 0 8px; }
+.wa-perf-tip-label { flex: 1; color: rgba(255,255,255,.78); white-space: nowrap; }
+.wa-perf-tip-row b { font-variant-numeric: tabular-nums; }
+
+.wa-perf-legend { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 16px; }
+.wa-perf-toggle {
+  display: inline-flex; align-items: center; gap: 7px; cursor: pointer;
+  border: 1px solid var(--line); background: var(--card); color: var(--muted);
+  border-radius: 999px; padding: 6px 13px; font-size: 12.5px; font: inherit;
+  font-size: 12.5px; transition: .15s;
+}
+.wa-perf-toggle.on { color: var(--ink); border-color: var(--line); background: #FBFBF7; }
+.wa-perf-toggle:hover { border-color: var(--gold); }
+.wa-perf-toggle i { width: 11px; height: 11px; border-radius: 3px; background: var(--line); display: inline-block; }
+.wa-perf-toggle i.line { height: 3px; border-radius: 2px; }
+.wa-perf-hint { font-size: 11.5px; color: var(--muted); margin-top: 9px; }
+
+@media (max-width: 560px) {
+  .wa-perf-tip { min-width: 148px; font-size: 12px; }
+  .wa-perf-toggle { font-size: 12px; padding: 5px 11px; }
+}
 
 /* Keyword positions, in words first. A bare "5" in a circle said nothing. */
 .wa-kw-ranks { display: flex; flex-direction: column; gap: 20px; }

@@ -12,6 +12,11 @@ import { ReviewRequestForm } from "@/components/ls/ReviewRequestForm";
 // where to sign in to reply and unlock the customer's details.
 const LSA_URL = "https://ads.google.com/local-services-ads";
 const LSA_SIGN_IN_EMAIL = "canenciapainting@gmail.com";
+// The password itself is never stored in or served by the portal — this is a
+// link to the document Alan keeps it in, so the portal never becomes a place
+// worth breaking into.
+const PASSWORD_DOC_URL =
+  "https://docs.google.com/document/d/1bULpMBD8zBPGpT6XrrpzyrSis8YCl67Np9tJsQIy6pc/edit?tab=t.0";
 
 export default async function NextStepsPage() {
   const scope = await requireClientType("LOCAL_SERVICES");
@@ -193,7 +198,10 @@ export default async function NextStepsPage() {
         </div>
 
         <p className="wa-page-sub" style={{ marginTop: 16 }}>
-          <E k="ask.accounts.passwordNote" v={content.text("ask.accounts.passwordNote")} label="Password note" />
+          <E k="ask.accounts.passwordNote" v={content.text("ask.accounts.passwordNote")} label="Password note" />{" "}
+          <a className="wa-kpi-link" href={PASSWORD_DOC_URL} target="_blank" rel="noopener noreferrer">
+            <E k="ask.accounts.passwordLink" v={content.text("ask.accounts.passwordLink")} label="Password link text" />
+          </a>
         </p>
       </div>
     </EditProvider>

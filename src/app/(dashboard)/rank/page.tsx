@@ -8,7 +8,8 @@ import { E } from "@/components/ls/Editable";
 import { Num } from "@/components/ls/Num";
 import { Geogrid, type GeogridScanVM } from "@/components/ls/Geogrid";
 import { ControlsPanel } from "@/components/ls/ControlsPanel";
-import { SearchChart, type SearchPoint } from "@/components/ls/SearchChart";
+import { PerformanceChart } from "@/components/ls/PerformanceChart";
+import { buildChartData, CHART_DEFAULT_WEBSITE } from "@/lib/ls-chart-data";
 import { KeywordRanks } from "@/components/ls/KeywordRanks";
 
 // The page is organised around the three places a homeowner can actually
@@ -70,12 +71,7 @@ export default async function RankPage() {
     .slice(-6)
     .map(([m, v]) => ({ month: m, ...v }));
   const lastFull = webMonths[webMonths.length - 1];
-  const searchPoints: SearchPoint[] = webMonths.map((m) => ({
-    month: m.month,
-    label: formatMonthKey(m.month).split(" ")[0].slice(0, 3),
-    clicks: m.clicks,
-    impressions: m.impressions,
-  }));
+  const chart = await buildChartData(client.id, client.timezone);
 
   const indexed = pages.filter((p) => p.indexed).length;
   const latestKeywordMonth = keywords[0]?.month ?? null;
@@ -99,6 +95,13 @@ export default async function RankPage() {
   ];
   const adMetrics = await resolveMetrics(client.id, client.timezone, adKeys);
   const ad = (k: string) => adMetrics.get(k)!;
+
+  const newestLsa = await prisma.lsaMonthlyStat.findFirst({
+    where: { clientId: client.id },
+    orderBy: { month: "desc" },
+    select: { month: true },
+  });
+  const adsMonthLabel = newestLsa ? formatMonthKey(newestLsa.month) : null;
 
   const statusOf = (provider: string) => {
     const i = integrations.find((x) => x.provider === provider);
@@ -256,12 +259,12 @@ export default async function RankPage() {
           </div>
         </div>
 
-        {searchPoints.length > 1 && (
+        {chart.months.length > 1 && (
           <>
             <h3 className="wa-recap-h3" style={{ marginTop: 26 }}>
               <E k="rank.web.trend.title" v={content.text("rank.web.trend.title")} label="Website trend title" />
             </h3>
-            <SearchChart points={searchPoints} />
+            <PerformanceChart months={chart.months} series={chart.series} defaultOn={CHART_DEFAULT_WEBSITE} />
           </>
         )}
 
@@ -333,6 +336,12 @@ export default async function RankPage() {
       {/* ---------- Asset 3: Google Ads ---------- */}
       <AssetHead titleKey="rank.asset.ads.title" label="Asset 3 title" />
       <div className="wa-card">
+        <div className="wa-timeframe">
+          {/* Five numbers with no date on them is a fair thing to be annoyed
+              about — Google publishes these a month at a time, so say which
+              month. See D48. */}
+          {adsMonthLabel ? `Google's figures for ${adsMonthLabel}` : "Waiting on Google's next report"}
+        </div>
         <p className="wa-page-sub" style={{ marginTop: 0 }}>
           <E k="rank.ads.sub" v={content.text("rank.ads.sub")} label="Ads subtitle" multiline />
         </p>

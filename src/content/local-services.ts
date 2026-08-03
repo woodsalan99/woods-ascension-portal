@@ -393,9 +393,10 @@ export const LS_CONTENT = {
     max: 1500,
   },
   "ask.accounts.passwordNote": {
-    def: "Passwords live in your own password manager, not in here.",
-    max: 200,
+    def: "The password is kept in a separate document, not in this portal.",
+    max: 1500,
   },
+  "ask.accounts.passwordLink": { def: "View the password →", max: 60 },
 
   // ---- Monthly Recap ----
   "recap.eyebrow": { def: "Monthly recap", max: 60 },

@@ -9,7 +9,8 @@ import { EditProvider } from "@/components/ls/EditProvider";
 import { E } from "@/components/ls/Editable";
 import { Num } from "@/components/ls/Num";
 import { NumberCard } from "@/components/ls/NumberCard";
-import { SearchChart, type SearchPoint } from "@/components/ls/SearchChart";
+import { PerformanceChart } from "@/components/ls/PerformanceChart";
+import { buildChartData, CHART_DEFAULT_ON } from "@/lib/ls-chart-data";
 import type { ContentKey } from "@/content/local-services";
 
 // Improvement bullets are stored as one pipe-separated string per card so
@@ -69,59 +70,14 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
   const status = (valueKey: string, contentKey: ContentKey, label: string) =>
     hasValue(valueKey) ? <E k={contentKey} v={c(contentKey)} label={label} /> : undefined;
 
-  // Month-by-month chart: ad impressions (bars) against real customers.
-  const lsaMonths = await prisma.lsaMonthlyStat.findMany({
-    where: { clientId: client.id },
-    orderBy: { month: "asc" },
-    take: 8,
-  });
-  // Per month: total leads, and the paid/free split beneath it. The whole
-  // argument of this page is that the free half is the one that compounds,
-  // so the chart has to show both, not just a total. See D43.
-  const leadsByMonth = await Promise.all(
-    lsaMonths.map(async (s) => {
-      const [y, mo] = s.month.split("-").map(Number);
-      const rows = await prisma.serviceLead.findMany({
-        where: {
-          clientId: client.id,
-          // Same rule as every other lead count: deleted and bad-fit leads
-          // don't count, or deleting one would leave it in this chart.
-          deletedAt: null,
-          OR: [{ qualified: null }, { qualified: true }],
-          receivedAt: { gte: new Date(Date.UTC(y, mo - 1, 1)), lt: new Date(Date.UTC(y, mo, 1)) },
-        },
-        select: { source: true },
-      });
-      const paid = rows.filter((r) => r.source === "LSA").length;
-      return { total: rows.length, paid, free: rows.length - paid };
-    }),
-  );
-  const maxImpressions = Math.max(1, ...lsaMonths.map((s) => s.impressions));
+  const chart = await buildChartData(client.id, client.timezone);
 
-  // Visits from Google, month by month, with times-appeared over the top.
-  // Current month excluded — it's partial, so it always reads as a collapse.
-  const gscDaily = await prisma.gscDailyStat.findMany({
+  const newestLsa = await prisma.lsaMonthlyStat.findFirst({
     where: { clientId: client.id },
-    orderBy: { date: "asc" },
+    orderBy: { month: "desc" },
+    select: { month: true },
   });
-  const gscByMonth = new Map<string, { clicks: number; impressions: number }>();
-  for (const d of gscDaily) {
-    const key = `${d.date.getUTCFullYear()}-${String(d.date.getUTCMonth() + 1).padStart(2, "0")}`;
-    const row = gscByMonth.get(key) ?? { clicks: 0, impressions: 0 };
-    row.clicks += d.clicks;
-    row.impressions += d.impressions;
-    gscByMonth.set(key, row);
-  }
-  const searchPoints: SearchPoint[] = [...gscByMonth.entries()]
-    .filter(([mk]) => mk !== monthKeyInTimezone(new Date(), client.timezone))
-    .sort((a, b) => a[0].localeCompare(b[0]))
-    .slice(-6)
-    .map(([mk, v]) => ({
-      month: mk,
-      label: formatMonthKey(mk).split(" ")[0].slice(0, 3),
-      clicks: v.clicks,
-      impressions: v.impressions,
-    }));
+  const adsMonthLabel = newestLsa ? formatMonthKey(newestLsa.month) : null;
 
   return (
     <EditProvider clientId={client.id} canEdit={scope.isPreview}>
@@ -149,12 +105,15 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
           paid, free — because that trio is the whole point of the page and
           everything else is supporting detail. See D43. */}
       <div className="wa-section-head" style={{ marginTop: 0 }}>
-        <h2 className="wa-h2">
-          <E k="numbers.customers.title" v={c("numbers.customers.title")} label="Leads section title" />
-        </h2>
-        <span className="wa-page-sub">
-          <E k="numbers.customers.sub" v={c("numbers.customers.sub")} label="Leads section subtitle" />
-        </span>
+        <div>
+          <h2 className="wa-h2">
+            <E k="numbers.customers.title" v={c("numbers.customers.title")} label="Leads section title" />
+          </h2>
+          <span className="wa-page-sub">
+            <E k="numbers.customers.sub" v={c("numbers.customers.sub")} label="Leads section subtitle" />
+          </span>
+        </div>
+        <span className="wa-timeframe">{chosen.label}</span>
       </div>
       <div className="wa-number-grid">
         <NumberCard
@@ -192,11 +151,16 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
           money do"; on Where You Rank they answer "where do people find us".
           Same resolvers, so the two can never disagree. See D45. */}
       <div className="wa-section-head">
-        <h2 className="wa-h2">
-          <E k="numbers.ads.title" v={c("numbers.ads.title")} label="Ads section title" />
-        </h2>
-        <span className="wa-page-sub">
-          <E k="numbers.ads.sub" v={c("numbers.ads.sub")} label="Ads section subtitle" />
+        <div>
+          <h2 className="wa-h2">
+            <E k="numbers.ads.title" v={c("numbers.ads.title")} label="Ads section title" />
+          </h2>
+          <span className="wa-page-sub">
+            <E k="numbers.ads.sub" v={c("numbers.ads.sub")} label="Ads section subtitle" />
+          </span>
+        </div>
+        <span className="wa-timeframe">
+          {adsMonthLabel ? `Google's figures for ${adsMonthLabel}` : "Waiting on Google's next report"}
         </span>
       </div>
       <div className="wa-number-grid">
@@ -239,12 +203,15 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
       </div>
 
       <div className="wa-section-head">
-        <h2 className="wa-h2">
-          <E k="numbers.outcomes.title" v={c("numbers.outcomes.title")} label="Outcomes section title" />
-        </h2>
-        <span className="wa-page-sub">
-          <E k="numbers.outcomes.sub" v={c("numbers.outcomes.sub")} label="Outcomes section subtitle" />
-        </span>
+        <div>
+          <h2 className="wa-h2">
+            <E k="numbers.outcomes.title" v={c("numbers.outcomes.title")} label="Outcomes section title" />
+          </h2>
+          <span className="wa-page-sub">
+            <E k="numbers.outcomes.sub" v={c("numbers.outcomes.sub")} label="Outcomes section subtitle" />
+          </span>
+        </div>
+        <span className="wa-timeframe">{chosen.label}</span>
       </div>
       <div className="wa-number-grid">
         <NumberCard
@@ -266,23 +233,7 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
         />
       </div>
 
-      {searchPoints.length > 1 && (
-        <div className="wa-card">
-          <div className="wa-section-head">
-            <div>
-              <div className="wa-eyebrow">
-                <E k="rank.web.visits.label" v={c("rank.web.visits.label")} label="Web visits label" />
-              </div>
-              <h2 className="wa-h2">
-                <E k="rank.web.trend.title" v={c("rank.web.trend.title")} label="Website trend title" />
-              </h2>
-            </div>
-          </div>
-          <SearchChart points={searchPoints} />
-        </div>
-      )}
-
-      {lsaMonths.length > 0 && (
+      {chart.months.length > 1 && (
         <div className="wa-card">
           <div className="wa-section-head">
             <div>
@@ -294,50 +245,13 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
               </h2>
             </div>
           </div>
-          <div className="wa-bars">
-            {lsaMonths.map((s) => (
-              <div key={s.month} className="wa-bar-group">
-                <div className="wa-bar-stack">
-                  <div className="wa-bar" style={{ height: `${(s.impressions / maxImpressions) * 100}%` }}>
-                    <span className="wa-bar-val">{s.impressions}</span>
-                  </div>
-                </div>
-                <span className="wa-bar-label">{formatMonthKey(s.month).split(" ")[0]}</span>
-              </div>
-            ))}
-          </div>
-          <div className="wa-bar-marks">
-            {leadsByMonth.map((n, i) => (
-              <div key={i} className="wa-bar-mark">
-                <b>
-                  {n.total} lead{n.total === 1 ? "" : "s"}
-                </b>
-                {n.total > 0 && (
-                  <span className="wa-bar-split">
-                    {n.free > 0 && <span className="free">{n.free} free</span>}
-                    {n.free > 0 && n.paid > 0 && " · "}
-                    {n.paid > 0 && <span className="paid">{n.paid} paid</span>}
-                  </span>
-                )}
-              </div>
-            ))}
-          </div>
-          <div className="wa-bar-legend">
-            <span>
-              <i className="bar" /> Times your ad was seen
-            </span>
-            <span>
-              <i className="free" /> Leads that cost you nothing
-            </span>
-            <span>
-              <i className="paid" /> Leads from Google Ads
-            </span>
-          </div>
-          <p className="wa-page-sub" style={{ marginTop: 13 }}>
+          <PerformanceChart months={chart.months} series={chart.series} defaultOn={CHART_DEFAULT_ON} />
+          <p className="wa-page-sub" style={{ marginTop: 14 }}>
             <E k="numbers.chart.note" v={c("numbers.chart.note")} label="Chart note" multiline />
           </p>
         </div>
       )}
+
     </EditProvider>
   );
 }
