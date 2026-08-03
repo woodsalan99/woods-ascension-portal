@@ -5,6 +5,7 @@ import { resolveMetrics, LAST_30 } from "@/lib/ls-metrics";
 import { periodRangeLabel } from "@/lib/ls-periods";
 import { PeriodSwitch } from "@/components/ls/PeriodSwitch";
 import { LatestLeads, type LatestLeadVM } from "@/components/ls/LatestLeads";
+import { PlanBlock } from "@/components/ls/PlanBlock";
 import { monthKeyInTimezone } from "@/lib/timezone";
 import { EditProvider } from "@/components/ls/EditProvider";
 import { E, EList } from "@/components/ls/Editable";
@@ -270,28 +271,14 @@ export async function LsOverview({ period }: { period?: string }) {
         )}
       </div>
 
-      {planItems.length > 0 && (
-        <div className="wa-card wa-plan">
-          <div className="wa-section-head">
-            <div>
-              <div className="wa-eyebrow">
-                <E k="overview.plan.label" v={content.text("overview.plan.label")} label="Plan label" />
-              </div>
-              <h2 className="wa-h2">
-                Plan for {new Date().toLocaleDateString("en-US", { month: "long", timeZone: client.timezone })}
-              </h2>
-              <p className="wa-page-sub">
-                <E k="overview.plan.sub" v={content.text("overview.plan.sub")} label="Plan subtitle" multiline />
-              </p>
-            </div>
-          </div>
-          <ol className="wa-plan-list">
-            {planItems.map((item, i) => (
-              <li key={i}>{item}</li>
-            ))}
-          </ol>
-        </div>
-      )}
+      <PlanBlock
+        clientId={client.id}
+        monthLabel={new Date().toLocaleDateString("en-US", { month: "long", timeZone: client.timezone })}
+        items={planItems}
+        label={<E k="overview.plan.label" v={content.text("overview.plan.label")} label="Plan label" />}
+        subtitle={<E k="overview.plan.sub" v={content.text("overview.plan.sub")} label="Plan subtitle" multiline />}
+        emptyText={<E k="overview.plan.empty" v={content.text("overview.plan.empty")} label="Plan empty state" />}
+      />
 
       <div className="wa-kpis">
         <article className="wa-kpi">
