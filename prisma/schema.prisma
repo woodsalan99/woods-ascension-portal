@@ -425,7 +425,7 @@ model SyncRun {
   finishedAt DateTime?
   status     String // SUCCESS | FAILED
   detail     String? // error text or counts summary
-  source     String    @default("SMARTLEAD") // SMARTLEAD | CALLRAIL | GMAIL | GSC | PLACES — each cron route's
+  source     String    @default("SMARTLEAD") // SMARTLEAD | CALLRAIL | GMAIL | GSC | PLACES | WATCHDOG — each cron route's
   // self-heal and own-row queries are scoped to its own source, so a fast-cycling
   // route (e.g. Gmail every 5 min) can never mark a slower route's still-running
   // sync as FAILED. See IMPLEMENTATION_STATE.md D-E.
