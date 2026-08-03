@@ -49,3 +49,6 @@ next-env.d.ts
 
 # database backups (real client data — never commit)
 /backups/
+
+# Client source material dropped in for import (real client data)
+/Canencia/
