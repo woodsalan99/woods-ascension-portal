@@ -260,8 +260,14 @@ const RESOLVERS: Record<string, Resolver> = {
       where: { clientId, date: { lt: monthStart } },
       orderBy: { date: "desc" },
     });
-    const newThisMonth = Math.max(0, latest.count - (beforeThisMonth?.count ?? 0));
     const ratingLabel = latest.rating === 5 ? "Perfect 5.0 rating" : `${latest.rating.toFixed(1)} rating`;
+    // Only claim a "new this month" figure when there's an earlier snapshot
+    // to subtract from. Without one, every existing review looks brand new
+    // — the first sync would have announced "34 new this month".
+    if (!beforeThisMonth) {
+      return { display: ratingLabel, source: "Google Business Profile", asOf: latest.date };
+    }
+    const newThisMonth = Math.max(0, latest.count - beforeThisMonth.count);
     const newLabel = newThisMonth > 0 ? ` · ${newThisMonth} new this month` : "";
     return { display: `${ratingLabel}${newLabel}`, source: "Google Business Profile", asOf: latest.date };
   },
