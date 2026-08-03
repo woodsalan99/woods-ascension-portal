@@ -133,6 +133,40 @@ export const LS_CONTENT = {
     max: 400,
   },
 
+  // ---- What I Need From You ----
+  "ask.eyebrow": { def: "Your side of it", max: 60 },
+  "ask.title": { def: "What I need from you", max: 80 },
+  "ask.sub": {
+    def: "Everything I need on your end, in one place — so you never have to dig through texts or emails to find it.",
+    max: 300,
+  },
+  "ask.now.title": { def: "Right now", max: 60 },
+  "ask.now.sub": {
+    def: "Specific things that will move the campaign forward. Tick them off, or type and upload straight into the boxes.",
+    max: 300,
+  },
+  "ask.habits.label": { def: "Every week", max: 60 },
+  "ask.habits.title": { def: "The things that move the needle", max: 100 },
+  "ask.habits.sub": { def: "None of these take long. All of them compound.", max: 200 },
+  "ask.habits.items": {
+    kind: "list",
+    maxItem: 500,
+    def: [
+      "📞|Pick up, or call back fast|Most homeowners call three painters and go with whoever answers first. If you can't pick up, they get an automatic text — but a real callback within the hour is what wins the job.|Google also watches how fast you respond, and ranks you higher for it.",
+      "↩️|Chase every quote you send|A quote with no follow-up is a coin flip. One call a few days later is usually what turns it into a job.|This is the cheapest work you'll ever do — the lead is already paid for.",
+      "↔️|Move leads across as things change|When you send a quote, book a job, or lose one — move the card on the Leads page. Takes two seconds.|It's the only way we can see which of your listings actually brings in paying work.",
+      "⭐|Send me names for reviews|Any happy customer, any time. Use the box below, or just text me. I handle the asking and the follow-up.|Reviews are the number one thing deciding your Google Maps position.",
+      "📸|Take photos at every job|Before, during, after. Phone photos are perfectly fine. Send them whenever — no need to organise them.|Photos are the second biggest ranking factor, and Google favours profiles with fresh ones going up regularly.",
+    ],
+  },
+  "ask.reviews.label": { def: "Reviews", max: 60 },
+  "ask.reviews.title": { def: "Add customers you'd like us to ask", max: 100 },
+  "ask.reviews.sub": {
+    def: "Drop a name in whenever you finish a job. We send the request and the follow-up — you don't do anything else.",
+    max: 300,
+  },
+  "ask.reviews.empty": { def: "Nobody in the queue right now.", max: 150 },
+
   // ---- Where You Rank ----
   "rank.eyebrow": { def: "Google Maps", max: 60 },
   "rank.title": { def: "Where you rank", max: 80 },

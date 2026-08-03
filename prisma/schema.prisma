@@ -748,6 +748,14 @@ model TaskSubmission {
   kind              String // TEXT | PHOTO
   textValue         String?
   fileUrl           String?
+  // Photos are stored inline rather than in object storage. Alan has no
+  // Cloudflare account, and the numbers make it a non-issue: the Railway
+  // volume is 4.9GB with ~11MB used, and the browser downsizes every
+  // upload to webp under ~50KB before it ever reaches the server — that's
+  // roughly 175,000 photos of headroom. Revisit only if volume changes.
+  fileData          Bytes?
+  fileType          String?
+  fileName          String?
   submittedByUserId String
   createdAt         DateTime   @default(now())
   notifiedAt        DateTime? // debounces the "first meaningful save" Pushover ping
