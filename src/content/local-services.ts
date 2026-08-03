@@ -136,6 +136,20 @@ export const LS_CONTENT = {
   "numbers.reviews.healthy": { def: "2–4 new reviews a month is healthy. This is the single biggest thing holding your map ranking back.", max: 300 },
   "numbers.reviews.improve": { def: "Ask every finished customer|One polite reminder if they don't reply", max: 400 },
 
+  // Status badges. These were hardcoded in the page — meaning Alan couldn't
+  // edit them, and a card could still read "Excellent" while showing a dash
+  // for a month with no data. Registry-backed now, and the page hides the
+  // badge entirely when there's no number to judge. See D37.
+  "numbers.adLeads.status": { def: "Normal", max: 30 },
+  "numbers.cpl.status": { def: "Excellent", max: 30 },
+  "numbers.impressions.status": { def: "Normal", max: 30 },
+  "numbers.topRate.status": { def: "Excellent", max: 30 },
+  "numbers.spend.status": { def: "Barely used", max: 30 },
+  "numbers.leads.status": { def: "Normal", max: 30 },
+  "numbers.organic.status": { def: "Growing", max: 30 },
+  "numbers.jobs.status": { def: "On track", max: 30 },
+  "numbers.reviews.status": { def: "Room to grow", max: 30 },
+
   "numbers.chart.label": { def: "Since we started", max: 60 },
   "numbers.chart.title": { def: "Ad views and real leads, month by month", max: 120 },
   "numbers.chart.note": {

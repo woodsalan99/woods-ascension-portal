@@ -53,6 +53,16 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
   const metrics = await resolveMetrics(client.id, client.timezone, keys);
   const m = (k: string) => metrics.get(k)!;
 
+  // A card that shows "—" must not also claim "Excellent". Switching to a
+  // month with no figures entered used to leave the old badge sitting there
+  // asserting a judgement nobody had made. See D37.
+  const hasValue = (k: string) => {
+    const d = m(k).display;
+    return d !== "" && d !== "—";
+  };
+  const status = (valueKey: string, contentKey: ContentKey, label: string) =>
+    hasValue(valueKey) ? <E k={contentKey} v={c(contentKey)} label={label} /> : undefined;
+
   // Month-by-month chart: ad impressions (bars) against real customers.
   const lsaMonths = await prisma.lsaMonthlyStat.findMany({
     where: { clientId: client.id },
@@ -65,6 +75,10 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
       return prisma.serviceLead.count({
         where: {
           clientId: client.id,
+          // Same rule as every other lead count: deleted and bad-fit leads
+          // don't count, or deleting one would leave it in this chart.
+          deletedAt: null,
+          OR: [{ qualified: null }, { qualified: true }],
           receivedAt: { gte: new Date(Date.UTC(y, mo - 1, 1)), lt: new Date(Date.UTC(y, mo, 1)) },
         },
       });
@@ -108,7 +122,7 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
           value={<Num m={m(`lsa.chargedLeads:${month}`)} clientId={client.id} label="Charged ad leads" />}
           support={<Num m={m("lsa.chargedLeads.trend")} clientId={client.id} label="Ad leads trend" />}
           plain={<E k="numbers.adLeads.plain" v={c("numbers.adLeads.plain")} label="Ad leads explanation" multiline />}
-          status="Normal"
+          status={status(`lsa.chargedLeads:${month}`, "numbers.adLeads.status", "Ad leads status")}
           healthyRange={<E k="numbers.adLeads.healthy" v={c("numbers.adLeads.healthy")} label="Ad leads healthy range" multiline />}
           improvements={bullets(c("numbers.adLeads.improve"))}
         />
@@ -117,7 +131,7 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
           value={<Num m={m(`lsa.cpl:${month}`)} clientId={client.id} label="Cost per ad lead" />}
           support={<Num m={m(`lsa.cpl.support:${month}`)} clientId={client.id} label="Cost per lead detail" />}
           plain={<E k="numbers.cpl.plain" v={c("numbers.cpl.plain")} label="Cost per lead explanation" multiline />}
-          status="Excellent"
+          status={status(`lsa.cpl:${month}`, "numbers.cpl.status", "Cost per lead status")}
           healthyRange={<E k="numbers.cpl.healthy" v={c("numbers.cpl.healthy")} label="Cost per lead healthy range" multiline />}
           improvements={bullets(c("numbers.cpl.improve"))}
         />
@@ -126,7 +140,7 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
           value={<Num m={m(`lsa.impressions:${month}`)} clientId={client.id} label="Ad impressions" />}
           support={<Num m={m("lsa.impressions.trend")} clientId={client.id} label="Impressions trend" />}
           plain={<E k="numbers.impressions.plain" v={c("numbers.impressions.plain")} label="Impressions explanation" multiline />}
-          status="Normal"
+          status={status(`lsa.impressions:${month}`, "numbers.impressions.status", "Impressions status")}
           healthyRange={<E k="numbers.impressions.healthy" v={c("numbers.impressions.healthy")} label="Impressions healthy range" multiline />}
           improvements={bullets(c("numbers.impressions.improve"))}
         />
@@ -135,7 +149,7 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
           value={<Num m={m(`lsa.topRate:${month}`)} clientId={client.id} label="Shown-first rate" />}
           support={<Num m={m(`lsa.topRate.support:${month}`)} clientId={client.id} label="Shown-first previous month" />}
           plain={<E k="numbers.topRate.plain" v={c("numbers.topRate.plain")} label="Top rate explanation" multiline />}
-          status="Excellent"
+          status={status(`lsa.topRate:${month}`, "numbers.topRate.status", "Top rate status")}
           healthyRange={<E k="numbers.topRate.healthy" v={c("numbers.topRate.healthy")} label="Top rate healthy range" multiline />}
           improvements={bullets(c("numbers.topRate.improve"))}
         />
@@ -143,7 +157,7 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
           label={<E k="numbers.spend.label" v={c("numbers.spend.label")} label="Spend label" />}
           value={<Num m={m(`lsa.spend:${month}`)} clientId={client.id} label="Ad spend" />}
           plain={<E k="numbers.spend.plain" v={c("numbers.spend.plain")} label="Spend explanation" multiline />}
-          status="Barely used"
+          status={status(`lsa.spend:${month}`, "numbers.spend.status", "Spend status")}
           statusTone="watch"
           healthyRange={<E k="numbers.spend.healthy" v={c("numbers.spend.healthy")} label="Spend healthy range" multiline />}
           improvements={bullets(c("numbers.spend.improve"))}
@@ -164,7 +178,7 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
           value={<Num m={m(`leads.real:${month}`)} clientId={client.id} label="Real leads this period" />}
           support={<Num m={m(`leads.split:${month}`)} clientId={client.id} label="Free vs paid split" />}
           plain={<E k="numbers.leads.plain" v={c("numbers.leads.plain")} label="Leads explanation" multiline />}
-          status="Normal"
+          status={status(`leads.real:${month}`, "numbers.leads.status", "Leads status")}
           healthyRange={<E k="numbers.leads.healthy" v={c("numbers.leads.healthy")} label="Leads healthy range" multiline />}
           improvements={bullets(c("numbers.leads.improve"))}
         />
@@ -173,7 +187,7 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
           value={<Num m={m(`leads.organic:${month}`)} clientId={client.id} label="Free leads" />}
           support={<Num m={m(`leads.organic.support:${month}`)} clientId={client.id} label="Free leads breakdown" />}
           plain={<E k="numbers.organic.plain" v={c("numbers.organic.plain")} label="Organic explanation" multiline />}
-          status="Growing"
+          status={status(`leads.organic:${month}`, "numbers.organic.status", "Free leads status")}
           healthyRange={<E k="numbers.organic.healthy" v={c("numbers.organic.healthy")} label="Organic healthy range" multiline />}
           improvements={bullets(c("numbers.organic.improve"))}
         />
@@ -182,7 +196,7 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
           value={<Num m={m(`jobs.won:${month}`)} clientId={client.id} label="Jobs won" />}
           support={<Num m={m(`jobs.wonValue:${month}`)} clientId={client.id} label="Value of jobs won" />}
           plain={<E k="numbers.jobs.plain" v={c("numbers.jobs.plain")} label="Jobs explanation" multiline />}
-          status="On track"
+          status={status(`jobs.won:${month}`, "numbers.jobs.status", "Jobs status")}
           healthyRange={<E k="numbers.jobs.healthy" v={c("numbers.jobs.healthy")} label="Jobs healthy range" multiline />}
           improvements={bullets(c("numbers.jobs.improve"))}
         />
@@ -191,7 +205,7 @@ export default async function NumbersPage({ searchParams }: { searchParams: Prom
           value={<Num m={m("reviews.count")} clientId={client.id} label="Google review count" />}
           support={<Num m={m("reviews.support")} clientId={client.id} label="Reviews detail" />}
           plain={<E k="numbers.reviews.plain" v={c("numbers.reviews.plain")} label="Reviews explanation" multiline />}
-          status="Room to grow"
+          status={status("reviews.count", "numbers.reviews.status", "Reviews status")}
           statusTone="attn"
           healthyRange={<E k="numbers.reviews.healthy" v={c("numbers.reviews.healthy")} label="Reviews healthy range" multiline />}
           improvements={bullets(c("numbers.reviews.improve"))}
