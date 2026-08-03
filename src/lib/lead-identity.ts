@@ -35,6 +35,10 @@ export type ContactIdentity = {
   name?: string | null;
 };
 
+// Deliberately matches deleted leads too. A tombstone has to be findable,
+// or the next CallRail sync of the same call would create a fresh card
+// beside the one that was just deleted. recordContact() decides what to do
+// with a match that turns out to be deleted.
 export async function findExistingLead(
   clientId: string,
   identity: ContactIdentity,
@@ -118,10 +122,21 @@ export async function recordContact(params: {
   let lead: ServiceLead;
   let isNewLead: boolean;
 
+  // A re-sync of an event we've already logged must never resurrect a lead
+  // someone deliberately deleted — CallRail hands us the same call again on
+  // every run. A genuinely new event from that person does restore it: they
+  // got back in touch, so they're a real lead again. See D34.
+  const alreadyLogged = await prisma.leadActivity.findUnique({ where: { dedupeKey: event.dedupeKey } });
+
+  if (existing?.deletedAt && alreadyLogged) {
+    return { lead: existing, isNewLead: false, isNewEvent: false };
+  }
+
   if (existing) {
     // Back-fill only genuinely missing fields — never overwrite something
     // a human may have corrected by hand in the portal.
     const patch: Prisma.ServiceLeadUncheckedUpdateInput = {};
+    if (existing.deletedAt) patch.deletedAt = null;
     if (enrich) {
       for (const [k, v] of Object.entries(enrich) as [keyof typeof enrich, string | null | undefined][]) {
         if (v && !existing[k]) (patch as Record<string, unknown>)[k] = v;
@@ -143,7 +158,6 @@ export async function recordContact(params: {
 
   // Timeline entry. dedupeKey is unique, so a re-sync of the same call or
   // text is a silent no-op rather than a duplicate history row.
-  const alreadyLogged = await prisma.leadActivity.findUnique({ where: { dedupeKey: event.dedupeKey } });
   if (!alreadyLogged) {
     await prisma.leadActivity.create({
       data: {

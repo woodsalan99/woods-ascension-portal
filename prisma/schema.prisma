@@ -490,6 +490,12 @@ model ServiceLead {
   recordingUrl     String?
   nextActionLabel  String?
   nextActionAt     DateTime?
+  // Soft delete, not a row delete. CallRail's cursor is inclusive, so the
+  // same call is re-fetched on the next sync; a hard-deleted lead would
+  // simply reappear. A tombstone keeps it gone — and if that person makes
+  // a genuinely NEW contact later, recordContact() restores the card
+  // instead of ignoring them. See D34.
+  deletedAt        DateTime?
   receivedAt       DateTime
   stageChangedAt   DateTime        @default(now())
   createdAt        DateTime        @default(now())

@@ -13,7 +13,8 @@ export default async function LeadsPage() {
   });
 
   const leads = await prisma.serviceLead.findMany({
-    where: { clientId: scope.clientId },
+    // Deleted leads are tombstones, not rows to show. See D34.
+    where: { clientId: scope.clientId, deletedAt: null },
     orderBy: { receivedAt: "desc" },
     include: {
       activity: { orderBy: [{ occurredAt: "desc" }, { createdAt: "desc" }], take: 25 },

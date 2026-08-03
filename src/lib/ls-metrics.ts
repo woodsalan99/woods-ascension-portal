@@ -64,6 +64,12 @@ async function latestOrMonthStat(clientId: string, period: string) {
   return prisma.lsaMonthlyStat.findUnique({ where: { clientId_month: { clientId, month: period } } });
 }
 
+// A lead counts unless someone said otherwise. Every contact is already
+// filtered hard upstream (robocalls and spam forms never become leads at
+// all), so "worthwhile" is the default and marking one a bad fit is the
+// exception — qualified === false. Deleted leads never count. See D34.
+const COUNTS: { deletedAt: null; NOT: { qualified: false } } = { deletedAt: null, NOT: { qualified: false } };
+
 const RESOLVERS: Record<string, Resolver> = {
   // Every ServiceLead row is, by construction, a real lead — spam/robocall
   // calls and form submissions never become ServiceLead rows (they're
@@ -72,7 +78,7 @@ const RESOLVERS: Record<string, Resolver> = {
     if (!period) throw new Error('"leads.real" requires a :YYYY-MM period');
     const { start, end } = periodRange(period);
     const count = await prisma.serviceLead.count({
-      where: { clientId, receivedAt: { gte: start, lt: end } },
+      where: { clientId, ...COUNTS, receivedAt: { gte: start, lt: end } },
     });
     return { display: fmtInt(count), source: "Leads board", asOf: null };
   },
@@ -81,7 +87,7 @@ const RESOLVERS: Record<string, Resolver> = {
     if (!period) throw new Error('"leads.split" requires a :YYYY-MM period');
     const { start, end } = periodRange(period);
     const leads = await prisma.serviceLead.findMany({
-      where: { clientId, receivedAt: { gte: start, lt: end } },
+      where: { clientId, ...COUNTS, receivedAt: { gte: start, lt: end } },
       select: { source: true },
     });
     if (leads.length === 0) return { display: "", source: "Leads board", asOf: null };
@@ -203,7 +209,7 @@ const RESOLVERS: Record<string, Resolver> = {
     if (!period) throw new Error('"leads.organic" requires a :YYYY-MM period');
     const { start, end } = periodRange(period);
     const count = await prisma.serviceLead.count({
-      where: { clientId, receivedAt: { gte: start, lt: end }, source: { not: "LSA" } },
+      where: { clientId, ...COUNTS, receivedAt: { gte: start, lt: end }, source: { not: "LSA" } },
     });
     return { display: fmtInt(count), source: "Leads board", asOf: null };
   },
@@ -212,7 +218,7 @@ const RESOLVERS: Record<string, Resolver> = {
     if (!period) throw new Error('"leads.organic.support" requires a :YYYY-MM period');
     const { start, end } = periodRange(period);
     const leads = await prisma.serviceLead.findMany({
-      where: { clientId, receivedAt: { gte: start, lt: end }, source: { not: "LSA" } },
+      where: { clientId, ...COUNTS, receivedAt: { gte: start, lt: end }, source: { not: "LSA" } },
       select: { source: true },
     });
     if (leads.length === 0) return { display: "", source: "Leads board", asOf: null };
@@ -237,7 +243,7 @@ const RESOLVERS: Record<string, Resolver> = {
     if (!period) throw new Error('"jobs.won" requires a :YYYY-MM period');
     const { start, end } = periodRange(period);
     const count = await prisma.serviceLead.count({
-      where: { clientId, stage: "JOB_WON", stageChangedAt: { gte: start, lt: end } },
+      where: { clientId, ...COUNTS, stage: "JOB_WON", stageChangedAt: { gte: start, lt: end } },
     });
     return { display: fmtInt(count), source: "Leads board", asOf: null };
   },
@@ -246,7 +252,7 @@ const RESOLVERS: Record<string, Resolver> = {
     if (!period) throw new Error('"jobs.wonValue" requires a :YYYY-MM period');
     const { start, end } = periodRange(period);
     const won = await prisma.serviceLead.findMany({
-      where: { clientId, stage: "JOB_WON", stageChangedAt: { gte: start, lt: end } },
+      where: { clientId, ...COUNTS, stage: "JOB_WON", stageChangedAt: { gte: start, lt: end } },
       select: { jobValue: true },
     });
     if (won.length === 0) return { display: "", source: "Leads board", asOf: null };

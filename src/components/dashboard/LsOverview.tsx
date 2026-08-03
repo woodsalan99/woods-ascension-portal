@@ -104,6 +104,8 @@ export async function LsOverview({ period }: { period?: string }) {
   const needsYou = await prisma.serviceLead.findMany({
     where: {
       clientId: client.id,
+      deletedAt: null,
+      NOT: { qualified: false },
       stage: { notIn: ["JOB_WON", "REVIEW_COMPLETE", "LOST"] },
       nextActionAt: { lte: now },
     },
@@ -301,7 +303,7 @@ export async function LsOverview({ period }: { period?: string }) {
             {needsYou.map((lead) => (
               <a key={lead.id} href="/leads" className="wa-ob-item" style={{ textDecoration: "none", color: "inherit" }}>
                 <div className="wa-ob-body">
-                  <div className="wa-ob-step">{lead.name ?? "Name hidden by Google"}</div>
+                  <div className="wa-ob-step">{lead.name ?? "Unknown Name"}</div>
                 </div>
                 <span className="wa-ob-now">{lead.nextActionLabel ?? "Follow up"} →</span>
               </a>

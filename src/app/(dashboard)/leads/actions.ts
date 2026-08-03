@@ -64,13 +64,30 @@ export async function addLeadNote(leadId: string, body: string) {
   revalidatePath("/leads");
 }
 
-export async function toggleLeadQualified(leadId: string) {
+// Every lead is worthwhile until someone says otherwise — robocalls and spam
+// forms are filtered out long before they could become a lead, so the thing
+// worth recording is the exception. qualified === false means bad fit;
+// null and true both mean it counted. See D34.
+export async function toggleLeadBadFit(leadId: string) {
   const scope = await requireDashboardWriteScope();
   const lead = await assertOwnsLead(leadId, scope.clientId);
-  const next = lead.qualified !== true;
+  const badFit = lead.qualified !== false;
   await prisma.$transaction([
-    prisma.serviceLead.update({ where: { id: leadId }, data: { qualified: next } }),
-    prisma.leadActivity.create({ data: { leadId, type: "QUALIFIED_TOGGLE", meta: { qualified: next } } }),
+    prisma.serviceLead.update({ where: { id: leadId }, data: { qualified: badFit ? false : null } }),
+    prisma.leadActivity.create({ data: { leadId, type: "QUALIFIED_TOGGLE", meta: { badFit } } }),
   ]);
   revalidatePath("/leads");
+  revalidatePath("/");
+}
+
+// Soft delete. A hard delete would be undone by the next CallRail sync,
+// which re-fetches the same call every run. The tombstone also means that if
+// this person ever gets in touch again, recordContact() restores their card
+// with its full history rather than starting a blank one.
+export async function deleteLead(leadId: string) {
+  const scope = await requireDashboardWriteScope();
+  await assertOwnsLead(leadId, scope.clientId);
+  await prisma.serviceLead.update({ where: { id: leadId }, data: { deletedAt: new Date() } });
+  revalidatePath("/leads");
+  revalidatePath("/");
 }

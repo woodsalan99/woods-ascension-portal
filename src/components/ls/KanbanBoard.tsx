@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import type { LeadStage, LeadSource } from "@prisma/client";
-import { moveLeadStage, setJobWon, addLeadNote, toggleLeadQualified } from "@/app/(dashboard)/leads/actions";
+import { moveLeadStage, setJobWon, addLeadNote, toggleLeadBadFit, deleteLead } from "@/app/(dashboard)/leads/actions";
 
 export type LeadCardVM = {
   id: string;
@@ -99,6 +99,7 @@ export function KanbanBoard({ leads: initialLeads }: { leads: LeadCardVM[] }) {
   const [dragOverStage, setDragOverStage] = useState<LeadStage | null>(null);
   const [openLeadId, setOpenLeadId] = useState<string | null>(null);
   const [pendingWon, setPendingWon] = useState<{ lead: LeadCardVM; returnToDetail: boolean } | null>(null);
+  const [pendingDelete, setPendingDelete] = useState<LeadCardVM | null>(null);
   const [wonValue, setWonValue] = useState("");
   const [noteDraft, setNoteDraft] = useState("");
   const [noteSaved, setNoteSaved] = useState(false);
@@ -182,15 +183,29 @@ export function KanbanBoard({ leads: initialLeads }: { leads: LeadCardVM[] }) {
     });
   }
 
-  function handleToggleQualified(lead: LeadCardVM) {
+  function handleToggleBadFit(lead: LeadCardVM) {
     const prev = lead.qualified;
-    const next = lead.qualified !== true;
+    const next = lead.qualified === false ? null : false;
     setLeads((ls) => ls.map((l) => (l.id === lead.id ? { ...l, qualified: next } : l)));
     startTransition(async () => {
       try {
-        await toggleLeadQualified(lead.id);
+        await toggleLeadBadFit(lead.id);
       } catch (err) {
         setLeads((ls) => ls.map((l) => (l.id === lead.id ? { ...l, qualified: prev } : l)));
+        setError(err instanceof Error ? err.message : String(err));
+      }
+    });
+  }
+
+  function handleDelete(lead: LeadCardVM) {
+    setPendingDelete(null);
+    setOpenLeadId(null);
+    setLeads((ls) => ls.filter((l) => l.id !== lead.id));
+    startTransition(async () => {
+      try {
+        await deleteLead(lead.id);
+      } catch (err) {
+        setLeads((ls) => [...ls, lead]);
         setError(err instanceof Error ? err.message : String(err));
       }
     });
@@ -290,7 +305,7 @@ export function KanbanBoard({ leads: initialLeads }: { leads: LeadCardVM[] }) {
                       >
                         <div className="wa-lead-top">
                           <div className={`wa-lead-name ${!lead.name ? "wa-lead-name-unknown" : ""}`}>
-                            {lead.name ?? "Name hidden by Google"}
+                            {lead.name ?? "Unknown Name"}
                           </div>
                           {lead.jobValue !== null && (
                             <div className="wa-lead-value">${lead.jobValue.toLocaleString("en-US")}</div>
@@ -302,7 +317,7 @@ export function KanbanBoard({ leads: initialLeads }: { leads: LeadCardVM[] }) {
                         {lead.message && <div className="wa-lead-quote">&ldquo;{lead.message}&rdquo;</div>}
                         <div className="wa-chip-row">
                           <span className={`wa-chip ${chip.cls}`}>{chip.label}</span>
-                          {lead.qualified === true && <span className="wa-chip wa-chip-qualified">Qualified</span>}
+                          {lead.qualified === false && <span className="wa-chip wa-chip-badfit">Bad fit</span>}
                         </div>
                         {lead.nextActionLabel && <div className="wa-lead-action">{lead.nextActionLabel}</div>}
                         {lead.needsDetails && (
@@ -343,7 +358,7 @@ export function KanbanBoard({ leads: initialLeads }: { leads: LeadCardVM[] }) {
         <div className="wa-modal-bg" onClick={closeDetail}>
           <div className="wa-modal" onClick={(e) => e.stopPropagation()}>
             <div className="wa-modal-head">
-              <h2 className="wa-h2">{openLead.name ?? "Name hidden by Google"}</h2>
+              <h2 className="wa-h2">{openLead.name ?? "Unknown Name"}</h2>
               <p className="wa-page-sub">
                 {[SOURCE_CHIP[openLead.source].label, openLead.serviceType, openLead.location]
                   .filter(Boolean)
@@ -430,11 +445,14 @@ export function KanbanBoard({ leads: initialLeads }: { leads: LeadCardVM[] }) {
               <label className="wa-lead-qualified-toggle" style={{ marginTop: 18 }}>
                 <input
                   type="checkbox"
-                  checked={openLead.qualified === true}
-                  onChange={() => handleToggleQualified(openLead)}
+                  checked={openLead.qualified === false}
+                  onChange={() => handleToggleBadFit(openLead)}
                 />
-                This was a real, worthwhile lead
+                This wasn&apos;t a real lead — mark it as a bad fit
               </label>
+              <p className="wa-page-sub" style={{ marginTop: 4 }}>
+                Only tick this for the odd one that slips through. Bad-fit leads stop counting in your numbers.
+              </p>
 
               <div className="wa-kpi-label" style={{ margin: "20px 0 8px" }}>Add a note</div>
               <textarea
@@ -454,8 +472,33 @@ export function KanbanBoard({ leads: initialLeads }: { leads: LeadCardVM[] }) {
               </div>
             </div>
             <div className="wa-modal-foot">
+              <button className="wa-btn-danger" onClick={() => setPendingDelete(openLead)}>
+                Delete this lead
+              </button>
               <button className="wa-btn-primary" onClick={closeDetail}>
                 Done
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {pendingDelete && (
+        <div className="wa-modal-bg" onClick={() => setPendingDelete(null)}>
+          <div className="wa-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="wa-modal-head">
+              <h2 className="wa-h2">Delete {pendingDelete.name ?? "this lead"}?</h2>
+              <p className="wa-page-sub">
+                It disappears from the board and stops counting in your numbers. If this person ever gets in
+                touch again, their card comes back with everything that&apos;s already on it.
+              </p>
+            </div>
+            <div className="wa-modal-foot">
+              <button className="wa-btn-ghost" onClick={() => setPendingDelete(null)}>
+                Keep it
+              </button>
+              <button className="wa-btn-danger" onClick={() => handleDelete(pendingDelete)}>
+                Delete it
               </button>
             </div>
           </div>
