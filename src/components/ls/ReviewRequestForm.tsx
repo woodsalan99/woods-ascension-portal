@@ -41,13 +41,13 @@ export function ReviewRequestForm() {
           <input id="rr-date" name="jobFinishedAt" type="date" />
         </div>
         <button className="wa-review-submit" type="submit" disabled={pending}>
-          {pending ? "Adding…" : "Add to the queue"}
+          {pending ? "Adding…" : "Add to the list"}
         </button>
       </form>
 
       {added && !error && (
         <div className="wa-save-state saved" style={{ marginTop: 10 }}>
-          {added} is in the queue — we&apos;ll take it from here.
+          {added} is on the list — we&apos;ll take it from here.
         </div>
       )}
       {error && (

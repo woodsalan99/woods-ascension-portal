@@ -70,7 +70,7 @@ export const LS_CONTENT = {
   // The v8 mock rendered this as "Real customers who reached out / Leads" —
   // that slash was two candidate labels, not copy. Picked the plain one.
   "overview.kpi.leads.label": { def: "Real leads who got in touch", max: 100 },
-  "overview.kpi.cpl.label": { def: "Cost per lead from Google Local Service Ads", max: 100 },
+  "overview.kpi.cpl.label": { def: "What each lead from Google Ads cost you", max: 100 },
   "overview.kpi.pages.label": { def: "Pages showing on Google", max: 100 },
   "overview.kpi.reviews.label": { def: "Your Google reviews", max: 100 },
 
@@ -80,7 +80,7 @@ export const LS_CONTENT = {
   "overview.needsYou.empty": { def: "Nothing needs your attention right now.", max: 200 },
 
   // ---- The Numbers ----
-  "numbers.eyebrow": { def: "The numbers", max: 60 },
+  "numbers.eyebrow": { def: "How it's going", max: 60 },
   "numbers.title": { def: "The numbers", max: 60 },
   "numbers.sub": {
     def: "Everything worth watching, in two groups. The \"healthy\" note under each one is what's realistic for a painter on Oahu — not a national average from a much bigger city.",
@@ -121,7 +121,7 @@ export const LS_CONTENT = {
   "numbers.leads.healthy": { def: "4–10 a month is realistic today. This should climb as the town pages get onto Google.", max: 300 },
   "numbers.leads.improve": { def: "Reach people outside Ewa Beach|Text back automatically on missed calls", max: 400 },
 
-  "numbers.organic.label": { def: "Free (organic) leads", max: 80 },
+  "numbers.organic.label": { def: "Leads that cost you nothing", max: 80 },
   "numbers.organic.plain": { def: "People who found you without you paying anything. These cost nothing per lead.", max: 300 },
   "numbers.organic.healthy": { def: "This is the number the town pages are built to grow.", max: 300 },
   "numbers.organic.improve": { def: "More pages, more reviews, more photos|Climb the map ranking across the island", max: 400 },
@@ -166,12 +166,12 @@ export const LS_CONTENT = {
   },
   "ask.now.title": { def: "Right now", max: 60 },
   "ask.now.sub": {
-    def: "Specific things that will move the campaign forward. Tick them off, or type and upload straight into the boxes.",
+    def: "Things that will genuinely help right now. Tick them off, or type and upload straight into the boxes.",
     max: 300,
   },
   "ask.habits.label": { def: "Every week", max: 60 },
-  "ask.habits.title": { def: "The things that move the needle", max: 100 },
-  "ask.habits.sub": { def: "None of these take long. All of them compound.", max: 200 },
+  "ask.habits.title": { def: "The five things that actually bring in work", max: 100 },
+  "ask.habits.sub": { def: "None of them take long, and they all add up.", max: 200 },
   "ask.habits.items": {
     kind: "list",
     maxItem: 500,
@@ -184,12 +184,12 @@ export const LS_CONTENT = {
     ],
   },
   "ask.reviews.label": { def: "Reviews", max: 60 },
-  "ask.reviews.title": { def: "Add customers you'd like us to ask", max: 100 },
+  "ask.reviews.title": { def: "Add a customer you'd like us to ask", max: 100 },
   "ask.reviews.sub": {
     def: "Drop a name in whenever you finish a job. We send the request and the follow-up — you don't do anything else.",
     max: 300,
   },
-  "ask.reviews.empty": { def: "Nobody in the queue right now.", max: 150 },
+  "ask.reviews.empty": { def: "Nobody on the list right now.", max: 150 },
 
   // ---- Where You Rank ----
   "rank.eyebrow": { def: "Google Maps", max: 60 },
@@ -224,13 +224,13 @@ export const LS_CONTENT = {
     def: "Google weighs a handful of things when it decides which painter to show first. Two of them are almost entirely in your hands.",
     max: 300,
   },
-  "rank.factors.reviews.tag": { def: "Biggest lever · yours", max: 40 },
+  "rank.factors.reviews.tag": { def: "Biggest one · you control this", max: 40 },
   "rank.factors.reviews.title": { def: "Reviews", max: 40 },
   "rank.factors.reviews.body": {
     def: "How many you have, how good they are, and how recently they came in. A steady trickle beats a big burst — Google wants to see new ones arriving month after month.",
     max: 400,
   },
-  "rank.factors.photos.tag": { def: "Biggest lever · yours", max: 40 },
+  "rank.factors.photos.tag": { def: "Biggest one · you control this", max: 40 },
   "rank.factors.photos.title": { def: "Photos", max: 40 },
   "rank.factors.photos.body": {
     def: "Google favours profiles with real, recent job photos going up regularly. Before-and-afters do particularly well, and customers scroll them before they call.",
@@ -240,7 +240,7 @@ export const LS_CONTENT = {
     def: "Send a few from every job — phone photos are completely fine.",
     max: 300,
   },
-  "rank.factors.distance.tag": { def: "Partly ours", max: 40 },
+  "rank.factors.distance.tag": { def: "Nobody controls this one", max: 40 },
   "rank.factors.distance.title": { def: "Distance from the customer", max: 60 },
   "rank.factors.distance.body": {
     def: "The single biggest factor, and the one nobody controls. Being based in Ewa Beach means you'll always rank stronger nearby and weaker on the windward side.",
@@ -250,7 +250,7 @@ export const LS_CONTENT = {
     def: "This is why the town pages matter — they're how we tell Google you genuinely work across the whole island.",
     max: 300,
   },
-  "rank.factors.website.tag": { def: "Ours", max: 40 },
+  "rank.factors.website.tag": { def: "We handle this", max: 40 },
   "rank.factors.website.title": { def: "Your website & profile", max: 60 },
   "rank.factors.website.body": {
     def: "A profile that's complete and consistent, backed by real pages about the towns and services you cover.",

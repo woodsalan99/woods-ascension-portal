@@ -921,7 +921,13 @@ span.wa-ob-active { font-size: 12px; font-weight: 600; color: var(--green); }
 }
 .wa-period-switch a:hover { border-color: var(--gold); color: var(--ink); }
 .wa-period-switch a.on { background: var(--ink); border-color: var(--ink); color: #fff; }
-.wa-period-switch .wa-weekbadge { margin-left: 4px; }
+/* The date range is a caption, not an option. It used to be a pill the same
+   shape as the buttons beside it, which on a phone read as one more thing to
+   tap. See D38. */
+.wa-period-switch .wa-weekbadge {
+  background: none; border: 0; padding: 0; margin-left: 4px;
+  font-size: 12px; letter-spacing: 0; text-transform: none; color: var(--muted);
+}
 
 /* ---------- local-services: Where You Rank tweaks ---------- */
 .wa-section-head-centered { justify-content: center; text-align: center; }
@@ -931,6 +937,43 @@ span.wa-ob-active { font-size: 12px; font-weight: 600; color: var(--green); }
 .wa-ob-item-link { text-decoration: none; color: inherit; }
 .wa-ob-item-link:hover { background: #FBFBF7; }
 .wa-ob-item-link:hover .wa-pill { border-color: var(--gold); }
+
+/* ---------- local-services: phone pass (Bryan is phone-first) ---------- */
+@media (max-width: 560px) {
+  /* 30px of padding each side left barely 280px for content, which forced
+     the recap's KPI grid down to a single column. */
+  .wa-recap-head { padding: 22px 18px 20px; }
+  .wa-recap-head h2 { font-size: 21px; }
+  .wa-recap-body { padding: 20px 18px 24px; }
+  .wa-recap-grid { grid-template-columns: repeat(2, 1fr); }
+  /* The cell count varies — zero-value cells are dropped — so an odd count
+     left a grey hole in the corner where the grid background showed through.
+     The last cell of an odd row spans the full width instead. */
+  .wa-recap-cell:last-child:nth-child(odd) { grid-column: 1 / -1; }
+
+  .wa-period-switch { width: 100%; }
+  .wa-period-switch a { font-size: 12px; padding: 6px 11px; }
+  /* Always its own line, never stranded beside a button it isn't one of. */
+  .wa-period-switch .wa-weekbadge { flex-basis: 100%; margin: 2px 0 0; }
+
+  /* The urgency pill sat beside the title and squeezed it into a four-line
+     column. Below the title it costs one line and reads as a label. */
+  .wa-ask-row { flex-wrap: wrap; }
+  .wa-ask-text { flex-basis: calc(100% - 70px); }
+  .wa-ask-row .wa-pill { order: 3; margin-left: 34px; }
+  .wa-ask-input { padding-left: 0; }
+
+  .wa-review-submit { width: 100%; }
+  .wa-number-card { padding: 20px 18px; }
+  .wa-month-strip { overflow-x: auto; }
+
+  /* Long keyword names force these onto separate lines, and once stacked the
+     inactive ones stop reading as buttons at all — they look like a list.
+     A visible edge is what tells a thumb there's something to press. */
+  .wa-kw-tabs { flex-direction: column; }
+  .wa-kw-tab { border: 1px solid var(--line); background: var(--card); text-align: left; }
+  .wa-kw-tab.active { border-color: var(--ink); }
+}
 
 @media (max-width: 900px) {
   .wa-kpis { grid-template-columns: repeat(2, 1fr); }
