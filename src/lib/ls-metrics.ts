@@ -35,6 +35,11 @@ function monthRangeUtc(monthKey: string): { start: Date; end: Date } {
 
 const fmtInt = (n: number) => n.toLocaleString("en-US");
 const fmtMoney = (cents: number) => `$${Math.round(cents / 100).toLocaleString("en-US")}`;
+// Headline figures round to whole dollars (per the approved mock); the
+// supporting detail line shows exact cents, since "$37.27 paid to Google"
+// is the number Alan can reconcile against the real invoice.
+const fmtMoneyExact = (cents: number) => `$${(cents / 100).toFixed(2)}`;
+const monthName = (monthKey: string) => formatMonthKey(monthKey).split(" ")[0];
 
 const RESOLVERS: Record<string, Resolver> = {
   // Every ServiceLead row is, by construction, a real lead — spam/robocall
@@ -93,10 +98,129 @@ const RESOLVERS: Record<string, Resolver> = {
     }
     const leadWord = stat.chargedLeads === 1 ? "lead" : "leads";
     return {
-      display: `${fmtMoney(stat.spendCents)} paid to Google in ${formatMonthKey(period)} for ${stat.chargedLeads} ${leadWord}`,
+      display: `${fmtMoneyExact(stat.spendCents)} paid to Google in ${monthName(period)} for ${stat.chargedLeads} ${leadWord}`,
       source: "Google Ads (manual entry)",
       asOf: stat.updatedAt,
     };
+  },
+
+  // ---- The Numbers page ----
+  "lsa.impressions": async ({ clientId }, period) => {
+    if (!period) throw new Error('"lsa.impressions" requires a :YYYY-MM period');
+    const stat = await prisma.lsaMonthlyStat.findUnique({ where: { clientId_month: { clientId, month: period } } });
+    if (!stat) return { display: "—", source: "Google Ads (manual entry)", asOf: null };
+    return { display: fmtInt(stat.impressions), source: "Google Ads (manual entry)", asOf: stat.updatedAt };
+  },
+
+  // "May 202 · June 336 · July 300" — the trend line under a headline number.
+  "lsa.impressions.trend": async ({ clientId }) => {
+    const stats = await prisma.lsaMonthlyStat.findMany({ where: { clientId }, orderBy: { month: "asc" }, take: 6 });
+    if (stats.length === 0) return { display: "", source: "Google Ads (manual entry)", asOf: null };
+    return {
+      display: stats.map((s) => `${monthName(s.month)} ${fmtInt(s.impressions)}`).join(" · "),
+      source: "Google Ads (manual entry)",
+      asOf: stats[stats.length - 1].updatedAt,
+    };
+  },
+
+  "lsa.topRate": async ({ clientId }, period) => {
+    if (!period) throw new Error('"lsa.topRate" requires a :YYYY-MM period');
+    const stat = await prisma.lsaMonthlyStat.findUnique({ where: { clientId_month: { clientId, month: period } } });
+    if (!stat) return { display: "—", source: "Google Ads (manual entry)", asOf: null };
+    return { display: `${Math.round(stat.absTopRatePct)}%`, source: "Google Ads (manual entry)", asOf: stat.updatedAt };
+  },
+
+  "lsa.topRate.support": async ({ clientId }, period) => {
+    if (!period) throw new Error('"lsa.topRate.support" requires a :YYYY-MM period');
+    const stats = await prisma.lsaMonthlyStat.findMany({ where: { clientId }, orderBy: { month: "asc" } });
+    const idx = stats.findIndex((s) => s.month === period);
+    if (idx <= 0) return { display: "", source: "Google Ads (manual entry)", asOf: null };
+    const prev = stats[idx - 1];
+    return {
+      display: `Was ${Math.round(prev.absTopRatePct)}% in ${monthName(prev.month)}`,
+      source: "Google Ads (manual entry)",
+      asOf: stats[idx].updatedAt,
+    };
+  },
+
+  "lsa.spend": async ({ clientId }, period) => {
+    if (!period) throw new Error('"lsa.spend" requires a :YYYY-MM period');
+    const stat = await prisma.lsaMonthlyStat.findUnique({ where: { clientId_month: { clientId, month: period } } });
+    if (!stat) return { display: "—", source: "Google Ads (manual entry)", asOf: null };
+    return { display: fmtMoney(stat.spendCents), source: "Google Ads (manual entry)", asOf: stat.updatedAt };
+  },
+
+  "lsa.chargedLeads": async ({ clientId }, period) => {
+    if (!period) throw new Error('"lsa.chargedLeads" requires a :YYYY-MM period');
+    const stat = await prisma.lsaMonthlyStat.findUnique({ where: { clientId_month: { clientId, month: period } } });
+    if (!stat) return { display: "—", source: "Google Ads (manual entry)", asOf: null };
+    return { display: fmtInt(stat.chargedLeads), source: "Google Ads (manual entry)", asOf: stat.updatedAt };
+  },
+
+  "lsa.chargedLeads.trend": async ({ clientId }) => {
+    const stats = await prisma.lsaMonthlyStat.findMany({ where: { clientId }, orderBy: { month: "asc" }, take: 6 });
+    if (stats.length === 0) return { display: "", source: "Google Ads (manual entry)", asOf: null };
+    return {
+      display: stats.map((s) => `${monthName(s.month)} ${s.chargedLeads}`).join(" · "),
+      source: "Google Ads (manual entry)",
+      asOf: null,
+    };
+  },
+
+  // Leads that cost nothing per lead — everything except paid LSA.
+  "leads.organic": async ({ clientId }, period) => {
+    if (!period) throw new Error('"leads.organic" requires a :YYYY-MM period');
+    const { start, end } = monthRangeUtc(period);
+    const count = await prisma.serviceLead.count({
+      where: { clientId, receivedAt: { gte: start, lt: end }, source: { not: "LSA" } },
+    });
+    return { display: fmtInt(count), source: "Leads board", asOf: null };
+  },
+
+  "leads.organic.support": async ({ clientId }, period) => {
+    if (!period) throw new Error('"leads.organic.support" requires a :YYYY-MM period');
+    const { start, end } = monthRangeUtc(period);
+    const leads = await prisma.serviceLead.findMany({
+      where: { clientId, receivedAt: { gte: start, lt: end }, source: { not: "LSA" } },
+      select: { source: true },
+    });
+    if (leads.length === 0) return { display: "", source: "Leads board", asOf: null };
+    const label: Record<string, string> = {
+      GBP_CALL: "Google Maps call",
+      WEBSITE_FORM: "website form",
+      REFERRAL: "referral",
+      OTHER: "other",
+    };
+    const counts = new Map<string, number>();
+    for (const l of leads) counts.set(l.source, (counts.get(l.source) ?? 0) + 1);
+    return {
+      display: [...counts.entries()]
+        .map(([s, n]) => `${n} ${label[s] ?? s.toLowerCase()}${n === 1 ? "" : "s"}`)
+        .join(" · "),
+      source: "Leads board",
+      asOf: null,
+    };
+  },
+
+  "jobs.won": async ({ clientId }, period) => {
+    if (!period) throw new Error('"jobs.won" requires a :YYYY-MM period');
+    const { start, end } = monthRangeUtc(period);
+    const count = await prisma.serviceLead.count({
+      where: { clientId, stage: "JOB_WON", stageChangedAt: { gte: start, lt: end } },
+    });
+    return { display: fmtInt(count), source: "Leads board", asOf: null };
+  },
+
+  "jobs.wonValue": async ({ clientId }, period) => {
+    if (!period) throw new Error('"jobs.wonValue" requires a :YYYY-MM period');
+    const { start, end } = monthRangeUtc(period);
+    const won = await prisma.serviceLead.findMany({
+      where: { clientId, stage: "JOB_WON", stageChangedAt: { gte: start, lt: end } },
+      select: { jobValue: true },
+    });
+    if (won.length === 0) return { display: "", source: "Leads board", asOf: null };
+    const total = won.reduce((sum, l) => sum + (l.jobValue ?? 0), 0);
+    return { display: `$${total.toLocaleString("en-US")} in accepted work`, source: "Leads board", asOf: null };
   },
 
   "gsc.pagesShowing": async ({ clientId }) => {
