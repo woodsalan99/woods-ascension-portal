@@ -6,6 +6,11 @@ import { periodRangeLabel } from "@/lib/ls-periods";
 import { PeriodSwitch } from "@/components/ls/PeriodSwitch";
 import { LatestLeads, type LatestLeadVM } from "@/components/ls/LatestLeads";
 import { PlanBlock } from "@/components/ls/PlanBlock";
+import { FocusBlock } from "@/components/ls/FocusBlock";
+import { StatusStrip } from "@/components/ls/StatusStrip";
+import { TrendBadge } from "@/components/ls/TrendBadge";
+import { getOverviewTrends, leadFlowStatus, reviewsStatus, pagesStatus } from "@/lib/ls-trends";
+import type { FocusItem } from "@/lib/generate-focus";
 import { monthKeyInTimezone } from "@/lib/timezone";
 import { EditProvider } from "@/components/ls/EditProvider";
 import { E, EList } from "@/components/ls/Editable";
@@ -92,6 +97,14 @@ export async function LsOverview({ period }: { period?: string }) {
       });
 
   const planItems = ((monthlyWork?.nextMonth as string[] | null) ?? []).filter(Boolean);
+  const focusAuto = (monthlyWork?.focusAuto as FocusItem[] | null) ?? [];
+  const focusManual = (monthlyWork?.focusManual as FocusItem[] | null) ?? null;
+
+  // Status strip + trend arrows always compare against the trailing 30 days,
+  // independent of the page's own period switch — a "vs prior 30 days"
+  // badge that changed meaning under a picker would be more confusing than
+  // useful. See D54.
+  const trends = await getOverviewTrends(client.id, now);
 
   const workItems = workRows
     .flatMap((row) =>
@@ -182,6 +195,13 @@ export async function LsOverview({ period }: { period?: string }) {
         />
       </div>
 
+      <StatusStrip
+        trends={trends}
+        leadFlow={leadFlowStatus(trends)}
+        reviews={reviewsStatus(trends)}
+        pages={pagesStatus(trends)}
+      />
+
       <details className="wa-thesis" open>
         <summary className="wa-thesis-summary">
           <h2 className="wa-thesis-heading">
@@ -211,6 +231,65 @@ export async function LsOverview({ period }: { period?: string }) {
           <E k="overview.thesis.expand" v={content.text("overview.thesis.expand")} label="Thesis — looking ahead" as="p" multiline />
         </div>
       </details>
+
+      <div className="wa-kpis">
+        <article className="wa-kpi">
+          <div className="wa-kpi-label">
+            <E k="overview.kpi.leads.label" v={content.text("overview.kpi.leads.label")} label="Leads KPI label" />
+          </div>
+          <div className="wa-kpi-value">
+            <Num m={metric(`leads.real:${window}`)} clientId={client.id} label="Real leads this period" />
+          </div>
+          <div className="wa-kpi-detail">
+            <Num m={metric(`leads.split:${window}`)} clientId={client.id} label="Leads split (free vs. paid)" />
+          </div>
+          <TrendBadge deltaPct={trends.leads.deltaPct} />
+        </article>
+
+        <article className="wa-kpi">
+          <div className="wa-kpi-label">
+            <E k="overview.kpi.cpl.label" v={content.text("overview.kpi.cpl.label")} label="Cost per lead KPI label" />
+          </div>
+          <div className="wa-kpi-value">
+            <Num m={metric(`lsa.cpl:${window}`)} clientId={client.id} label="Cost per LSA lead" />
+          </div>
+          <div className="wa-kpi-detail">
+            <Num m={metric(`lsa.cpl.support:${window}`)} clientId={client.id} label="LSA spend detail" />
+          </div>
+          {/* Cost per lead trend is inverted: spending LESS per lead is the
+              improvement, so a falling number should read as "up" (good). */}
+          <TrendBadge deltaPct={trends.costPerLead?.deltaPct != null ? -trends.costPerLead.deltaPct : null} />
+        </article>
+
+        <article className="wa-kpi">
+          <div className="wa-kpi-label">
+            <E k="overview.kpi.pages.label" v={content.text("overview.kpi.pages.label")} label="Pages showing KPI label" />
+          </div>
+          <div className="wa-kpi-value">
+            <Num m={metric("gsc.pagesShowing")} clientId={client.id} label="Pages showing on Google" />
+          </div>
+          <div className="wa-kpi-detail">
+            <Num m={metric("gsc.pagesShowing.support")} clientId={client.id} label="Pages processing detail" />
+          </div>
+          <TrendBadge deltaAbs={trends.pages.delta} unit="page" />
+        </article>
+
+        <article className="wa-kpi">
+          <div className="wa-kpi-label">
+            <E k="overview.kpi.reviews.label" v={content.text("overview.kpi.reviews.label")} label="Reviews KPI label" />
+          </div>
+          <div className="wa-kpi-value">
+            <Num m={metric("reviews.count")} clientId={client.id} label="Google review count" />
+          </div>
+          <div className="wa-kpi-detail">
+            <Num m={metric("reviews.support")} clientId={client.id} label="Reviews detail" />
+          </div>
+          <TrendBadge deltaAbs={trends.reviews.delta} unit="review" />
+          <a className="wa-kpi-link" href={GOOGLE_MAPS_URL} target="_blank" rel="noopener noreferrer">
+            <E k="overview.kpi.reviews.link" v={content.text("overview.kpi.reviews.link")} label="Reviews link text" />
+          </a>
+        </article>
+      </div>
 
       <div className="wa-card">
         <div className="wa-section-head">
@@ -271,66 +350,22 @@ export async function LsOverview({ period }: { period?: string }) {
         )}
       </div>
 
-      <PlanBlock
-        clientId={client.id}
-        monthLabel={new Date().toLocaleDateString("en-US", { month: "long", timeZone: client.timezone })}
-        items={planItems}
-        label={<E k="overview.plan.label" v={content.text("overview.plan.label")} label="Plan label" />}
-        subtitle={<E k="overview.plan.sub" v={content.text("overview.plan.sub")} label="Plan subtitle" multiline />}
-        emptyText={<E k="overview.plan.empty" v={content.text("overview.plan.empty")} label="Plan empty state" />}
-      />
-
-      <div className="wa-kpis">
-        <article className="wa-kpi">
-          <div className="wa-kpi-label">
-            <E k="overview.kpi.leads.label" v={content.text("overview.kpi.leads.label")} label="Leads KPI label" />
-          </div>
-          <div className="wa-kpi-value">
-            <Num m={metric(`leads.real:${window}`)} clientId={client.id} label="Real leads this period" />
-          </div>
-          <div className="wa-kpi-detail">
-            <Num m={metric(`leads.split:${window}`)} clientId={client.id} label="Leads split (free vs. paid)" />
-          </div>
-        </article>
-
-        <article className="wa-kpi">
-          <div className="wa-kpi-label">
-            <E k="overview.kpi.cpl.label" v={content.text("overview.kpi.cpl.label")} label="Cost per lead KPI label" />
-          </div>
-          <div className="wa-kpi-value">
-            <Num m={metric(`lsa.cpl:${window}`)} clientId={client.id} label="Cost per LSA lead" />
-          </div>
-          <div className="wa-kpi-detail">
-            <Num m={metric(`lsa.cpl.support:${window}`)} clientId={client.id} label="LSA spend detail" />
-          </div>
-        </article>
-
-        <article className="wa-kpi">
-          <div className="wa-kpi-label">
-            <E k="overview.kpi.pages.label" v={content.text("overview.kpi.pages.label")} label="Pages showing KPI label" />
-          </div>
-          <div className="wa-kpi-value">
-            <Num m={metric("gsc.pagesShowing")} clientId={client.id} label="Pages showing on Google" />
-          </div>
-          <div className="wa-kpi-detail">
-            <Num m={metric("gsc.pagesShowing.support")} clientId={client.id} label="Pages processing detail" />
-          </div>
-        </article>
-
-        <article className="wa-kpi">
-          <div className="wa-kpi-label">
-            <E k="overview.kpi.reviews.label" v={content.text("overview.kpi.reviews.label")} label="Reviews KPI label" />
-          </div>
-          <div className="wa-kpi-value">
-            <Num m={metric("reviews.count")} clientId={client.id} label="Google review count" />
-          </div>
-          <div className="wa-kpi-detail">
-            <Num m={metric("reviews.support")} clientId={client.id} label="Reviews detail" />
-          </div>
-          <a className="wa-kpi-link" href={GOOGLE_MAPS_URL} target="_blank" rel="noopener noreferrer">
-            <E k="overview.kpi.reviews.link" v={content.text("overview.kpi.reviews.link")} label="Reviews link text" />
-          </a>
-        </article>
+      <div className="wa-plan-focus-row">
+        <PlanBlock
+          clientId={client.id}
+          monthLabel={new Date().toLocaleDateString("en-US", { month: "long", timeZone: client.timezone })}
+          items={planItems}
+          label={<E k="overview.plan.label" v={content.text("overview.plan.label")} label="Plan label" />}
+          subtitle={<E k="overview.plan.sub" v={content.text("overview.plan.sub")} label="Plan subtitle" multiline />}
+          emptyText={<E k="overview.plan.empty" v={content.text("overview.plan.empty")} label="Plan empty state" />}
+        />
+        <FocusBlock
+          clientId={client.id}
+          auto={focusAuto}
+          manual={focusManual}
+          label={<E k="overview.focus.label" v={content.text("overview.focus.label")} label="Focus label" />}
+          title={<E k="overview.focus.title" v={content.text("overview.focus.title")} label="Focus title" />}
+        />
       </div>
 
       <div className="wa-card">

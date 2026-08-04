@@ -796,6 +796,11 @@ model MonthlyWork {
   items           Json // [{ title, detail, recap }]
   noteFromAlan    String?
   nextMonth       Json // string[]
+  // "Campaign focus" on the Overview — 2-3 short themes explaining what this
+  // month's plan is actually FOR. AI-drafted (DeepSeek) whenever the plan is
+  // saved, re-drafted each time unless focusManual is set. See D54.
+  focusAuto       Json? // [{ icon, title, body }]
+  focusManual     Json? // same shape; wins over focusAuto when present
 
   @@unique([clientId, month])
 }

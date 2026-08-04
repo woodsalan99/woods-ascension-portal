@@ -1189,11 +1189,17 @@ span.wa-ob-active { font-size: 12px; font-weight: 600; color: var(--green); }
 .wa-plan-add:hover { background: var(--gold-soft); }
 
 /* ---------- local-services: Latest leads (Overview) ---------- */
-.wa-latest-list { display: flex; flex-direction: column; }
-.wa-latest-item { border-bottom: 1px solid var(--line); }
-.wa-latest-item:last-child { border-bottom: 0; }
+/* Each lead is its own bordered card now — the flush plain-list version had
+   no visible boundary between one lead and the next. */
+.wa-latest-list { display: flex; flex-direction: column; gap: 10px; }
+.wa-latest-item {
+  border: 1px solid var(--line); border-radius: 12px; background: var(--card);
+  transition: border-color .15s, box-shadow .15s;
+}
+.wa-latest-item:hover { border-color: #D8D6CB; box-shadow: 0 2px 8px rgba(16,30,46,.05); }
+.wa-latest-item.open { border-color: var(--gold); }
 .wa-latest-row {
-  width: 100%; display: flex; align-items: center; gap: 12px; padding: 13px 0;
+  width: 100%; display: flex; align-items: center; gap: 12px; padding: 13px 16px;
   background: none; border: 0; cursor: pointer; text-align: left; font: inherit;
 }
 .wa-latest-main { flex: 1; min-width: 0; }
@@ -1216,7 +1222,7 @@ span.wa-ob-active { font-size: 12px; font-weight: 600; color: var(--green); }
 .wa-latest-note span { display: block; font-size: 11px; color: var(--muted); margin-top: 4px; }
 .wa-latest-when { font-size: 12px; color: var(--muted); white-space: nowrap; }
 .wa-latest-arrow { font-size: 10px; color: var(--muted); }
-.wa-latest-edit { padding: 2px 0 16px; }
+.wa-latest-edit { padding: 2px 16px 16px; }
 .wa-latest-edit label { display: block; font-size: 12px; color: var(--muted); margin: 10px 0 5px; }
 .wa-latest-edit input, .wa-latest-edit textarea {
   width: 100%; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px;
@@ -1287,3 +1293,67 @@ span.wa-ob-active { font-size: 12px; font-weight: 600; color: var(--green); }
   .wa-rail-nodes { grid-template-columns: repeat(2, 1fr); }
   .wa-topbar { flex-wrap: wrap; gap: 10px; }
 }
+
+/* ---------- local-services: Overview redesign (status strip, trends,
+   campaign focus) ---------- */
+
+/* Three-second read before anything else on the page. */
+.wa-status-strip {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
+  background: var(--line); border: 1px solid var(--line); border-radius: 14px;
+  overflow: hidden; margin-bottom: 22px;
+}
+.wa-status-item { background: var(--card); padding: 15px 18px; display: flex; gap: 11px; align-items: flex-start; }
+.wa-status-icon {
+  flex: 0 0 22px; height: 22px; border-radius: 999px; font-size: 12px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; margin-top: 1px;
+}
+.wa-status-item.good .wa-status-icon { background: var(--green-soft); color: var(--green); }
+.wa-status-item.attention .wa-status-icon { background: var(--gold-soft); color: var(--gold); }
+.wa-status-item.neutral .wa-status-icon { background: #F1F0EA; color: var(--muted); }
+.wa-status-title { font-size: 13.5px; font-weight: 600; color: var(--ink); }
+.wa-status-detail { font-size: 12px; color: var(--muted); margin-top: 2px; }
+@media (max-width: 860px) { .wa-status-strip { grid-template-columns: 1fr; } }
+
+/* Trend badge under a KPI value. */
+.wa-trend { display: block; font-size: 11.5px; margin-top: 8px; font-weight: 600; }
+.wa-trend.up { color: var(--green); }
+.wa-trend.down { color: var(--brick); }
+.wa-trend.flat { color: var(--muted); font-weight: 500; }
+
+/* "What we built" cards — restyled to match checkmark-card treatment. */
+.wa-work-item { flex-direction: column; gap: 6px; }
+.wa-work-item .wa-work-tick {
+  width: 22px; height: 22px; border-radius: 999px; background: var(--green-soft);
+  color: var(--green); display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 700; flex: none;
+}
+.wa-work-item > div { display: flex; flex-direction: column; gap: 3px; }
+
+/* Plan + Campaign Focus side by side — two equal cards, stacking on phone. */
+.wa-plan-focus-row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; margin-bottom: 18px; }
+@media (max-width: 860px) { .wa-plan-focus-row { grid-template-columns: 1fr; } }
+
+.wa-focus { border-color: var(--line); }
+.wa-focus-list { display: flex; flex-direction: column; gap: 14px; }
+.wa-focus-item { display: flex; gap: 12px; align-items: flex-start; }
+.wa-focus-icon {
+  flex: 0 0 32px; height: 32px; border-radius: 10px; background: #FBFBF7; border: 1px solid var(--line);
+  display: flex; align-items: center; justify-content: center; font-size: 15px;
+}
+.wa-focus-item b { display: block; font-size: 13.5px; color: var(--ink); font-weight: 600; }
+.wa-focus-item p { font-size: 12.5px; color: var(--muted); line-height: 1.55; margin-top: 3px; }
+
+.wa-focus-editor { display: flex; flex-direction: column; gap: 10px; }
+.wa-focus-edit-row { display: flex; gap: 10px; align-items: flex-start; }
+.wa-focus-icon-input {
+  flex: 0 0 44px; height: 40px; border: 1px solid var(--line); border-radius: 9px;
+  text-align: center; font-size: 16px; padding: 0;
+}
+.wa-focus-edit-fields { flex: 1; display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.wa-focus-edit-fields input, .wa-focus-edit-fields textarea {
+  border: 1px solid var(--line); border-radius: 9px; padding: 9px 11px;
+  font: inherit; font-size: 13.5px; color: var(--ink); background: var(--card);
+}
+.wa-focus-edit-fields textarea { min-height: 56px; resize: vertical; }
+.wa-focus-edit-fields input:focus, .wa-focus-edit-fields textarea:focus { outline: none; border-color: var(--gold); }

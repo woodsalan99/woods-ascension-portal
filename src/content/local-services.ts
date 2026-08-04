@@ -76,6 +76,10 @@ export const LS_CONTENT = {
   "overview.plan.sub": { def: "What we're working on for you right now", max: 200 },
   "overview.plan.empty": { def: "This month's plan lands here at the start of each month.", max: 200 },
 
+  "overview.focus.label": { def: "Campaign focus", max: 60 },
+  "overview.focus.title": { def: "What this month is for", max: 100 },
+
+
   "overview.period.rolling": { def: "Last 30 days", max: 40 },
   "overview.period.mtd": { def: "This month so far", max: 40 },
 
