@@ -35,7 +35,9 @@ export type LsaParsed = {
   serviceType: string | null;
   message: string | null;
   phone: string | null; // only ever present on the customer-message variant
-  variant: "REQUEST" | "MESSAGE";
+  variant: "REQUEST" | "MESSAGE" | "CALL";
+  /** CALL only: when Google says the call happened, as written in the mail. */
+  calledAt: string | null;
 };
 
 export type FormParsed = {
@@ -50,13 +52,21 @@ export type FormParsed = {
   site: string | null;
 };
 
+export type VoicemailParsed = {
+  receivedAt: Date;
+  phone: string | null;
+  lengthSec: number | null;
+  /** TalkRoute's transcription of what the caller said, verbatim. */
+  transcript: string | null;
+};
+
 export type GmailMatcherConfig = {
   formFromAddress: string; // e.g. "noreply@oahuhousepainters.com" — client-specific, disambiguates senders
   siteDomain?: string;
 };
 
 export interface Matcher<T> {
-  provider: "LSA" | "ESTIMATE_FORM";
+  provider: "LSA" | "ESTIMATE_FORM" | "TALKROUTE";
   matches(meta: GmailMeta, cfg: GmailMatcherConfig): boolean;
   parse(body: { text: string }, meta: GmailMeta): ParseOutcome<T>;
 }
@@ -124,6 +134,28 @@ export const lsaMatcher: Matcher<LsaParsed> = {
     // timezone, which isn't stated in the mail — not worth guessing at.
     const receivedAt = new Date(meta.internalDate);
 
+    // Variant C — Google telling us a call came in. LSA calls bypass CallRail
+    // and go straight to TalkRoute, so this email is the ONLY record of them.
+    // It has none of the dash-labelled fields the request variant has, so it
+    // used to fall through to "couldn't be read" and produce a notification
+    // about Google hiding a number that was never there. See D52.
+    if (/new call from a potential customer|called you on/i.test(text)) {
+      const when = /called you on\s+([0-9/]+)\s+at\s+([0-9:]+\s*[AP]M)/i.exec(text);
+      return {
+        ok: true,
+        data: {
+          receivedAt,
+          name: null,
+          location: null,
+          serviceType: null,
+          message: null,
+          phone: null,
+          variant: "CALL",
+          calledAt: when ? `${when[1]} at ${when[2]}` : null,
+        },
+      };
+    }
+
     // Variant B — the customer replying, usually with their phone number.
     if (/sent you a message/i.test(text)) {
       const after = text.split(/sent you a message/i)[1] ?? "";
@@ -141,6 +173,7 @@ export const lsaMatcher: Matcher<LsaParsed> = {
           message: messageText || null,
           phone: PHONE_RE.exec(messageText)?.[0]?.trim() ?? null,
           variant: "MESSAGE",
+          calledAt: null,
         },
       };
     }
@@ -166,6 +199,7 @@ export const lsaMatcher: Matcher<LsaParsed> = {
         message,
         phone: null,
         variant: "REQUEST",
+        calledAt: null,
       },
     };
   },
@@ -232,5 +266,52 @@ export const formMatcher: Matcher<FormParsed> = {
         site: siteMatch?.[1]?.trim() ?? null,
       },
     };
+  },
+};
+
+
+// ---- C. TalkRoute voicemail emails ----
+//
+// TalkRoute has no API for voicemails, but it emails a transcription every
+// time one is left — and that email carries the caller's number, which is
+// gold for Google Ads calls where Google tells us a call happened but hides
+// who called. Verified against the real email of 2026-08-04 ("You Have A
+// New Voice Message From 1 (808) 551-1196" / "Hi, my name is Pete...").
+// See D53.
+export const talkrouteMatcher: Matcher<VoicemailParsed> = {
+  provider: "TALKROUTE",
+  matches(meta) {
+    return /voicemail@talkroute\.com/i.test(meta.from) || /new voice message from/i.test(meta.subject);
+  },
+  parse(body, meta) {
+    const text = clean(body.text);
+    const receivedAt = new Date(meta.internalDate);
+
+    // Number: prefer the "From:" line in the body, fall back to the subject.
+    const phone =
+      /From:\s*((\+?1[\s.-]?)?\(?\d{3}\)?[\s.-]?\d{3}[\s.-]?\d{4})/i.exec(text)?.[1]?.trim() ??
+      PHONE_RE.exec(meta.subject)?.[0]?.trim() ??
+      null;
+
+    const lengthSec = (() => {
+      const m = /Message Length:\s*(\d+)\s*second/i.exec(text);
+      return m ? Number(m[1]) : null;
+    })();
+
+    // The transcription is the free text after the "Mailbox:" line. Strip
+    // link/footer lines rather than trying to enumerate TalkRoute's footer.
+    let transcript: string | null = null;
+    const after = text.split(/Mailbox:[^\n]*\n/i)[1];
+    if (after) {
+      transcript = after
+        .split("\n")
+        .map((l) => l.trim())
+        .filter((l) => l && !/^https?:\/\//i.test(l) && !/^</.test(l) && !/talkroute/i.test(l) && !/unsubscribe|manage.*preferences/i.test(l))
+        .join(" ")
+        .trim() || null;
+    }
+
+    if (!phone && !transcript) return { ok: false, reason: "no phone or transcript found in voicemail email" };
+    return { ok: true, data: { receivedAt, phone, lengthSec, transcript } };
   },
 };

@@ -44,6 +44,7 @@ const HISTORY_ICON: Record<string, string> = {
   VALUE_SET: "💵",
   QUALIFIED_TOGGLE: "✓",
   RENAME: "✎",
+  VOICEMAIL: "🎙",
 };
 
 const COLUMNS: { stage: LeadStage; title: string; help: string }[] = [

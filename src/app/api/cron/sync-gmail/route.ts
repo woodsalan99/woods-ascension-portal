@@ -2,7 +2,7 @@ import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/prisma";
 import { openJson } from "@/lib/crypto";
 import { listNewMessages, getMessage, type GmailCursor } from "@/lib/gmail";
-import { lsaMatcher, formMatcher, type GmailMatcherConfig } from "@/lib/gmail-parsers";
+import { lsaMatcher, formMatcher, talkrouteMatcher, type GmailMatcherConfig } from "@/lib/gmail-parsers";
 import { classifySpam } from "@/lib/spam-classify";
 import { notify } from "@/lib/notify";
 
@@ -13,7 +13,7 @@ const LSA_CONSOLE_URL = "https://business.google.com/us/ad-solutions/local-servi
 const LSA_CREDENTIALS_URL =
   "https://docs.google.com/document/d/1bULpMBD8zBPGpT6XrrpzyrSis8YCl67Np9tJsQIy6pc/edit?tab=t.0";
 const LEADS_URL = "https://portal.woodsascension.com/leads";
-import { recordContact } from "@/lib/lead-identity";
+import { recordContact, normalizePhone } from "@/lib/lead-identity";
 
 const SPAM_CONFIDENCE_THRESHOLD = 0.75;
 const WATCHDOG_GRACE_MS = 7 * 24 * 60 * 60_000;
@@ -126,9 +126,11 @@ export async function GET(req: Request) {
               dedupeKey: `gmail:${meta.id}`,
               occurredAt: d?.receivedAt ?? new Date(meta.internalDate),
               summary: d
-                ? d.variant === "MESSAGE"
-                  ? `Google Ads customer replied: ${d.message ?? "(no text)"}`.slice(0, 200)
-                  : `Google Ads request — ${[d.serviceType, d.location].filter(Boolean).join(" · ") || "no details given"}`
+                ? d.variant === "CALL"
+                  ? `Called through Google Ads${d.calledAt ? ` on ${d.calledAt}` : ""} — details only visible in the Google Ads account`
+                  : d.variant === "MESSAGE"
+                    ? `Google Ads customer replied: ${d.message ?? "(no text)"}`.slice(0, 200)
+                    : `Google Ads request — ${[d.serviceType, d.location].filter(Boolean).join(" · ") || "no details given"}`
                 : "Google Ads lead that couldn't be read automatically — check Gmail",
               meta: { gmailMessageId: meta.id, variant: d?.variant ?? "UNPARSED" },
             },
@@ -160,15 +162,26 @@ export async function GET(req: Request) {
 
           const lsa = outcome.ok ? outcome.data : null;
           const lsaWhere = [lsa?.serviceType, lsa?.location].filter(Boolean).join(" · ");
+          const isCall = lsa?.variant === "CALL";
 
-          // Wording specified by Alan, so it reads the same on all three
-          // phones and always carries the two links needed to act on it.
+          // Wording specified by Alan. Google gives no way to know from the
+          // email whether Desiree picked the call up, so the notification
+          // says so plainly instead of guessing — it opens with the escape
+          // hatch for the person who already handled it. See D52.
+          const what = isCall
+            ? `A customer CALLED you${lsa?.calledAt ? ` on ${lsa.calledAt}` : ""}.`
+            : lsa?.phone
+              ? `Their number is ${lsa.phone}.`
+              : "They sent a message through Google.";
+
           const pushover = [
             "New lead from Google Ads.",
-            lsa?.phone ? `Phone number is ${lsa.phone}.` : "Google is still hiding their number.",
-            lsa?.message ? `Their message says: ${lsa.message}` : null,
-            `View the full conversation at ${LSA_CONSOLE_URL}`,
-            `Login details: ${LSA_CREDENTIALS_URL}`,
+            what,
+            lsa?.message ? `They said: ${lsa.message}` : null,
+            "Desiree — if you already answered, ignore this.",
+            "Otherwise: if it was a message, reply or call them. If it was a missed call, call them back.",
+            `Log in to Google Ads: ${LSA_CONSOLE_URL}`,
+            `Account details to log in with: ${LSA_CREDENTIALS_URL}`,
           ]
             .filter(Boolean)
             .join(" ");
@@ -176,35 +189,144 @@ export async function GET(req: Request) {
           await notify({
             clientId: integ.clientId,
             kind: "NEW_LEAD",
-            title: lsa?.phone ? `Google Ads lead — ${lsa.phone}` : "New Google Ads lead",
+            title: isCall
+              ? "Google Ads — customer called"
+              : lsa?.phone
+                ? `Google Ads lead — ${lsa.phone}`
+                : "Google Ads — new message",
             message: pushover.slice(0, 900),
+            // Deliberately does NOT forward Google's original email. It is
+            // almost entirely tracking links, a customer ID, a Dublin postal
+            // address and a mandatory-service-announcement footer — the one
+            // fact in it is the line we already extracted. Pasting it under
+            // the summary was what made this unreadable.
             emailBody: [
-              lsa?.phone
-                ? `A Google Ads customer got in touch. Their number is ${lsa.phone}.`
-                : "A new Google Local Services Ads lead just came in.",
+              isCall
+                ? `A Google Ads customer called you${lsa?.calledAt ? ` on ${lsa.calledAt}` : ""}.`
+                : lsa?.phone
+                  ? `A Google Ads customer got in touch. Their number is ${lsa.phone}.`
+                  : "A Google Ads customer sent you a message.",
               "",
               lsaWhere ? `Job:      ${lsaWhere}` : null,
               lsa?.phone ? `Phone:    ${lsa.phone}` : null,
               lsa?.name ? `Name:     ${lsa.name}` : null,
-              "",
+              lsa?.message ? "" : null,
               lsa?.message ? "What they said:" : null,
               lsa?.message ?? null,
-              lsa?.message ? "" : null,
-              lsa?.phone
-                ? "You can call them straight back."
-                : "Google hides the customer's name and number until you reply to them.",
               "",
-              `View the full conversation: ${LSA_CONSOLE_URL}`,
-              `Sign-in details for that account: ${LSA_CREDENTIALS_URL}`,
+              "WHAT TO DO",
+              "Desiree — if you already answered this one, nothing to do.",
+              isCall
+                ? "Otherwise, call them back. Google doesn't send us their number, so you'll need to open the account below to get it."
+                : "Otherwise, reply to them or give them a call. Google keeps their details hidden until you reply.",
+              "",
+              `Log in to Google Ads:  ${LSA_CONSOLE_URL}`,
+              `Account details:       ${LSA_CREDENTIALS_URL}`,
               "",
               `This lead is also on your Leads page: ${LEADS_URL}`,
-              "",
-              "----- Google's original email -----",
-              text.slice(0, 4000),
             ]
               .filter((line) => line !== null)
               .join("\n"),
           });
+          continue;
+        }
+
+        // TalkRoute voicemail — the transcription email. Order of arrival is
+        // NOT reliable: in the real test the voicemail email landed two
+        // minutes BEFORE Google's call email, so a "wait after the call"
+        // check would have missed it. Instead both directions correlate:
+        // this block adopts a recent phone-less Google Ads call lead if one
+        // exists, and hands the lead its number — and because the LSA block
+        // enriches by phone, a voicemail processed first is found by the
+        // later call email through the normal phone merge. See D53.
+        if (talkrouteMatcher.matches(meta, config)) {
+          const outcome = talkrouteMatcher.parse({ text }, meta);
+          if (!outcome.ok) {
+            parseFailures++;
+            continue;
+          }
+          const vm = outcome.data;
+
+          // A Google Ads call lead with no number, within ±90 minutes, is
+          // almost certainly this same call. Give it the number FIRST so
+          // recordContact's phone match lands on it instead of creating a
+          // twin.
+          if (vm.phone) {
+            const orphan = await prisma.serviceLead.findFirst({
+              where: {
+                clientId: integ.clientId,
+                source: "LSA",
+                phone: null,
+                deletedAt: null,
+                receivedAt: {
+                  gte: new Date(vm.receivedAt.getTime() - 90 * 60_000),
+                  lte: new Date(vm.receivedAt.getTime() + 90 * 60_000),
+                },
+              },
+              orderBy: { receivedAt: "desc" },
+            });
+            if (orphan) {
+              await prisma.serviceLead.update({
+                where: { id: orphan.id },
+                data: {
+                  phone: vm.phone,
+                  phoneNormalized: normalizePhone(vm.phone),
+                  needsDetails: false,
+                  message: orphan.message ?? vm.transcript,
+                },
+              });
+            }
+          }
+
+          const vmResult = await recordContact({
+            clientId: integ.clientId,
+            identity: { phone: vm.phone },
+            event: {
+              type: "VOICEMAIL",
+              dedupeKey: `vm:${meta.id}`,
+              occurredAt: vm.receivedAt,
+              summary: `Voicemail${vm.lengthSec ? ` (${vm.lengthSec}s)` : ""}: ${vm.transcript ?? "(no transcription)"}`.slice(0, 300),
+              meta: { gmailMessageId: meta.id, transcript: vm.transcript, lengthSec: vm.lengthSec },
+            },
+            create: {
+              source: "GBP_CALL",
+              stage: "NEW",
+              phone: vm.phone,
+              message: vm.transcript,
+              receivedAt: vm.receivedAt,
+            },
+            enrich: { phone: vm.phone },
+          });
+          if (vmResult.isNewLead) leadsCreated++;
+
+          if (vmResult.isNewEvent) {
+            const who = vmResult.lead.name ?? vm.phone ?? "a caller";
+            await notify({
+              clientId: integ.clientId,
+              kind: "NEW_LEAD",
+              title: `Voicemail — ${who}`,
+              message: [
+                `${who} left a voicemail${vm.lengthSec ? ` (${vm.lengthSec}s)` : ""}.`,
+                vm.transcript ? `They said: "${vm.transcript}"` : null,
+                vm.phone ? `Call them back: ${vm.phone}` : null,
+              ]
+                .filter(Boolean)
+                .join(" ")
+                .slice(0, 900),
+              emailBody: [
+                `${who} left a voicemail${vm.lengthSec ? ` (${vm.lengthSec} seconds)` : ""}.`,
+                "",
+                vm.transcript ? "What they said:" : null,
+                vm.transcript ? `"${vm.transcript}"` : null,
+                "",
+                vm.phone ? `Call them back: ${vm.phone}` : "TalkRoute didn't include their number — check the TalkRoute app.",
+                "",
+                `This lead is also on your Leads page: ${LEADS_URL}`,
+              ]
+                .filter((line) => line !== null)
+                .join("\n"),
+            });
+          }
           continue;
         }
 
