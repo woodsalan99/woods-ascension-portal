@@ -628,12 +628,21 @@ span.wa-ob-active { font-size: 12px; font-weight: 600; color: var(--green); }
   background: var(--card); border: 1px solid var(--line); border-radius: 14px;
   padding: 4px; margin-bottom: 20px; box-shadow: 0 5px 15px rgba(16,30,46,.035);
 }
-.wa-pstat { padding: 17px 20px; border-right: 1px solid var(--line); }
+.wa-pstat { padding: 17px 20px; border-right: 1px solid var(--line); display: flex; gap: 12px; align-items: flex-start; }
 .wa-pstat:last-child { border-right: 0; }
+.wa-pstat-icon {
+  flex: 0 0 30px; width: 30px; height: 30px; border-radius: 999px; font-size: 14px;
+  display: flex; align-items: center; justify-content: center; margin-top: 1px;
+}
+.wa-pstat-icon.neutral { background: #F1F0EA; }
+.wa-pstat-icon.gold { background: var(--gold-soft); }
+.wa-pstat-icon.green { background: var(--green-soft); }
+.wa-pstat-body { min-width: 0; }
 .wa-pstat-label { font-size: 12px; color: var(--muted); }
 .wa-pstat-value { font-family: 'Fraunces', serif; font-size: 27px; color: var(--ink); margin-top: 6px; }
 .wa-pstat-value.green { color: var(--green); } .wa-pstat-value.gold { color: var(--gold); }
 .wa-pstat-sub { font-size: 10.5px; color: var(--muted); margin-top: 7px; }
+@media (max-width: 640px) { .wa-pstat { padding: 14px 16px; } }
 
 .wa-kanban-wrap {
   background: #F5EFE3; border: 1px solid #E0D6C2; border-radius: 14px; padding: 18px; overflow-x: auto;
@@ -1356,4 +1365,85 @@ span.wa-ob-active { font-size: 12px; font-weight: 600; color: var(--green); }
   font: inherit; font-size: 13.5px; color: var(--ink); background: var(--card);
 }
 .wa-focus-edit-fields textarea { min-height: 56px; resize: vertical; }
+
+/* ---------- local-services: Leads redesign (search/filter, quick actions,
+   right-side drawer, follow-up editor) ---------- */
+
+.wa-leads-toolbar { display: flex; gap: 10px; margin-bottom: 10px; }
+.wa-leads-search {
+  flex: 1; display: flex; align-items: center; gap: 8px; background: var(--card);
+  border: 1px solid var(--line); border-radius: 10px; padding: 0 12px;
+}
+.wa-leads-search-ico { font-size: 13px; opacity: .6; }
+.wa-leads-search input {
+  flex: 1; border: 0; background: transparent; padding: 10px 0; font: inherit; font-size: 13px; color: var(--ink);
+}
+.wa-leads-search input:focus { outline: none; }
+.wa-leads-filter-btn {
+  flex: none; border: 1px solid var(--line); background: var(--card); border-radius: 10px;
+  padding: 0 14px; font: inherit; font-size: 13px; font-weight: 600; color: var(--ink-soft); cursor: pointer;
+  white-space: nowrap;
+}
+.wa-leads-filter-btn.on { background: var(--gold-soft); border-color: #E8DCC2; color: var(--gold); }
+.wa-leads-filter-panel { display: flex; flex-wrap: wrap; gap: 7px; margin-bottom: 10px; }
+.wa-leads-filter-panel button {
+  border: 1px solid var(--line); background: var(--card); border-radius: 999px;
+  padding: 6px 13px; font: inherit; font-size: 12px; color: var(--ink-soft); cursor: pointer;
+}
+.wa-leads-filter-panel button.on { background: var(--ink); border-color: var(--ink); color: #fff; }
+.wa-leads-filter-count { font-size: 12px; color: var(--muted); margin: 0 0 10px; }
+@media (max-width: 480px) { .wa-leads-toolbar { flex-wrap: wrap; } .wa-leads-search { flex: 1 1 100%; } }
+
+/* Quick-action icons on each card — call/text/note without opening the
+   drawer. e.stopPropagation() in the handlers keeps a tap from also
+   opening the card underneath. */
+.wa-lead-quick-actions { display: flex; gap: 6px; }
+.wa-lead-quick-btn {
+  display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px;
+  border-radius: 999px; background: rgba(0,0,0,.045); font-size: 12px; text-decoration: none;
+  border: 0; cursor: pointer; color: inherit;
+}
+.wa-lead-quick-btn:hover { background: rgba(0,0,0,.09); }
+.wa-lead-quick-btn.call { background: rgba(52,168,83,.14); }
+.wa-lead-time { font-variant-numeric: tabular-nums; }
+
+/* Right-side drawer — replaces the centered wa-modal for the main lead
+   detail view only; delete/job-won confirmations stay centered modals. */
+.wa-drawer-bg {
+  position: fixed; inset: 0; background: rgba(10,18,32,.5); z-index: 200;
+  display: flex; justify-content: flex-end;
+}
+.wa-drawer {
+  background: var(--card); width: 100%; max-width: 480px; height: 100%; overflow-y: auto;
+  box-shadow: -12px 0 36px rgba(16,30,46,.2); position: relative;
+  animation: wa-drawer-in .18s ease-out;
+}
+@keyframes wa-drawer-in { from { transform: translateX(24px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+.wa-drawer-close {
+  position: absolute; top: 16px; right: 16px; width: 32px; height: 32px; border-radius: 999px;
+  border: 1px solid var(--line); background: var(--card); font-size: 18px; line-height: 1; color: var(--muted);
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+}
+.wa-drawer-close:hover { background: #FBFBF7; }
+.wa-drawer-actions { display: flex; gap: 8px; padding: 16px 24px 0; flex-wrap: wrap; }
+.wa-drawer-action {
+  display: inline-flex; align-items: center; gap: 6px; border: 1px solid var(--line); background: var(--card);
+  border-radius: 9px; padding: 9px 15px; font-size: 13px; font-weight: 600; color: var(--ink); text-decoration: none;
+}
+.wa-drawer-action:hover { background: #FBFBF7; }
+.wa-drawer-action.call { background: var(--green-soft); border-color: #CFE3D7; color: var(--green); }
+@media (max-width: 640px) { .wa-drawer { max-width: 100%; } }
+
+/* Follow-up date editor, inside the drawer body. */
+.wa-followup-block { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--line); }
+.wa-followup-current {
+  display: flex; justify-content: space-between; align-items: center; gap: 10px; margin-top: 6px;
+  font-size: 13.5px; color: var(--ink-soft);
+}
+.wa-followup-editor { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
+.wa-followup-editor input {
+  border: 1px solid var(--line); border-radius: 9px; padding: 9px 11px; font: inherit; font-size: 13.5px;
+  color: var(--ink); background: var(--card);
+}
+.wa-followup-editor-actions { display: flex; gap: 8px; justify-content: flex-end; flex-wrap: wrap; margin-top: 2px; }
 .wa-focus-edit-fields input:focus, .wa-focus-edit-fields textarea:focus { outline: none; border-color: var(--gold); }

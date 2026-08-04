@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireDashboardWriteScope } from "@/lib/dashboard-scope";
 import { getScopedContext } from "@/lib/auth";
+import { notify } from "@/lib/notify";
 import type { LeadStage } from "@prisma/client";
 
 // Same tenancy guarantee as the rest of the client-writable actions
@@ -100,6 +101,76 @@ export async function toggleLeadBadFit(leadId: string) {
   ]);
   revalidatePath("/leads");
   revalidatePath("/");
+}
+
+// Setting a follow-up date had no client-facing UI at all before this — the
+// fields existed (nextActionAt/nextActionLabel) but were only ever written
+// by sync routes and backfill scripts. This is the first way a client can
+// set one themselves. Clearing (empty date) removes it entirely rather than
+// leaving a label with no date behind it.
+export async function setLeadFollowUp(leadId: string, dateIso: string | null, label: string): Promise<void> {
+  const scope = await requireDashboardWriteScope();
+  await assertOwnsLead(leadId, scope.clientId);
+
+  const nextActionAt = dateIso ? new Date(`${dateIso}T12:00:00Z`) : null;
+  const nextActionLabel = nextActionAt ? label.trim().slice(0, 80) || "Follow up" : null;
+
+  await prisma.$transaction([
+    prisma.serviceLead.update({ where: { id: leadId }, data: { nextActionAt, nextActionLabel } }),
+    prisma.leadActivity.create({
+      data: {
+        leadId,
+        type: "NOTE",
+        meta: {
+          summary: nextActionAt
+            ? `Follow-up set for ${nextActionAt.toLocaleDateString("en-US", { month: "short", day: "numeric" })}${label.trim() ? ` — ${label.trim()}` : ""}`
+            : "Follow-up date cleared",
+        },
+      },
+    }),
+  ]);
+  revalidatePath("/leads");
+}
+
+// Requests a review straight from a lead's own card, using their own name
+// and number, rather than making Bryan or Desiree retype it into "What I
+// Need From You". Moves the lead into Review Requested — the column already
+// exists for exactly this — and notifies Alan the same way the nextsteps
+// page's request does, so the two paths behave identically from his side.
+export async function requestLeadReview(leadId: string): Promise<void> {
+  const scope = await requireDashboardWriteScope();
+  const lead = await assertOwnsLead(leadId, scope.clientId);
+  if (!lead.phone) throw new Error("This lead has no phone number to request a review with.");
+
+  const customerName = lead.name ?? lead.phone;
+
+  await prisma.$transaction([
+    prisma.reviewRequest.create({
+      data: {
+        clientId: scope.clientId,
+        leadId,
+        customerName,
+        phone: lead.phone,
+        jobFinishedAt: new Date(),
+        status: "QUEUED",
+      },
+    }),
+    prisma.serviceLead.update({ where: { id: leadId }, data: { stage: "REVIEW_REQUESTED", stageChangedAt: new Date() } }),
+    prisma.leadActivity.create({
+      data: { leadId, type: "STAGE_MOVE", meta: { from: lead.stage, to: "REVIEW_REQUESTED", summary: "Review requested" } },
+    }),
+  ]);
+
+  const client = await prisma.client.findUniqueOrThrow({ where: { id: scope.clientId }, select: { name: true } });
+  await notify({
+    clientId: scope.clientId,
+    kind: "REVIEW_REQUEST",
+    title: `Review request queued — ${client.name}`,
+    message: `${customerName} (${lead.phone}) is ready for a review request.`,
+    toClient: false,
+  });
+
+  revalidatePath("/leads");
 }
 
 // Soft delete. A hard delete would be undone by the next CallRail sync,

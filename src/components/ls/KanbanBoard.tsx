@@ -1,8 +1,16 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import type { LeadStage, LeadSource } from "@prisma/client";
-import { moveLeadStage, setJobWon, addLeadNote, toggleLeadBadFit, deleteLead } from "@/app/(dashboard)/leads/actions";
+import {
+  moveLeadStage,
+  setJobWon,
+  addLeadNote,
+  toggleLeadBadFit,
+  deleteLead,
+  setLeadFollowUp,
+  requestLeadReview,
+} from "@/app/(dashboard)/leads/actions";
 import { leadLabel, isPlaceholderLabel } from "@/lib/lead-label";
 
 export type LeadCardVM = {
@@ -45,6 +53,7 @@ const HISTORY_ICON: Record<string, string> = {
   QUALIFIED_TOGGLE: "✓",
   RENAME: "✎",
   VOICEMAIL: "🎙",
+  CREATED: "✨",
 };
 
 const COLUMNS: { stage: LeadStage; title: string; help: string }[] = [
@@ -58,7 +67,7 @@ const COLUMNS: { stage: LeadStage; title: string; help: string }[] = [
   { stage: "LOST", title: "Lost / Went Cold", help: "Stopped replying or chose someone else." },
 ];
 
-const STAGE_TITLE: Record<LeadStage, string> = Object.fromEntries(
+export const STAGE_TITLE: Record<LeadStage, string> = Object.fromEntries(
   COLUMNS.map((c) => [c.stage, c.title]),
 ) as Record<LeadStage, string>;
 
@@ -77,6 +86,27 @@ function timeAgo(date: Date): string {
   const hours = Math.floor(mins / 60);
   if (hours < 24) return `${hours}h ago`;
   return `${Math.floor(hours / 24)}d ago`;
+}
+
+function telHref(phone: string) {
+  return `tel:${phone.replace(/[^0-9+]/g, "")}`;
+}
+function smsHref(phone: string) {
+  return `sms:${phone.replace(/[^0-9+]/g, "")}`;
+}
+// mailto:/sms: rather than a send-it-ourselves feature. Actually sending
+// through the portal would mean either paying CallRail per text or getting
+// Bryan and Desiree to grant their own personal inboxes OAuth access, which
+// they haven't. This opens their own phone's app instead — no new
+// integration, and it's what a "simple CRM" should feel like anyway.
+function mailtoHref(email: string) {
+  return `mailto:${email}`;
+}
+
+// Formatted for a date <input>'s value attribute.
+function toDateInputValue(date: Date | null): string {
+  if (!date) return "";
+  return date.toISOString().slice(0, 10);
 }
 
 function dueLabel(date: Date | null): { text: string; cls: string } {
@@ -109,8 +139,25 @@ export function KanbanBoard({ leads: initialLeads }: { leads: LeadCardVM[] }) {
   const [noteSaved, setNoteSaved] = useState(false);
   const [, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
+  const [search, setSearch] = useState("");
+  const [sourceFilter, setSourceFilter] = useState<LeadSource | "ALL">("ALL");
+  const [showFilters, setShowFilters] = useState(false);
 
   const openLead = leads.find((l) => l.id === openLeadId) ?? null;
+
+  // Client-side: the board is a few dozen cards at most, and filtering what's
+  // already on the page is instant. A server round-trip for this would be
+  // slower, not simpler.
+  const visibleLeads = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return leads.filter((l) => {
+      if (sourceFilter !== "ALL" && l.source !== sourceFilter) return false;
+      if (!q) return true;
+      return [leadLabel(l), l.phone, l.email, l.serviceType, l.location, l.message]
+        .filter(Boolean)
+        .some((field) => field!.toLowerCase().includes(q));
+    });
+  }, [leads, search, sourceFilter]);
 
   function applyStage(leadId: string, stage: LeadStage, jobValue?: number | null) {
     setLeads((prev) =>
@@ -219,6 +266,51 @@ export function KanbanBoard({ leads: initialLeads }: { leads: LeadCardVM[] }) {
     setOpenLeadId(null);
     setNoteDraft("");
     setNoteSaved(false);
+    setFollowUpEditing(false);
+  }
+
+  const [followUpEditing, setFollowUpEditing] = useState(false);
+  const [followUpDate, setFollowUpDate] = useState("");
+  const [followUpLabel, setFollowUpLabel] = useState("");
+  const [followUpBusy, setFollowUpBusy] = useState(false);
+
+  function openFollowUpEditor(lead: LeadCardVM) {
+    setFollowUpDate(toDateInputValue(lead.nextActionAt));
+    setFollowUpLabel(lead.nextActionLabel ?? "");
+    setFollowUpEditing(true);
+  }
+
+  async function saveFollowUp(lead: LeadCardVM) {
+    setFollowUpBusy(true);
+    const prevAt = lead.nextActionAt;
+    const prevLabel = lead.nextActionLabel;
+    const nextAt = followUpDate ? new Date(`${followUpDate}T12:00:00Z`) : null;
+    setLeads((ls) =>
+      ls.map((l) => (l.id === lead.id ? { ...l, nextActionAt: nextAt, nextActionLabel: nextAt ? followUpLabel || "Follow up" : null } : l)),
+    );
+    try {
+      await setLeadFollowUp(lead.id, followUpDate || null, followUpLabel);
+      setFollowUpEditing(false);
+    } catch (err) {
+      setLeads((ls) => ls.map((l) => (l.id === lead.id ? { ...l, nextActionAt: prevAt, nextActionLabel: prevLabel } : l)));
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setFollowUpBusy(false);
+    }
+  }
+
+  const [reviewBusy, setReviewBusy] = useState(false);
+  async function handleRequestReview(lead: LeadCardVM) {
+    setReviewBusy(true);
+    setError(null);
+    try {
+      await requestLeadReview(lead.id);
+      applyStage(lead.id, "REVIEW_REQUESTED");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setReviewBusy(false);
+    }
   }
 
   // No leads at all — 8 empty columns tell a non-technical reader nothing,
@@ -256,12 +348,47 @@ export function KanbanBoard({ leads: initialLeads }: { leads: LeadCardVM[] }) {
         </div>
       )}
 
+      <div className="wa-leads-toolbar">
+        <div className="wa-leads-search">
+          <span className="wa-leads-search-ico">🔍</span>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search name, number, or what they said…"
+          />
+        </div>
+        <button
+          type="button"
+          className={`wa-leads-filter-btn ${sourceFilter !== "ALL" ? "on" : ""}`}
+          onClick={() => setShowFilters((s) => !s)}
+        >
+          ▾ Filter{sourceFilter !== "ALL" ? `: ${SOURCE_CHIP[sourceFilter].label}` : ""}
+        </button>
+      </div>
+      {showFilters && (
+        <div className="wa-leads-filter-panel">
+          <button type="button" className={sourceFilter === "ALL" ? "on" : ""} onClick={() => setSourceFilter("ALL")}>
+            All sources
+          </button>
+          {(Object.keys(SOURCE_CHIP) as LeadSource[]).map((s) => (
+            <button key={s} type="button" className={sourceFilter === s ? "on" : ""} onClick={() => setSourceFilter(s)}>
+              {SOURCE_CHIP[s].label}
+            </button>
+          ))}
+        </div>
+      )}
+      {(search.trim() || sourceFilter !== "ALL") && (
+        <p className="wa-leads-filter-count">
+          Showing {visibleLeads.length} of {leads.length} leads
+        </p>
+      )}
+
       <div className="wa-scroll-hint">Swipe sideways to see the other stages →</div>
 
       <div className="wa-kanban-wrap">
         <div className="wa-kanban">
           {COLUMNS.map((col) => {
-            const colLeads = leads.filter((l) => l.stage === col.stage);
+            const colLeads = visibleLeads.filter((l) => l.stage === col.stage);
             const colValue = colLeads.reduce((sum, l) => sum + (l.jobValue ?? 0), 0);
             return (
               <section
@@ -344,7 +471,40 @@ export function KanbanBoard({ leads: initialLeads }: { leads: LeadCardVM[] }) {
                         )}
                         <div className="wa-lead-bottom">
                           <span className={due.cls}>{due.text}</span>
-                          <span>{timeAgo(lead.receivedAt)}</span>
+                          <div className="wa-lead-quick-actions">
+                            {lead.phone && (
+                              <>
+                                <a
+                                  className="wa-lead-quick-btn call"
+                                  href={telHref(lead.phone)}
+                                  aria-label={`Call ${leadLabel(lead)}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  📞
+                                </a>
+                                <a
+                                  className="wa-lead-quick-btn"
+                                  href={smsHref(lead.phone)}
+                                  aria-label={`Text ${leadLabel(lead)}`}
+                                  onClick={(e) => e.stopPropagation()}
+                                >
+                                  💬
+                                </a>
+                              </>
+                            )}
+                            <button
+                              type="button"
+                              className="wa-lead-quick-btn"
+                              aria-label={`Add a note for ${leadLabel(lead)}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenLeadId(lead.id);
+                              }}
+                            >
+                              🗒
+                            </button>
+                          </div>
+                          <span className="wa-lead-time">{timeAgo(lead.receivedAt)}</span>
                         </div>
                       </article>
                     );
@@ -357,27 +517,45 @@ export function KanbanBoard({ leads: initialLeads }: { leads: LeadCardVM[] }) {
       </div>
 
       {/* Lead detail — the always-available way to do everything, on any
-          device. Tapping a card opens this. */}
+          device. Tapping a card opens this. A right-side drawer rather than
+          a centered modal: it reads as "more detail on the thing you tapped"
+          instead of an interruption, and it's a more natural fit once the
+          board itself is the main view someone lives in. */}
       {openLead && (
-        <div className="wa-modal-bg" onClick={closeDetail}>
-          <div className="wa-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="wa-drawer-bg" onClick={closeDetail}>
+          <div className="wa-drawer" onClick={(e) => e.stopPropagation()}>
+            <button type="button" className="wa-drawer-close" aria-label="Close" onClick={closeDetail}>
+              ×
+            </button>
             <div className="wa-modal-head">
-              <h2 className="wa-h2">{leadLabel(openLead)}</h2>
-              <p className="wa-page-sub">
-                {[SOURCE_CHIP[openLead.source].label, openLead.serviceType, openLead.location]
-                  .filter(Boolean)
-                  .join(" · ")}
+              <p className="wa-page-sub" style={{ marginBottom: 4 }}>
+                {[SOURCE_CHIP[openLead.source].label, openLead.serviceType].filter(Boolean).join(" · ")}
               </p>
+              <h2 className="wa-h2">{leadLabel(openLead)}</h2>
+              <p className="wa-page-sub">{openLead.location}</p>
             </div>
-            <div className="wa-modal-body">
-              {openLead.phone && (
-                <p style={{ marginBottom: 14 }}>
-                  <a className="wa-lead-call-link" href={`tel:${openLead.phone.replace(/[^0-9+]/g, "")}`}>
-                    📞 Call {openLead.phone}
-                  </a>
-                </p>
-              )}
 
+            {/* Quick actions — the things done most often, one tap away
+                without scrolling into the rest of the drawer. */}
+            <div className="wa-drawer-actions">
+              {openLead.phone && (
+                <>
+                  <a className="wa-drawer-action call" href={telHref(openLead.phone)}>
+                    📞 Call
+                  </a>
+                  <a className="wa-drawer-action" href={smsHref(openLead.phone)}>
+                    💬 Text
+                  </a>
+                </>
+              )}
+              {openLead.email && (
+                <a className="wa-drawer-action" href={mailtoHref(openLead.email)}>
+                  ✉️ Email
+                </a>
+              )}
+            </div>
+
+            <div className="wa-modal-body">
               {openLead.message && <div className="wa-lead-quote" style={{ marginBottom: 16 }}>&ldquo;{openLead.message}&rdquo;</div>}
 
               {openLead.needsDetails && (
@@ -445,6 +623,69 @@ export function KanbanBoard({ leads: initialLeads }: { leads: LeadCardVM[] }) {
               <p className="wa-page-sub" style={{ marginTop: 8 }}>
                 Tap wherever this lead has got to. It saves straight away.
               </p>
+
+              {openLead.stage !== "REVIEW_REQUESTED" && openLead.stage !== "REVIEW_COMPLETE" && openLead.phone && (
+                <button
+                  type="button"
+                  className="wa-btn-primary"
+                  style={{ marginTop: 14 }}
+                  disabled={reviewBusy}
+                  onClick={() => handleRequestReview(openLead)}
+                >
+                  {reviewBusy ? "Sending…" : "⭐ Request a review"}
+                </button>
+              )}
+
+              <div className="wa-followup-block">
+                <div className="wa-kpi-label">Follow-up</div>
+                {!followUpEditing ? (
+                  <div className="wa-followup-current">
+                    <span>
+                      {openLead.nextActionAt
+                        ? `${dueLabel(openLead.nextActionAt).text}${openLead.nextActionLabel ? ` · ${openLead.nextActionLabel}` : ""}`
+                        : "No follow-up set"}
+                    </span>
+                    <button type="button" className="wa-plan-edit" onClick={() => openFollowUpEditor(openLead)}>
+                      {openLead.nextActionAt ? "Change" : "Set a date"}
+                    </button>
+                  </div>
+                ) : (
+                  <div className="wa-followup-editor">
+                    <input
+                      type="date"
+                      value={followUpDate}
+                      onChange={(e) => setFollowUpDate(e.target.value)}
+                    />
+                    <input
+                      type="text"
+                      placeholder="e.g. Call back"
+                      value={followUpLabel}
+                      onChange={(e) => setFollowUpLabel(e.target.value)}
+                    />
+                    <div className="wa-followup-editor-actions">
+                      <button type="button" className="wa-btn-ghost" disabled={followUpBusy} onClick={() => setFollowUpEditing(false)}>
+                        Cancel
+                      </button>
+                      {openLead.nextActionAt && (
+                        <button
+                          type="button"
+                          className="wa-btn-ghost"
+                          disabled={followUpBusy}
+                          onClick={() => {
+                            setFollowUpDate("");
+                            setFollowUpLabel("");
+                          }}
+                        >
+                          Clear
+                        </button>
+                      )}
+                      <button type="button" className="wa-btn-primary" disabled={followUpBusy} onClick={() => saveFollowUp(openLead)}>
+                        {followUpBusy ? "Saving…" : "Save"}
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
 
               <label className="wa-lead-qualified-toggle" style={{ marginTop: 18 }}>
                 <input

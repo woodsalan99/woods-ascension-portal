@@ -1,6 +1,7 @@
 import { requireClientType } from "@/lib/dashboard-scope";
 import { prisma } from "@/lib/prisma";
-import { KanbanBoard, type LeadCardVM } from "@/components/ls/KanbanBoard";
+import { KanbanBoard, STAGE_TITLE, type LeadCardVM } from "@/components/ls/KanbanBoard";
+import type { LeadStage } from "@prisma/client";
 import { monthKeyInTimezone } from "@/lib/timezone";
 
 const OPEN_STAGES = ["NEW", "CONTACTED", "QUOTE_SENT", "JOB_SCHEDULED"] as const;
@@ -22,6 +23,14 @@ export default async function LeadsPage() {
     },
   });
 
+  const SOURCE_CREATED_LABEL: Record<string, string> = {
+    LSA: "Lead created from Google Ads",
+    GBP_CALL: "Lead created from a Google Maps call",
+    WEBSITE_FORM: "Lead created from your website form",
+    REFERRAL: "Lead created from a referral",
+    OTHER: "Lead created",
+  };
+
   const cards: LeadCardVM[] = leads.map((l) => ({
     id: l.id,
     stage: l.stage,
@@ -41,7 +50,11 @@ export default async function LeadsPage() {
     nextActionAt: l.nextActionAt,
     receivedAt: l.receivedAt,
     // One timeline per person: synced contacts (calls, texts, forms) plus
-    // notes anyone has typed, newest first.
+    // notes anyone has typed, newest first — with a synthetic "lead
+    // created" entry at the very bottom. Render-only, no LeadActivity row:
+    // the moment is already recorded as receivedAt, and writing a real row
+    // for every historical lead would mean a one-off backfill script rather
+    // than something that's simply always true.
     history: [
       ...l.activity.map((a) => ({
         id: a.id,
@@ -49,7 +62,7 @@ export default async function LeadsPage() {
         summary:
           (a.meta as { summary?: string } | null)?.summary ??
           (a.type === "STAGE_MOVE"
-            ? `Moved to ${(a.meta as { to?: string } | null)?.to ?? "a new stage"}`
+            ? `Moved to ${STAGE_TITLE[(a.meta as { to?: LeadStage } | null)?.to as LeadStage] ?? "a new stage"}`
             : a.type.toLowerCase().replace(/_/g, " ")),
         occurredAt: a.occurredAt ?? a.createdAt,
       })),
@@ -59,7 +72,9 @@ export default async function LeadsPage() {
         summary: n.body,
         occurredAt: n.createdAt,
       })),
-    ].sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime()),
+    ]
+      .sort((a, b) => b.occurredAt.getTime() - a.occurredAt.getTime())
+      .concat([{ id: `created-${l.id}`, type: "CREATED", summary: SOURCE_CREATED_LABEL[l.source] ?? "Lead created", occurredAt: l.receivedAt }]),
   }));
 
   // ---- Stats strip ----
@@ -113,27 +128,39 @@ export default async function LeadsPage() {
       {leads.length > 0 && (
       <div className="wa-pipeline-stats">
         <div className="wa-pstat">
-          <div className="wa-pstat-label">Still open</div>
-          <div className="wa-pstat-value">{openCount}</div>
-          <div className="wa-pstat-sub">Not yet won or lost</div>
-        </div>
-        <div className="wa-pstat">
-          <div className="wa-pstat-label">Needs action today</div>
-          <div className="wa-pstat-value gold">{needsActionCount}</div>
-          <div className="wa-pstat-sub">{overdueCount > 0 ? `${overdueCount} overdue` : "None overdue"}</div>
-        </div>
-        <div className="wa-pstat">
-          <div className="wa-pstat-label">Followed up this week</div>
-          <div className="wa-pstat-value">
-            {touchedLeadIds.size} <small>of {openCount}</small>
+          <div className="wa-pstat-icon neutral">📋</div>
+          <div className="wa-pstat-body">
+            <div className="wa-pstat-label">Still open</div>
+            <div className="wa-pstat-value">{openCount}</div>
+            <div className="wa-pstat-sub">Not yet won or lost</div>
           </div>
-          <div className="wa-pstat-sub">Last 7 days</div>
         </div>
         <div className="wa-pstat">
-          <div className="wa-pstat-label">Jobs won this month</div>
-          <div className="wa-pstat-value green">${(wonValueTotal / 1000).toFixed(1)}K</div>
-          <div className="wa-pstat-sub">
-            {wonThisMonth.length} job{wonThisMonth.length === 1 ? "" : "s"}
+          <div className={`wa-pstat-icon ${needsActionCount > 0 ? "gold" : "neutral"}`}>⏰</div>
+          <div className="wa-pstat-body">
+            <div className="wa-pstat-label">Needs action today</div>
+            <div className="wa-pstat-value gold">{needsActionCount}</div>
+            <div className="wa-pstat-sub">{overdueCount > 0 ? `${overdueCount} overdue` : "None overdue"}</div>
+          </div>
+        </div>
+        <div className="wa-pstat">
+          <div className="wa-pstat-icon neutral">✓</div>
+          <div className="wa-pstat-body">
+            <div className="wa-pstat-label">Followed up this week</div>
+            <div className="wa-pstat-value">
+              {touchedLeadIds.size} <small>of {openCount}</small>
+            </div>
+            <div className="wa-pstat-sub">Last 7 days</div>
+          </div>
+        </div>
+        <div className="wa-pstat">
+          <div className="wa-pstat-icon green">💰</div>
+          <div className="wa-pstat-body">
+            <div className="wa-pstat-label">Jobs won this month</div>
+            <div className="wa-pstat-value green">${(wonValueTotal / 1000).toFixed(1)}K</div>
+            <div className="wa-pstat-sub">
+              {wonThisMonth.length} job{wonThisMonth.length === 1 ? "" : "s"}
+            </div>
           </div>
         </div>
       </div>
