@@ -12,6 +12,19 @@ function headerValue(headers: gmail_v1.Schema$MessagePartHeader[] | undefined, n
   return headers?.find((h) => h.name?.toLowerCase() === name.toLowerCase())?.value ?? "";
 }
 
+// Every routing header, joined and lowercased, so a matcher can ask "was
+// this addressed to my client?". Gmail repeats Delivered-To/X-Forwarded-For
+// once per forwarding hop, and the client's own address usually survives
+// only in those repeats — so collect ALL values of each, not the first.
+const ROUTING_HEADERS = ["to", "cc", "delivered-to", "x-forwarded-to", "x-forwarded-for", "x-original-to", "envelope-to"];
+function routingHaystack(headers: gmail_v1.Schema$MessagePartHeader[] | undefined): string {
+  return (headers ?? [])
+    .filter((h) => h.name && ROUTING_HEADERS.includes(h.name.toLowerCase()))
+    .map((h) => h.value ?? "")
+    .join(" ")
+    .toLowerCase();
+}
+
 // Walks multipart MIME parts for the plain-text body — most transactional
 // email is multipart/alternative with a text/plain part alongside
 // text/html. Falls back to tag-stripped HTML if no plain-text part exists.
@@ -73,6 +86,7 @@ export async function getMessage(refreshToken: string, messageId: string): Promi
       internalDate: Number(msg.internalDate ?? Date.now()),
       from: headerValue(headers, "From"),
       subject: headerValue(headers, "Subject"),
+      recipients: routingHaystack(headers),
     },
     text: extractPlainText(msg.payload),
   };

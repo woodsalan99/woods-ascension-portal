@@ -25,7 +25,18 @@
 // "Phone" value that carries a duplicated `tel:` link Google/the form
 // builder appends — both handled below.
 
-export type GmailMeta = { id: string; internalDate: number; from: string; subject: string };
+// `recipients` is every routing header we can see (To, Cc, Delivered-To,
+// X-Forwarded-For, ...) joined into one lowercase haystack. One shared
+// inbox receives mail for EVERY client, so these headers are the only
+// thing proving which client a message belongs to — see belongsToClient
+// on each matcher, and D56.
+export type GmailMeta = {
+  id: string;
+  internalDate: number;
+  from: string;
+  subject: string;
+  recipients: string;
+};
 export type ParseOutcome<T> = { ok: true; data: T } | { ok: false; reason: string };
 
 export type LsaParsed = {
@@ -63,12 +74,36 @@ export type VoicemailParsed = {
 export type GmailMatcherConfig = {
   formFromAddress: string; // e.g. "noreply@oahuhousepainters.com" — client-specific, disambiguates senders
   siteDomain?: string;
+  // The client's OWN address that Google sends Local Services mail to, before
+  // it forwards on to the shared inbox (e.g. "canenciapainting@gmail.com").
+  // Without it, an LSA email cannot be told apart from any other client's.
+  lsaToAddress?: string;
+  // TalkRoute mails the shared inbox directly and puts nothing about the
+  // business in the message, so ONE of these must be set to claim a
+  // voicemail: a named TalkRoute mailbox, or a distinct address/alias that
+  // this client's voicemails are forwarded to. See D56.
+  talkrouteMailbox?: string;
+  talkrouteToAddress?: string;
 };
 
 export interface Matcher<T> {
   provider: "LSA" | "ESTIMATE_FORM" | "TALKROUTE";
+  /** Is this the right KIND of email? Says nothing about which client owns it. */
   matches(meta: GmailMeta, cfg: GmailMatcherConfig): boolean;
+  /**
+   * Does this email belong to THIS client? Separate from matches() so the
+   * sync can tell "not my kind of mail" (ignore silently) apart from "my
+   * kind of mail but not my client" (ignore AND flag to Alan). Fails
+   * closed: no configured identifier means no claim. See D56.
+   */
+  belongsToClient(meta: GmailMeta, body: { text: string }, cfg: GmailMatcherConfig): boolean;
   parse(body: { text: string }, meta: GmailMeta): ParseOutcome<T>;
+}
+
+/** Case-insensitive "is this address named in the routing headers?" */
+function addressedTo(meta: GmailMeta, address: string | undefined): boolean {
+  if (!address || !address.trim()) return false;
+  return meta.recipients.includes(address.trim().toLowerCase());
 }
 
 function clean(s: string): string {
@@ -125,7 +160,18 @@ export const lsaMatcher: Matcher<LsaParsed> = {
   matches(meta) {
     // Sender domain is the stable signal; subject is a secondary check for
     // any future variant Google sends from a different address.
-    return /awexpress\.google\.com/i.test(meta.from) || /potential customer/i.test(meta.subject);
+    return (
+      /awexpress\.google\.com/i.test(meta.from) ||
+      /localservices-noreply@google\.com/i.test(meta.from) ||
+      /potential customer/i.test(meta.subject)
+    );
+  },
+  // Google addresses LSA mail to the client's own account and only then is
+  // it forwarded to the shared inbox, so the original recipient survives in
+  // To / Delivered-To / X-Forwarded-For. That address is the client's
+  // identity. No lsaToAddress configured => never claimed. See D56.
+  belongsToClient(meta, _body, cfg) {
+    return addressedTo(meta, cfg.lsaToAddress);
   },
   parse(body, meta) {
     const text = stripLsaNoise(clean(body.text));
@@ -216,6 +262,14 @@ export const formMatcher: Matcher<FormParsed> = {
     if (!cfg.formFromAddress) return false;
     return meta.from.toLowerCase().includes(cfg.formFromAddress.toLowerCase());
   },
+  // formFromAddress is already the client's own site, so matching on it has
+  // always been client-specific — this was the one catch-point that never
+  // leaked. Restated here so every matcher answers the tenancy question
+  // explicitly rather than by luck of implementation. See D56.
+  belongsToClient(meta, _body, cfg) {
+    if (!cfg.formFromAddress) return false;
+    return meta.from.toLowerCase().includes(cfg.formFromAddress.toLowerCase());
+  },
   parse(body) {
     const text = clean(body.text);
     // Boundary markers, not all of them fields: "Submitted:" stops the
@@ -282,6 +336,21 @@ export const talkrouteMatcher: Matcher<VoicemailParsed> = {
   provider: "TALKROUTE",
   matches(meta) {
     return /voicemail@talkroute\.com/i.test(meta.from) || /new voice message from/i.test(meta.subject);
+  },
+  // The hard one. TalkRoute mails the shared inbox DIRECTLY (To: is Alan,
+  // not the client) and the body names no business — the real leaked
+  // voicemail of 2026-08-04 said only "Mailbox: Default Mailbox". So there
+  // is nothing to attribute on unless Alan configures one of two things:
+  // a per-client mailbox NAME in TalkRoute, or a per-client forwarding
+  // address. With neither set this returns false and the voicemail is
+  // claimed by nobody — which is the correct outcome, because the
+  // alternative is handing one client another client's customer. See D56.
+  belongsToClient(meta, body, cfg) {
+    if (cfg.talkrouteMailbox?.trim()) {
+      const named = /Mailbox:\s*([^\n]+)/i.exec(body.text)?.[1]?.trim().toLowerCase();
+      if (named && named === cfg.talkrouteMailbox.trim().toLowerCase()) return true;
+    }
+    return addressedTo(meta, cfg.talkrouteToAddress);
   },
   parse(body, meta) {
     const text = clean(body.text);

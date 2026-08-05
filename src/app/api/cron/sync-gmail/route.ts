@@ -62,6 +62,10 @@ export async function GET(req: Request) {
 
       const config = integ.config as GmailMatcherConfig & { cursor?: GmailCursor };
       const cursor: GmailCursor = config.cursor ?? {};
+      // Known-kind messages this client couldn't prove it owns. Reported to
+      // Alan once per run rather than per message, so a misconfigured
+      // identifier doesn't turn into a notification storm. See D56.
+      const unattributed: { provider: string; messageId: string; subject: string }[] = [];
 
       let listResult;
       try {
@@ -104,6 +108,28 @@ export async function GET(req: Request) {
         if (!fetched) continue;
         const { meta, text } = fetched;
         messagesProcessed++;
+
+        // TENANCY GATE. One inbox receives mail for every client, so
+        // "is this an LSA email?" is not the same question as "is this MY
+        // client's LSA email?". Before D56 only the form matcher asked the
+        // second one, and a Pamalu voicemail was announced to Canencia's
+        // owners. Anything of a known kind that this client cannot prove
+        // ownership of is refused here — and reported to Alan only, so a
+        // mis-set config surfaces as an alert instead of silently eating
+        // real leads.
+        {
+          const kind = lsaMatcher.matches(meta, config)
+            ? lsaMatcher
+            : talkrouteMatcher.matches(meta, config)
+              ? talkrouteMatcher
+              : formMatcher.matches(meta, config)
+                ? formMatcher
+                : null;
+          if (kind && !kind.belongsToClient(meta, { text }, config)) {
+            unattributed.push({ provider: kind.provider, messageId: meta.id, subject: meta.subject });
+            continue;
+          }
+        }
 
         try {
         if (lsaMatcher.matches(meta, config)) {
@@ -494,6 +520,24 @@ export async function GET(req: Request) {
         where: { id: integ.id },
         data: { config: { ...config, cursor: listResult.newCursor }, lastSyncAt: new Date(), status: "ACTIVE", lastError: null },
       });
+
+      // Admin-only: something arrived that looks like a real lead but could
+      // not be tied to this client. Either it belongs to a different client
+      // (correct to refuse) or this client's identifier is unset/wrong (needs
+      // fixing) — both need Alan's eyes, neither should reach the client.
+      if (unattributed.length > 0) {
+        const byProvider = [...new Set(unattributed.map((u) => u.provider))].join(", ");
+        await notify({
+          clientId: integ.clientId,
+          kind: "SYNC_FAILURE",
+          title: `${unattributed.length} message(s) not claimed by ${integ.client.name}`,
+          message:
+            `${unattributed.length} ${byProvider} message(s) reached the shared inbox but couldn't be confirmed as ${integ.client.name}'s, so no lead was created and nobody was notified. ` +
+            `If these are genuinely theirs, set the matching identifier on their Gmail integration. Subjects: ` +
+            unattributed.slice(0, 5).map((u) => `"${u.subject}"`).join(", "),
+          toClient: false,
+        });
+      }
 
       // Watchdog (handoff §3.2 "Watchdog"): if this client has produced no
       // form-derived FormSubmission rows (including spam) in the trailing
