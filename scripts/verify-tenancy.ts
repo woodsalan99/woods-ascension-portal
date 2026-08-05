@@ -48,10 +48,29 @@ async function main() {
   });
   const forms = await prisma.formSubmission.findMany({ select: { gmailMessageId: true } });
 
+  // EVERY voicemail in the inbox. Canencia's TalkRoute account forwards to
+  // the +1 alias, the roofing client's to the plain address — so the
+  // expected answer is decided by where it was routed, and any message
+  // whose claim disagrees with its routing is a real bug.
+  const gmailForList = google.gmail({ version: "v1", auth: clientFromRefreshToken(refreshToken) });
+  const vmList = await gmailForList.users.messages.list({
+    userId: "me",
+    q: "from:voicemail@talkroute.com",
+    maxResults: 100,
+  });
+  const voicemails = await Promise.all(
+    (vmList.data.messages ?? []).map(async (m) => {
+      const r = await gmailForList.users.messages.get({ userId: "me", id: m.id!, format: "metadata", metadataHeaders: ["Delivered-To", "To"] });
+      const hs = r.data.payload?.headers ?? [];
+      const to = (hs.find((x) => x.name?.toLowerCase() === "delivered-to")?.value ?? hs.find((x) => x.name?.toLowerCase() === "to")?.value ?? "").toLowerCase();
+      return { label: `voicemail routed to ${to}`, id: m.id!, shouldBelong: to.includes("woodsalan99+1@gmail.com") };
+    }),
+  );
+
   const cases = [
     ...leads.map((l) => ({ label: `historical lead (${l.source})`, id: l.gmailMessageId!, shouldBelong: true })),
     ...forms.map((f) => ({ label: "historical form submission", id: f.gmailMessageId!, shouldBelong: true })),
-    { label: "PAMALU voicemail (the leak)", id: "19fcf1f9f67e30a3", shouldBelong: false },
+    ...voicemails,
   ];
 
   console.log("Canencia config:", JSON.stringify({
