@@ -16,6 +16,17 @@ import { sendEmail } from "@/lib/gmail";
 // all (currently off for Bryan/Desiree by Alan's explicit instruction).
 export type NotificationKind = "NEW_LEAD" | "TASK_SUBMISSION" | "WATCHDOG" | "SYNC_FAILURE" | "REVIEW_REQUEST";
 
+// The ONLY kinds a client's own people may ever receive. Everything else —
+// sync failures, watchdogs, task submissions, review requests — is our
+// plumbing and goes to Alan alone.
+//
+// Enforced here rather than trusting each call site to pass toClient:false,
+// because `toClient` defaults to TRUE: a new internal notification that
+// forgets the flag would quietly start paging the client. Alan's rule,
+// verbatim: "I don't want them to be getting any 'admin' / internal type of
+// notifications, ONLY lead notifies." See D57.
+const CLIENT_VISIBLE_KINDS: ReadonlySet<NotificationKind> = new Set<NotificationKind>(["NEW_LEAD"]);
+
 async function sendPushover(
   userKey: string,
   channelToken: string | null,
@@ -81,11 +92,17 @@ export async function notify(params: {
 }): Promise<void> {
   const { clientId, kind, title, message, emailBody, toClient = true, payload = {} } = params;
 
+  // Two gates, both must agree before a client's people are included: the
+  // caller has to ask for it AND the kind has to be one they're ever
+  // allowed to see. A channel with clientId null is Alan's own and always
+  // receives everything.
+  const reachesClient = toClient && CLIENT_VISIBLE_KINDS.has(kind);
+
   const channels = await prisma.notificationChannel.findMany({
     where: {
       active: true,
       channel: emailBody ? { in: ["PUSHOVER", "EMAIL"] } : "PUSHOVER",
-      OR: [{ clientId: null }, ...(toClient ? [{ clientId }] : [])],
+      OR: [{ clientId: null }, ...(reachesClient ? [{ clientId }] : [])],
     },
   });
 

@@ -41,6 +41,9 @@ export async function GET(req: Request) {
   let leadsCreated = 0;
   let spamLogged = 0;
   let parseFailures = 0;
+  // Messages Gmail listed but that no longer exist. Normal background noise
+  // (deleted/purged mail), reported in the run result rather than as an alert.
+  let vanishedMessages = 0;
 
   try {
     const integrations = await prisma.clientIntegration.findMany({
@@ -92,15 +95,24 @@ export async function GET(req: Request) {
         try {
           fetched = await getMessage(refreshToken, messageId);
         } catch (err) {
-          // Same transient-error handling as above, but per-message: skip
-          // this message, don't advance the cursor for this integration
-          // this run, so it (and any not-yet-processed messages) are
-          // retried next run.
+          const emsg = err instanceof Error ? err.message : String(err);
+          // A 404 here is PERMANENT, not transient. Gmail's history.list
+          // still reports a message that was added and has since been
+          // deleted or purged, so the id it hands us can no longer be
+          // fetched. There is nothing to retry and nothing wrong with the
+          // connection — counting it is right, paging Alan every few
+          // minutes about mail that no longer exists is not. See D57.
+          if (/not found|404/i.test(emsg)) {
+            vanishedMessages++;
+            continue;
+          }
+          // Anything else genuinely is a transient/API problem worth
+          // hearing about — and now says WHICH message, so it's diagnosable.
           await notify({
             clientId: integ.clientId,
             kind: "SYNC_FAILURE",
             title: "Gmail sync failure",
-            message: `Failed to fetch a Gmail message for ${integ.client.name}: ${err instanceof Error ? err.message : String(err)}`,
+            message: `Failed to fetch Gmail message ${messageId} for ${integ.client.name}: ${emsg}`,
             toClient: false,
           });
           continue;
@@ -576,7 +588,7 @@ export async function GET(req: Request) {
       },
     });
 
-    return Response.json({ ok: true, messagesProcessed, leadsCreated, spamLogged, parseFailures });
+    return Response.json({ ok: true, messagesProcessed, leadsCreated, spamLogged, parseFailures, vanishedMessages });
   } catch (err) {
     await prisma.syncRun.update({
       where: { id: syncRun.id },
